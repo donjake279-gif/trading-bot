@@ -1,0 +1,21 @@
+# Python 3.11 or 3.12, 64-bit. Live/demo trading requires Windows (MetaTrader5 package).
+MetaTrader5>=5.0.45; sys_platform == "win32"
+numpy>=1.26
+pandas>=2.1
+pyarrow>=15.0          # parquet history cache
+pydantic>=2.6          # config validation
+PyYAML>=6.0
+python-dotenv>=1.0
+tzdata>=2024.1         # IANA timezone database — REQUIRED on Windows for zoneinfo
+streamlit>=1.33        # dashboard (separate process)
+plotly>=5.20           # equity curves / reports
+scipy>=1.12            # statistics (Sharpe/Sortino, deflated Sharpe)
+
+# Stage-2 ML (optional; installed only when STEP 21 work starts)
+# scikit-learn>=1.4
+# lightgbm>=4.3
+
+# Development
+pytest>=8.0
+mypy>=1.9
+ruff>=0.4

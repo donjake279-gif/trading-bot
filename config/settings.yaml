@@ -1,0 +1,227 @@
+# =============================================================================
+# MT5 Trading System — configuration (v0.3, validated by core/config.py)
+# Every value here is an INITIAL, UN-OPTIMIZED default. Values that are later
+# changed through research must be recorded in the experiment registry.
+# Validated strictly on load: unknown keys and unsafe values are rejected.
+# Credentials never go here — see .env.example.
+# =============================================================================
+
+app:
+  mode: demo                 # demo | shadow | live | backtest   (DEFAULT: demo)
+  strategy_code: S1v1        # short code written into MT5 order comments
+  strategy_version: "1.0.0"
+  magic_base: 731000         # magic = magic_base + strategy slot; bot touches ONLY its own magics
+  timezone_display: Australia/Sydney   # display only; all internal time is UTC
+
+live:                        # all three are required for live mode (see ARCHITECTURE §9)
+  enabled: false
+  acknowledge_risk: ""       # must equal: I UNDERSTAND REAL MONEY IS AT RISK
+  startup_entry_delay_seconds: 60
+  # plus environment variable MT5BOT_LIVE_CONFIRM=<account login number>
+
+mt5:
+  attach_to_running_terminal: true   # recommended: no password needed in env
+  connect_timeout_ms: 60000
+  reconnect_backoff_max_seconds: 60
+  auto_resolve_symbol_suffix: true   # e.g. EURUSD -> EURUSD.i when the broker adds a suffix
+
+broker_time:
+  rule: ny_close             # ny_close | iana:<Zone> | fixed:<+-hours>
+  max_offset_mismatch_minutes: 0
+  max_local_clock_drift_seconds_warn: 5
+  max_local_clock_drift_seconds_block: 60
+
+trading_day:
+  boundary_timezone: America/New_York
+  boundary_time: "17:00"     # FX day roll; daily/weekly limits reset here
+
+loop:
+  poll_interval_ms: 500
+  management_timeframe: M1
+
+symbols:                     # per-symbol absolute spread caps in POINTS (1 pip = 10 points on 5-digit)
+  - { name: EURUSD, max_spread_points: 15, backtest_min_spread_points: 6 }
+  - { name: GBPUSD, max_spread_points: 20, backtest_min_spread_points: 9 }
+  - { name: AUDUSD, max_spread_points: 18, backtest_min_spread_points: 8 }
+  - { name: USDJPY, max_spread_points: 18, backtest_min_spread_points: 8 }
+  - { name: EURAUD, max_spread_points: 30, backtest_min_spread_points: 15 }
+
+timeframes:                  # multi-timeframe roles (ARCHITECTURE §4, STEP 2 defines usage)
+  context: H1                # directional context / filter only — never forces a trade
+  structure: M15
+  setup: M15
+  entry: M5
+  bars_to_load: { M1: 3000, M5: 2000, M15: 2000, M30: 1500, H1: 1500 }   # >= 1100 needed for warm-up convergence
+
+data:
+  max_tick_age_seconds: 30
+  bar_grace_seconds: 20
+  closed_bar_settle_seconds: 5       # a last bar with no newer bar counts as closed only this long after its close
+  download_chunk_days: 31
+
+strategy:                    # S1 Structure Pullback Continuation — see docs/STRATEGY.md
+  name: S1_structure_pullback
+  # --- the ONLY tunable parameters (pre-declared walk-forward grid, STRATEGY §10)
+  target_rr: 2.0             # grid: 1.5, 2.0, 2.5, 3.0
+  stop_buffer_atr5: 0.25     # grid: 0.10, 0.25, 0.50
+  pullback_r_min: 0.382      # grid: 0.382, 0.50, 0.618
+  # --- fixed a priori (never tuned)
+  atr_period: 14
+  swing_k: { H1: 3, M15: 3, M5: 2 }
+  swing_min_atr: 1.0         # lambda: min distance between opposite significant swings
+  equal_level_atr: 0.1       # epsilon for HH/LH/EH labelling
+  sweep_max_depth_atr: 1.0
+  min_impulse_atr15: 1.5
+  max_leg_age_m15_bars: 48
+  stop_min_atr15: 0.5
+  stop_max_atr15: 2.5
+  min_obstacle_R: 1.0
+  min_net_rr: 1.5
+  htf_mode: veto_opposite    # veto_opposite | score_only
+  min_score: 60
+  regime_trend_max_bars: 48
+  compression_bars: 20
+  compression_atr: 3.0
+  momentum_bars: 12
+  # ATR-percentile band (20–95) lives in volatility_filter below — single source of truth
+
+scoring:                     # weights fixed a priori (NOT optimized) — must sum to 100
+  market_structure: 20
+  trend_alignment: 15
+  liquidity_event: 15
+  entry_confirmation: 20
+  volatility: 10
+  risk_reward: 10
+  htf_confirmation: 10
+
+risk:
+  risk_per_trade_pct: 0.5    # allowed range enforced by validator: 0.1 – 1.0
+  sizing_equity_base: min_balance_equity   # equity | balance | min_balance_equity
+  max_open_positions: 3
+  max_positions_per_symbol: 1
+  max_trades_per_day: 4
+  max_currency_risk_pct: 1.0       # net signed risk per currency (e.g. USD)
+  max_correlated_risk_pct: 1.0
+  max_margin_usage: 0.30           # of free margin
+  max_volume_per_trade: 5.0
+  drawdown_risk_reduction:         # may only REDUCE risk
+    enabled: false
+    drawdown_pct_threshold: 4.0
+    risk_multiplier: 0.5
+
+correlation:
+  lookback_days: 60
+  timeframe: H1
+  threshold_abs: 0.7
+
+circuit_breakers:
+  max_consecutive_losses: 3
+  max_daily_drawdown_pct: 2.0
+  max_weekly_drawdown_pct: 4.0
+  max_total_drawdown_pct: 8.0      # manual reset only
+  max_exceptions_per_hour: 5
+  max_order_failures_per_hour: 3
+  close_positions_on_trip:         # default: keep managing, only block entries
+    consec_losses: false
+    daily_dd: false
+    weekly_dd: false
+    total_dd: false
+
+safety:
+  symbol_quarantine_cycles: 120
+
+sessions:                          # defined in each centre's LOCAL time → DST handled by tz database
+  definitions:
+    asia:     { timezone: Asia/Tokyo,        start: "09:00", end: "15:00" }
+    london:   { timezone: Europe/London,     start: "08:00", end: "16:30" }
+    new_york: { timezone: America/New_York,  start: "08:00", end: "17:00" }
+  overlap_london_ny: true          # derived session name for reporting
+  allowed_for_entries: [london, new_york]
+  avoid_minutes_around_day_roll: 30   # rollover spreads widen
+
+spread:
+  window_minutes: 1440
+  max_multiple_of_typical: 2.0
+
+execution:
+  max_deviation_points: 10
+  max_retries: 2                   # transient retcodes only; never for UNKNOWN without verification
+  retry_backoff_ms: 750
+  max_cost_R: 0.20                 # (spread+commission+slippage)/stop_distance
+  verify_window_seconds: 120
+  min_seconds_between_modifications: 10
+
+costs:                             # used for pre-trade cost checks AND backtests
+  commission_per_lot_per_side: 3.5 # account currency — set to your broker's value
+  expected_slippage_points: 2
+
+volatility_filter:                 # exact definition in STEP 2
+  atr_period: 14
+  atr_percentile_lookback: 500
+  min_percentile: 20
+  max_percentile: 95
+
+news:
+  enabled: false                   # enable once CalendarExporter.mq5 is installed and verified
+  feed_file: calendar_events.csv   # in MT5 Common/Files
+  importance: [high]
+  before_minutes: 30
+  after_minutes: 15
+  max_feed_age_minutes: 90
+  on_unavailable: block_entries    # block_entries | ignore
+
+cooldown:
+  one_entry_per_setup: true        # always true; kept visible for transparency
+  max_entries_per_symbol_per_session: 1
+  minutes_after_close: 30
+  minutes_after_loss: 60
+
+management:                        # each variant is backtested SEPARATELY
+  break_even:     { enabled: false, trigger_R: 1.0, offset_points: 0 }
+  partial_close:  { enabled: false, trigger_R: 1.5, fraction: 0.5 }
+  atr_trailing:   { enabled: false, atr_period: 14, atr_multiple: 2.0, activate_R: 1.0 }
+  structure_trailing: { enabled: false, activate_R: 1.0 }
+  time_exit:      { enabled: false, max_bars: 96 }
+
+storage:
+  live_db: data/live.sqlite
+  research_db: data/research.sqlite
+  emergency_log_dir: logs
+
+dashboard:
+  refresh_seconds: 2
+  command_ttl_seconds: 30
+
+backtest:
+  base_timeframe: M1
+  history_dir: data/history
+  splits:
+    development: { start: "2020-01-01", end: "2023-12-31" }
+    validation:  { start: "2024-01-01", end: "2024-12-31" }
+    final_oos:   { start: "2025-01-01", end: latest }   # SEALED — see ARCHITECTURE §11.2
+  initial_balance: 10000
+  intrabar_conflict: stop_first
+  random_seed: 42
+  cost_stress_multipliers: [1.0, 1.5, 2.0]
+
+walk_forward:
+  train_months: 18
+  test_months: 6
+  step_months: 6
+  max_parameters: 3
+  max_values_per_parameter: 5
+  selection: plateau_median
+
+monte_carlo:
+  simulations: 10000
+  methods: [iid_bootstrap, block_bootstrap]
+  block_length_trades: 10
+  ruin_drawdown_pct: 20
+
+robustness:
+  min_trades_total: 300
+  min_trades_per_bucket: 30
+  max_symbol_profit_share: 0.60
+  max_month_profit_share: 0.25
+  min_validation_to_dev_ratio: 0.5
+  max_param_neighbour_change: 0.5
