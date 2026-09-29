@@ -299,7 +299,7 @@ class StructureTracker:
         events: list[BreakEvent | SweepEvent] = []
 
         # 1) newly CONFIRMED fractals -> significant swings -> resting levels
-        for kind, pivot, pivot_atr in self._fractals.update(bar, atr):
+        for kind, pivot, pivot_atr in self._order_outside_pivot(self._fractals.update(bar, atr)):
             accepted, replaced = self.swings.process(kind, pivot, pivot_atr, bar)
             if accepted is None:
                 continue
@@ -336,6 +336,26 @@ class StructureTracker:
         self._hl.append((bar.high, bar.low))
         self.last_bar = bar
         return events
+
+    def _order_outside_pivot(
+        self, found: list[tuple[SwingKind, Bar, float | None]]
+    ) -> list[tuple[SwingKind, Bar, float | None]]:
+        """A pivot that is both a fractal high and a fractal low (an outside bar) is processed in the order
+        its extremes were most likely printed, so LONG and SHORT stay exact mirrors (STRATEGY §2.2):
+        up bar -> low first; down bar -> high first; doji -> the extreme nearer the open first; still tied ->
+        the kind opposite to the last significant swing first (with no swing yet the pivot is ambiguous and
+        dropped; that can only happen at the very start of the data, inside warm-up)."""
+        if len(found) < 2:
+            return found
+        pivot = found[0][1]
+        low_first_votes = (pivot.close - pivot.open, (pivot.high - pivot.open) - (pivot.open - pivot.low))
+        low_first = next((v > 0 for v in low_first_votes if v != 0), None)
+        if low_first is None:
+            if not self.swings.swings:
+                return []
+            low_first = self.swings.swings[-1].kind is SwingKind.HIGH
+        first = SwingKind.LOW if low_first else SwingKind.HIGH
+        return sorted(found, key=lambda f: f[0] is not first)
 
     def _check_breaks(self, bar: Bar) -> list[BreakEvent]:
         out: list[BreakEvent] = []

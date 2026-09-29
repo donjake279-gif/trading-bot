@@ -53,6 +53,12 @@ With lookback `k`, bar `p` is a **fractal high** if
 A fractal at `p` is only **known at bar `p + k`** (its *confirmation index*). Any rule evaluated at bar `t`
 may only use fractals with `p + k ≤ t`. Defaults: `k_H1 = 3`, `k_M15 = 3`, `k_M5 = 2`.
 
+An outside bar can be a fractal high **and** a fractal low at once. The two are then fed to §2.3 in the order the bar most
+likely printed them: an up bar (`C > O`) made its low first, a down bar its high first, and a doji the extreme nearer its
+open first. If that is still a tie, the kind opposite to the last significant swing goes first. With no swing yet, the
+ambiguous pivot is dropped, which can only happen at the very start of the data. *(Added in STEP 5. Before this, the high
+always went first, so SHORT structure was not an exact mirror of LONG structure.)*
+
 ### 2.3 Significant swings (noise filter)
 Fractals are processed in order of confirmation into an **alternating** high/low sequence:
 1. If the new fractal is the same type as the last accepted swing: it **replaces** the last swing if it is more
@@ -284,6 +290,7 @@ That is 36 combinations. The winner is chosen by neighbourhood median, not by th
 | Entering at the signal close | §5 | Live: order after the close at the current ask. Backtest: next bar open + spread + slippage |
 | ATR percentile | §2.11 | Trailing window that includes `t` only |
 | Obstacles | §2.12 | Only swings confirmed ≤ t; PDH/PDL come from completed days |
+| Pullback / invalidation scan | §13 | Only bars whose close is ≤ the trigger bar's close are read. A test re-runs every trigger on frames cut at `t` |
 | Same-bar SL/TP ambiguity | backtest | Stop is assumed hit first |
 
 ---
@@ -297,3 +304,59 @@ That is 36 combinations. The winner is chosen by neighbourhood median, not by th
   reported per symbol and per year.
 - Trade frequency is unknown until STEP 11. If it is under about 75 trades per year across all symbols, the statistics will be weak,
   and I'll tell you so rather than stretch conclusions.
+
+---
+
+## 13. How the rules are applied in code (added in STEP 5)
+
+The spec above leaves a few details open. Here is how `core/strategy.py` settles each one. None of these changes a rule;
+they only pin down the details.
+
+**When S1 is evaluated.** Only when its trigger fires: an M5 CHoCH on the **last closed** M5 bar, in the direction of an
+active M15 leg (M15 state `BULL` with a bullish leg for LONG). A trigger is ignored once it is a full M5 bar old, so events
+replayed while the engine warms up after a restart never produce a setup. An M5 CHoCH with no matching M15 leg is not an
+S1 setup and is not journaled.
+
+**No hidden state.** At each trigger, B, PL and every invalidation are recomputed from the closed bars between the start of
+the M15 break bar and the trigger bar. A restarted bot therefore reaches exactly the same verdict, and live trading and
+backtests share one code path. A test checks that the live bar windows (`bars_to_load`) give the same verdicts as the full
+history.
+
+**B and the pullback at M5 resolution** (§2.6–2.7). The M5 bars are replayed in order:
+- B is the highest M5 high since the start of the break bar (LOWEST low for SHORT). This equals the M15 definition, and it
+  also sees new highs made inside the M15 bar that is still forming. Equal highs resolve to the first one, as for fractals.
+- A new B restarts the pullback (invalidation 2). The bar that made B is **not** part of the pullback, because its range lies
+  before or around B. Counting it would let the impulse bar itself satisfy L4.
+- PL is the lowest M5 low **after** the B bar, up to and including the trigger bar.
+
+**Invalidations are permanent.** Once the pullback has reached A on any M5 bar (r ≥ 1), or any M15 bar after the break has
+closed beyond A, the leg is dead (invalidation 1). The same applies once B is older than 48 M15 bars (invalidation 3). A
+later new extreme does not revive the leg. Invalidation 4 (M15 flips) replaces the leg, and invalidation 5 (trigger used)
+is the dedupe gate: one entry per setup id.
+
+**Leg age (L5)** is counted in M5 bars: 48 M15 bars = 144 M5 bars after the B bar. Counting bars rather than hours means a
+weekend does not age a leg.
+
+**History limit.** The scan reads the loaded M5 history (2,000 bars ≈ 7 trading days live). If B lies before that window,
+the leg counts as stale. A leg whose invalidation happened entirely before the window cannot be re-checked, but a leg that
+old is almost always replaced by a newer M15 break first.
+
+**Trigger (L6).** "Formed after B" means that the pivot bar of the broken M5 swing opens at or after the close of the B bar.
+If the trigger bar itself makes a new extreme, the leg has resumed, there is no pullback, and L4 and L6 fail.
+
+**Stop, costs, candidate.** E is the current ask (LONG) or bid (SHORT). `typical_spread` is the rolling median spread, or
+the current spread until enough samples exist. Commission is converted to price units with the broker's value of a 1.0
+price move per lot (`loss_per_lot / distance`), which handles JPY pairs and crosses. The candidate's `invalidation_price` is
+A, and it expires one M5 bar after the trigger bar closes.
+
+**Liquidity score** (§7). The M15 component counts a sweep on an M15 bar that closes **after** the M15 bar containing B. The
+M5 component counts a sweep on an M5 bar after the B bar. SHORT uses the mirrored close location `1 − CLV`. When a weight in
+`settings.yaml` is changed, the partial scores keep their proportions: NONE earns 7/15 of the trend weight, an M5-only sweep
+10/15 of the liquidity weight, and the entry score is split 12/20 body and 8/20 CLV.
+
+**What is recorded.** Each trigger yields an `S1Evaluation` with rule checks `L0_ready` (warm-up), `L1_leg` … `L9_costs`.
+Every check that can be measured is recorded, even after an earlier one fails, together with the full `S1Measures`. The
+signal engine scores only valid setups, and `min_score_gate` applies L10.
+
+**Mirror guarantee.** A test runs the full pipeline (structure engine → S1 → score) on a price series and on its exact mirror
+(`p → K − p`). Every LONG verdict must match its SHORT twin: the same rules pass and fail, mirrored prices, the same score.

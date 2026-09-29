@@ -8,8 +8,13 @@ precisely defined strategy has a statistically defensible edge with controlled r
 |---|---|
 | 1 Architecture (`docs/ARCHITECTURE.md`) | done |
 | 2 Strategy spec (`docs/STRATEGY.md`) | done |
-| 3 MT5 connection + market data + history download | **done** |
-| 4+ Market analysis, signals, risk, execution… | not yet. **The bot cannot place trades yet** |
+| 3 MT5 connection + market data + history download | done |
+| 4 Indicators + market structure (swings, BOS/CHoCH, legs, sweeps) | done |
+| 5 Strategy S1 rules + signal score (`core/strategy.py`, `core/signal_engine.py`) | **done** |
+| 6+ Position sizing, risk, execution, safety… | not yet. **The bot cannot place trades yet** |
+
+STEP 5 finds S1 setups and scores them, but nothing acts on them yet. How each rule is applied in code
+is in `docs/STRATEGY.md` §13.
 
 ## Setup (Windows)
 
@@ -21,7 +26,7 @@ precisely defined strategy has a statistically defensible edge with controlled r
    ```
    python -m pip install -r requirements.txt
    ```
-3. Run the tests (should print `68 passed`):
+3. Run the tests (should print `170 passed`, about 20 seconds):
    ```
    python -m pytest -q
    ```

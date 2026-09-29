@@ -112,6 +112,30 @@ def replace_hl(bar: Bar, high: float, low: float) -> Bar:
     return Bar(bar.index, bar.time_open, bar.time_close, low, high, low, high, bar.volume)
 
 
+@pytest.mark.parametrize("pivot", [
+    (1.01, 1.05, 0.98, 1.04),   # up bar: the low was printed first
+    (1.03, 1.05, 0.98, 1.01),   # down bar: the high was printed first
+    (1.02, 1.05, 0.98, 1.02),   # doji: the extreme nearer the open first (here the high)
+], ids=["up", "down", "doji"])
+def test_outside_pivot_is_processed_mirror_symmetrically(pivot: tuple[float, float, float, float]) -> None:
+    """A pivot that is both a fractal high and a fractal low must give the exact mirror structure for
+    mirrored prices (STRATEGY §1: every SHORT rule mirrors the LONG rule)."""
+    ohlc = [(1.00, 1.01, 0.99, 1.00), (1.00, 1.02, 0.995, 1.01), pivot, (1.04, 1.045, 0.985, 1.00),
+            (1.00, 1.03, 0.99, 1.02)]
+    k_mirror = 2.0
+    mirrored = [(k_mirror - o, k_mirror - lo, k_mirror - h, k_mirror - c) for o, h, lo, c in ohlc]
+    params = StructureParams(k=2, atr_period=2, swing_min_atr=0.1)
+    a, _ = run(bars_from(ohlc), params)
+    b, _ = run(bars_from(mirrored), params)
+    seq_a = [(s.kind, s.price) for s in a.swings.swings]
+    seq_b = [(SwingKind.HIGH if s.kind is SwingKind.LOW else SwingKind.LOW, k_mirror - s.price) for s in b.swings.swings]
+    assert len(seq_a) == 2 and [k for k, _ in seq_a] == [k for k, _ in seq_b]
+    assert [p for _, p in seq_a] == pytest.approx([p for _, p in seq_b])
+    o, h, lo, c = pivot
+    low_first = c > o or (c == o and o - lo < h - o)
+    assert seq_a[0][0] is (SwingKind.LOW if low_first else SwingKind.HIGH)
+
+
 # ----------------------------------------------------------------------------- BOS / CHoCH / legs
 
 
