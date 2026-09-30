@@ -154,7 +154,7 @@ def test_r_multiple_uses_initial_risk_and_net_pnl() -> None:
 
 PURE_MODULES = {
     "indicators", "market_structure", "strategy", "signal_engine", "position_sizer",
-    "exposure", "exits", "session_manager", "filters", "types",
+    "exposure", "exits", "session_manager", "filters", "types", "risk_manager",
 }
 FORBIDDEN_FOR_PURE = {"MetaTrader5", "sqlite3", "requests", "streamlit", "core.mt5_connection",
                       "core.orchestrator", "storage", "backtest", "dashboard"}
