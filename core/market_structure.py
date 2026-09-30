@@ -20,7 +20,7 @@ import hashlib
 from collections import deque
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 import numpy as np
@@ -30,6 +30,15 @@ from core.config import StrategyCfg, VolatilityFilterCfg
 from core.indicators import Candle, Momentum, RelativeTickVolume, RollingPercentile, WilderATR
 from core.timeutils import trading_day_start, trading_week_start
 from core.types import Timeframe
+
+
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def _epoch_ns(ts: datetime) -> int:
+    """Exact nanoseconds since the epoch for a tz-aware datetime (no float rounding)."""
+    delta = ts - _EPOCH
+    return ((delta.days * 86_400 + delta.seconds) * 1_000_000 + delta.microseconds) * 1_000
 
 
 class SwingKind(str, Enum):
@@ -395,20 +404,16 @@ class StructureTracker:
     def _check_sweeps(self, bar: Bar, atr: float) -> list[SweepEvent]:
         out: list[SweepEvent] = []
         max_depth = self.p.sweep_max_depth_atr * atr
-        for s in self._lows:
-            if s.key in self._swept:
-                continue
+        for s in self._lows:  # cheap price test first; the swept-set lookup only for real candidates
             depth = s.price - bar.low
-            if bar.low < s.price and bar.close > s.price and depth <= max_depth:
+            if bar.low < s.price and bar.close > s.price and depth <= max_depth and s.key not in self._swept:
                 self._swept.add(s.key)
                 ev = SweepEvent(self.tf, 1, s, bar.index, bar.time_close, bar.low, depth / atr)
                 self._sweeps.append(ev)
                 out.append(ev)
         for s in self._highs:
-            if s.key in self._swept:
-                continue
             depth = bar.high - s.price
-            if bar.high > s.price and bar.close < s.price and depth <= max_depth:
+            if bar.high > s.price and bar.close < s.price and depth <= max_depth and s.key not in self._swept:
                 self._swept.add(s.key)
                 ev = SweepEvent(self.tf, -1, s, bar.index, bar.time_close, bar.high, depth / atr)
                 self._sweeps.append(ev)
@@ -573,7 +578,7 @@ class AnalysisEngine:
         If a frame no longer overlaps the bars already processed (e.g. the bot was offline
         longer than the live window), all trackers are rebuilt from the frames (``resets`` += 1).
         """
-        decision_np = np.datetime64(pd.Timestamp(decision_time).tz_convert("UTC").tz_localize(None), "ns")
+        decision_np = np.datetime64(_epoch_ns(decision_time), "ns")
         pending: list[tuple[np.datetime64, int, Timeframe, int, tuple[np.ndarray, ...]]] = []
         for tf in self.trackers:
             if tf not in frames:
@@ -598,7 +603,7 @@ class AnalysisEngine:
         events: list[BreakEvent | SweepEvent] = []
         for _, _, tf, j, (times, o, h, low, c, v) in pending:
             tracker = self.trackers[tf]
-            t_open = pd.Timestamp(times[j]).tz_localize("UTC").to_pydatetime()
+            t_open = _EPOCH + timedelta(microseconds=int(times[j].astype(np.int64)) // 1000)
             bar = Bar(tracker.index + 1, t_open, t_open + tf.delta, float(o[j]), float(h[j]), float(low[j]),
                       float(c[j]), float(v[j]))
             events.extend(tracker.update(bar))

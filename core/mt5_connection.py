@@ -217,6 +217,13 @@ class MT5Gateway(BrokerGateway):
             filling_modes=frozenset(filling),
         )
 
+    def swap_terms(self, symbol: str) -> dict[str, float | int]:
+        """Overnight financing as the broker reports it (saved for the backtester's swap model)."""
+        s = self._call("symbol_info", self._b(symbol))
+        return {"swap_mode": int(getattr(s, "swap_mode", 0)), "swap_long": float(getattr(s, "swap_long", 0.0)),
+                "swap_short": float(getattr(s, "swap_short", 0.0)),
+                "swap_rollover3days": int(getattr(s, "swap_rollover3days", 3))}
+
     # ------------------------------------------------------------------ prices
     def quote(self, symbol: str) -> Quote:
         t = self._call("symbol_info_tick", self._b(symbol))

@@ -158,6 +158,7 @@ class ExitReason(str, Enum):
     INVALIDATION = "invalidation"
     TIME_EXIT = "time_exit"
     MISSING_SL_PROTECTION = "missing_sl_protection"
+    END_OF_TEST = "end_of_test"  # backtest only: still open when the test period ended
     UNKNOWN = "unknown"
 
 

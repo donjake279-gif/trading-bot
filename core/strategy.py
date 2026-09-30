@@ -343,6 +343,12 @@ class S1Strategy:
                 return event if timedelta(0) <= age < self.p.entry_tf.delta else None
         return None
 
+    def triggered(self, snap: AnalysisSnapshot) -> bool:
+        """Cheap pre-check: does any trigger fire on the last closed entry bar? Lets callers skip pricing
+        (quotes, costs) on the vast majority of bars, where S1 has nothing to evaluate."""
+        entry = snap.frames[self.p.entry_tf]
+        return any(self.trigger(entry, d, snap.decision_time) is not None for d in (Direction.LONG, Direction.SHORT))
+
     def evaluate(self, snap: AnalysisSnapshot, frames: Mapping[Timeframe, pd.DataFrame],
                  market: MarketCosts) -> list[S1Evaluation]:
         """Evaluate every trigger on the last closed entry bar that belongs to an active leg.

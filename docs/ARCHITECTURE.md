@@ -564,6 +564,22 @@ MFE/MAE are tracked from M1 highs and lows (live and sim alike) while the positi
 | 14 | demo autonomous trading | ≥ several weeks of demo; live-vs-backtest slippage/fill comparison |
 | 15 | live safeguards (+ optional guardian EA) | only if 12 and 14 justify it |
 
+**Build order change (agreed after STEP 5).** The research path comes first, so the go/no-go answer arrives before
+any live plumbing is built: STEP 6 → gates and circuit breakers (pure modules from STEPS 6 and 9) → STEP 11 → STEP 12.
+STEPS 7–10 and 13–15 follow only if S1 passes. How the backtester relates to the design above:
+- Every *decision* module is shared with live trading: `AnalysisEngine`, `S1Strategy`, `SignalEngine`,
+  `Gatekeeper` (session, spread, volatility, news, cooldown, min score, circuit breakers), `RiskManager`,
+  `position_sizer`, `exposure`. Only the loop and the fills are simulation-specific (`backtest/backtester.py`,
+  `backtest/sim_broker.py`). The live orchestrator (STEP 14) will call the same modules in the same order.
+- `SimBroker` implements the parts of `BrokerGateway` the research needs. The full port (orders, modify, close,
+  deals) arrives with STEP 7, so management variants can be simulated through it.
+- Baseline exits (M0: fixed SL/TP) are known at entry, so each exit is found with one vectorised scan over M1 bars.
+- Broker facts for offline research (specs, swap terms, account currency, leverage) are saved by `download-data`
+  to `data/history/symbol_specs.json`.
+- The news filter cannot be backtested (no historical calendar): it is off in research runs, and the report says so.
+- A `TOTAL_DD` breaker trip is recorded and then reset in research runs, so the rest of the period is still
+  measured; live, it halts entries until a manual reset.
+
 ---
 
 ## 15. Honest risks to the project

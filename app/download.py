@@ -13,6 +13,7 @@ from backtest.data_loader import (
     required_conversion_symbols,
     write_quality_reports,
 )
+from backtest.specs import SPECS_FILE, save_broker_facts
 from core.clock import LiveClock
 from core.config import Credentials, Settings
 from core.errors import SymbolResolutionError
@@ -54,6 +55,9 @@ def run_download(settings: Settings, creds: Credentials, start: datetime, end: d
         print("This can take a while the first time (MT5 fetches history from the broker).")
 
         root = project_root / settings.backtest.history_dir
+        save_broker_facts(root / SPECS_FILE, acct.currency, acct.leverage,
+                          {s: gw.symbol_spec(s) for s in all_symbols}, {s: gw.swap_terms(s) for s in all_symbols})
+        print(f"Broker specs (contract size, lot steps, swap) saved for the backtester: {root / SPECS_FILE}")
         reports = []
         for sym in all_symbols:
             print(f"  {sym} ...", flush=True)
