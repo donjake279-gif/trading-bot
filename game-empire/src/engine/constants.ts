@@ -655,9 +655,9 @@ export interface ScopeDef {
 export const SCOPE_IDS: ScopeId[] = ['tiny', 'small', 'medium', 'large', 'aaa', 'mega'];
 
 export const SCOPES: Record<ScopeId, ScopeDef> = {
-  tiny: { name: 'Tiny (Game Jam)', work: 45, budget: 1000, price: 4.99, maxTeam: 3, typicalTeam: 2, freshnessDecay: 0.022, reach: 0.25, presence: 0.002 },
-  small: { name: 'Small', work: 300, budget: 20000, price: 12.99, maxTeam: 6, typicalTeam: 4, freshnessDecay: 0.013, reach: 0.45, presence: 0.005 },
-  medium: { name: 'Medium', work: 1800, budget: 300000, price: 24.99, maxTeam: 20, typicalTeam: 12, freshnessDecay: 0.009, reach: 0.7, presence: 0.03 },
+  tiny: { name: 'Tiny (Game Jam)', work: 45, budget: 1000, price: 4.99, maxTeam: 3, typicalTeam: 2, freshnessDecay: 0.022, reach: 0.25, presence: 0.0035 },
+  small: { name: 'Small', work: 300, budget: 20000, price: 12.99, maxTeam: 6, typicalTeam: 4, freshnessDecay: 0.013, reach: 0.45, presence: 0.011 },
+  medium: { name: 'Medium', work: 1800, budget: 300000, price: 24.99, maxTeam: 20, typicalTeam: 12, freshnessDecay: 0.009, reach: 0.7, presence: 0.04 },
   large: { name: 'Large', work: 13000, budget: 4000000, price: 39.99, maxTeam: 70, typicalTeam: 45, freshnessDecay: 0.0065, reach: 0.9, presence: 0.12 },
   aaa: { name: 'AAA', work: 72000, budget: 50000000, price: 59.99, maxTeam: 320, typicalTeam: 200, freshnessDecay: 0.005, reach: 1.0, presence: 1.0 },
   mega: { name: 'Mega Blockbuster', work: 230000, budget: 180000000, price: 69.99, maxTeam: 1100, typicalTeam: 650, freshnessDecay: 0.004, reach: 1.1, presence: 1.25 },
@@ -724,7 +724,7 @@ export interface OfficeDef {
 }
 
 export const OFFICES: OfficeDef[] = [
-  { name: 'Bedroom', capacity: 2, rent: 350, productivity: 0.95, morale: -4, moveCost: 0 },
+  { name: 'Bedroom', capacity: 3, rent: 350, productivity: 0.95, morale: -4, moveCost: 0 },
   { name: 'Garage', capacity: 5, rent: 1500, productivity: 1.0, morale: 0, moveCost: 2000 },
   { name: 'Small Office', capacity: 15, rent: 7500, productivity: 1.03, morale: 3, moveCost: 15000 },
   { name: 'Studio Loft', capacity: 45, rent: 28000, productivity: 1.06, morale: 5, moveCost: 80000 },
@@ -853,9 +853,9 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
 // ---------------------------------------------------------------- difficulty
 
 export const DIFFICULTIES = {
-  relaxed: { name: 'Relaxed', cash: 25000, aiQuality: 0.95, eventSeverity: 0.7, market: 1.15, blurb: 'More starting cash, gentler rivals and events.' },
-  normal: { name: 'Normal', cash: 10000, aiQuality: 1.0, eventSeverity: 1.0, market: 1.0, blurb: 'The intended experience. $10,000 and a dream.' },
-  brutal: { name: 'Brutal', cash: 5000, aiQuality: 1.06, eventSeverity: 1.35, market: 0.88, blurb: 'Less cash, sharper rivals, harsher crises.' },
+  relaxed: { name: 'Relaxed', cash: 100000, founderSkill: 60, aiQuality: 0.95, eventSeverity: 0.7, market: 1.15, blurb: 'Lots of cash, gentler rivals and events.' },
+  normal: { name: 'Normal', cash: 50000, founderSkill: 52, aiQuality: 1.0, eventSeverity: 1.0, market: 1.0, blurb: 'The intended experience. $50,000 and a dream.' },
+  brutal: { name: 'Brutal', cash: 10000, founderSkill: 42, aiQuality: 1.06, eventSeverity: 1.35, market: 0.88, blurb: 'Shoestring budget, sharper rivals, harsher crises.' },
 } as const;
 
 // ---------------------------------------------------------------- misc tuning
@@ -863,4 +863,8 @@ export const DIFFICULTIES = {
 export const TAX_RATE = 0.21;
 export const MAX_ACTIVE_STUDIOS = 46;
 export const INSOLVENCY_GRACE_DAYS = 45;
+/** The player gets longer than rival studios to dig out of the red. */
+export const PLAYER_GRACE_DAYS = 90;
+/** Times an angel investor will rescue a sinking player company. */
+export const MAX_LIFELINES = 2;
 export const NEWS_CAP = 450;

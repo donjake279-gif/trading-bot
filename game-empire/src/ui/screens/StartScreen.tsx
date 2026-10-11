@@ -53,7 +53,7 @@ export function StartScreen() {
             </div>
           </div>
           <p className="mt-6 text-base leading-relaxed text-sub">
-            Start with <span className="font-semibold text-ink">$10,000</span>, a bedroom and a dream. Build games for a living, breathing industry of rival
+            Start with <span className="font-semibold text-ink">$50,000</span>, a bedroom and a dream. Build games for a living, breathing industry of rival
             studios and millions of simulated players. Ship hits, survive flops, raise capital, go public, buy your rivals — or lose everything.
           </p>
           <ul className="mt-5 space-y-2 text-sm text-sub">

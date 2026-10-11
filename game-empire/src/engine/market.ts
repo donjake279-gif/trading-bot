@@ -109,7 +109,9 @@ export function visibilityOf(w: World, g: Game, c: Company): number {
 
 /** Share-of-attention weight: appeal x visibility^1.3 x market presence. */
 export function attentionWeight(w: World, g: Game, c: Company): number {
-  return appealOf(w, g) * Math.pow(visibilityOf(w, g, c), 1.3) * SCOPES[g.scope].presence;
+  // a new studio's first releases get press and storefront curiosity
+  const buzz = g.newcomer && w.day - (g.releaseDay ?? w.day) < 180 ? 2.2 : 1;
+  return appealOf(w, g) * Math.pow(visibilityOf(w, g, c), 1.3) * SCOPES[g.scope].presence * buzz;
 }
 
 function regulationMult(w: World): number {

@@ -46,6 +46,27 @@ export function startUpdateRecord(
   };
 }
 
+/** Player: start the next queued update with the team already on the game. */
+export function startNextQueued(w: World, g: Game, c: Company): boolean {
+  const team = w.player.employees.filter((e) => e.assignment === g.id).map((e) => e.id);
+  while (g.updateQueue.length > 0) {
+    const next = g.updateQueue.shift()!;
+    if (next.type === 'port' && (!next.platform || g.platforms.includes(next.platform))) continue;
+    const cost = updateCost(g, next.type, next.platform);
+    if (c.cash < cost) {
+      toast(w, `${g.title}: skipped queued ${UPDATES[next.type].name} (needs ${Math.round(cost).toLocaleString()} cash)`, 'bad');
+      continue;
+    }
+    if (team.length === 0) {
+      g.updateQueue.unshift(next);
+      return false;
+    }
+    startUpdateRecord(w, g, c, next.type, team, 0, { platform: next.platform, monetization: next.monetization });
+    return true;
+  }
+  return false;
+}
+
 export function updateDaily(w: World, g: Game, c: Company): void {
   const u = g.update;
   if (!u) return;
@@ -147,7 +168,7 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
   g.update = null;
   g.hype = Math.min(1400, g.hype);
   if (c.isPlayer) {
-    for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
+    if (!startNextQueued(w, g, c)) for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
     pushNews(w, { kind: 'player', title: `${g.title}: ${label} is live`, body: `Player reception: ${Math.round(reception)}/100.`, companyId: c.id, gameId: g.id, tone: reception >= 60 ? 'good' : reception < 35 ? 'bad' : 'neutral' });
     toast(w, `${g.title}: ${def.name} released (${Math.round(reception)}/100)`, reception >= 60 ? 'good' : 'neutral');
   } else if (u.type === 'expansion' && g.peakCcu > 100000) {

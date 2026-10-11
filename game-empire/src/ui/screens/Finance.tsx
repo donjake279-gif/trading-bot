@@ -151,7 +151,7 @@ export function Finance() {
               ))}
             </div>
           )}
-          <p className="mt-3 text-[11px] text-muted">Payments are taken monthly. Missing payments while cash is negative damages your credit. 45 days of negative cash means bankruptcy.</p>
+          <p className="mt-3 text-[11px] text-muted">Payments are taken monthly. Missing payments while cash is negative damages your credit. After 90 days of negative cash you go bankrupt, but an angel investor offers a lifeline first.</p>
         </Card>
 
         <Funding />

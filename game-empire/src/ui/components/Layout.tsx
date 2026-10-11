@@ -22,7 +22,7 @@ import { SPEEDS, useGameStore, useWorld, type Route } from '../../store/gameStor
 import { playerCompany } from '../../engine/util';
 import { founderStake } from '../../engine/stocks';
 import { formatDate } from '../../engine/util';
-import { INSOLVENCY_GRACE_DAYS } from '../../engine/constants';
+import { PLAYER_GRACE_DAYS } from '../../engine/constants';
 import { money, pct } from '../lib/format';
 import { cx } from './ui';
 
@@ -172,7 +172,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
       </div>
       {c.cash < 0 && !w.player.gameOver && (
         <div className="border-t border-bad/40 bg-bad-soft px-4 py-1.5 text-xs font-medium text-bad">
-          Insolvent! {Math.max(0, INSOLVENCY_GRACE_DAYS - c.insolventDays)} days until bankruptcy. Take a loan, raise money, sell shares or cut costs.
+          Cash is negative: {Math.max(0, PLAYER_GRACE_DAYS - c.insolventDays)} days until bankruptcy. Take a loan, raise money, sell shares or cut costs.
           <button onClick={() => navigate({ name: 'finance' })} className="ml-2 underline">Open Finance</button>
         </div>
       )}

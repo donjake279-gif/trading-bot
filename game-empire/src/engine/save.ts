@@ -123,8 +123,22 @@ export function deserializeWorld(json: string): World {
   const w = JSON.parse(json) as World;
   if (!w || typeof w !== 'object' || !w.companies || !w.player) throw new Error('Not a Game Empire save file.');
   if ((w.version ?? 0) > SAVE_VERSION) throw new Error('This save was made with a newer version of the game.');
+  migrate(w);
   w.toasts = [];
   return w;
+}
+
+/** Fill in fields added after a save was written. */
+function migrate(w: World): void {
+  for (const id in w.games) {
+    const g = w.games[id];
+    g.updateQueue ??= [];
+    g.autoUpdates ??= false;
+    g.newcomer ??= false;
+  }
+  w.player.autoAssign ??= true;
+  w.player.lifelinesUsed ??= 0;
+  w.version = SAVE_VERSION;
 }
 
 export async function saveToSlot(w: World, slotId: string, name?: string): Promise<SlotMeta> {

@@ -428,7 +428,17 @@ export function CreateGame({ ipId }: { ipId?: string }) {
 
           {step === 3 && (
             <>
-              <Card title="Team" subtitle="Only developers work on projects. Selecting someone busy moves them to this game.">
+              <Card
+                title="Team"
+                subtitle="Only developers work on projects. Selecting someone busy moves them to this game."
+                actions={
+                  <>
+                    <Button size="sm" onClick={() => setTeamIds(devStaff.map((e) => e.id))}>Everyone</Button>
+                    <Button size="sm" onClick={() => setTeamIds(devStaff.filter((e) => !e.assignment).map((e) => e.id))}>Idle only</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setTeamIds([])}>None</Button>
+                  </>
+                }
+              >
                 {devStaff.length === 0 ? (
                   <div className="text-sm text-muted">No developers. Hire some in Team.</div>
                 ) : (

@@ -20,18 +20,21 @@ import {
   UPDATE_IDS,
 } from '../../engine/constants';
 import {
+  assignDevs,
   assignEmployee,
   campaignHype,
   cancelGame,
   cancelUpdate,
+  queueUpdates,
   releasePlayerGame,
+  removeQueuedUpdate,
   runCampaign,
+  setAutoUpdates,
   setCrunch,
   setFocus,
   setPrice,
   shutdownServers,
   startDiscount,
-  startUpdate,
 } from '../../engine/actions';
 import { bugDensity, hasResearch, playerDailyWork, qualityEstimate } from '../../engine/development';
 import { ratingOf } from '../../engine/market';
@@ -92,9 +95,17 @@ function TeamPicker({ g, title }: { g: Game; title: string }) {
       title={title}
       subtitle={`${team.length} assigned · payroll ${money(team.reduce((s, e) => s + e.salary, 0))}/mo`}
       actions={
-        <Button size="sm" onClick={() => setAdding(true)} disabled={available.length === 0}>
-          <Users size={13} /> Add people
-        </Button>
+        <>
+          <Button size="sm" onClick={() => act((world) => assignDevs(world, g.id, 'idle'), 'Idle developers joined')} disabled={!w.player.employees.some((e) => ROLES[e.role].dev && !e.assignment)}>
+            All idle
+          </Button>
+          <Button size="sm" onClick={() => act((world) => assignDevs(world, g.id, 'everyone'), 'The whole studio is on this game')} disabled={available.length === 0}>
+            Everyone
+          </Button>
+          <Button size="sm" onClick={() => setAdding(true)} disabled={available.length === 0}>
+            <Users size={13} /> Pick
+          </Button>
+        </>
       }
     >
       {team.length === 0 ? (
@@ -490,60 +501,103 @@ function LiveView({ g }: { g: Game }) {
   );
 }
 
+type TeamMode = 'idle' | 'everyone' | 'pick';
+
 function UpdatePanel({ g }: { g: Game }) {
   const w = useWorld();
   const act = useGameStore((s) => s.act);
   const c = playerCompany(w);
-  const [type, setType] = useState<UpdateTypeId>('content');
+  const devs = w.player.employees.filter((e) => ROLES[e.role].dev);
+  const idle = devs.filter((e) => !e.assignment || e.assignment === g.id);
+  const [basket, setBasket] = useState<UpdateTypeId[]>(['content']);
   const [platform, setPlatform] = useState<PlatformId | ''>('');
   const [mon, setMon] = useState<MonetizationId>(g.monetization);
-  const idle = w.player.employees.filter((e) => ROLES[e.role].dev && (!e.assignment || e.assignment === g.id));
-  const [teamIds, setTeamIds] = useState<string[]>([]);
-
-  if (g.update) {
-    const u = g.update;
-    const team = w.player.employees.filter((e) => e.assignment === g.id);
-    return (
-      <Card className="xl:col-span-1" title="Update in progress" subtitle={UPDATES[u.type].name}>
-        <Progress value={u.workDone} max={u.workRequired} height={10} />
-        <div className="mt-2 flex justify-between text-xs text-muted">
-          <span>{Math.round((u.workDone / u.workRequired) * 100)}%</span>
-          <span>started {date(u.startDay)}</span>
-        </div>
-        <div className="mt-3 text-sm text-sub">Team: {team.map((e) => e.name).join(', ') || 'nobody (stalled!)'}</div>
-        <div className="mt-3 flex gap-2">
-          <TeamAdd g={g} />
-          <Button size="sm" variant="danger" onClick={() => act((world) => cancelUpdate(world, g.id))}>
-            Cancel update
-          </Button>
-        </div>
-      </Card>
-    );
-  }
-
-  const work = updateWork(w, g, type, true, platform || undefined);
-  const cost = updateCost(g, type, platform || undefined);
-  const team = idle.filter((e) => teamIds.includes(e.id));
-  const daily = playerDailyWork(w, g, team);
+  const [mode, setMode] = useState<TeamMode>(idle.length > 0 ? 'idle' : 'everyone');
+  const [picked, setPicked] = useState<string[]>([]);
+  const running = g.update;
+  const onGame = w.player.employees.filter((e) => e.assignment === g.id);
   const portOptions = PLATFORM_IDS.filter((p) => !g.platforms.includes(p));
 
+  const team = running ? onGame : mode === 'everyone' ? devs : mode === 'idle' ? idle : devs.filter((e) => picked.includes(e.id));
+  const daily = playerDailyWork(w, g, team);
+  const items = basket.map((t) => ({ type: t, platform: t === 'port' ? platform || undefined : undefined, monetization: t === 'monetization' ? mon : undefined }));
+  const cost = items.reduce((s, it) => s + updateCost(g, it.type, it.platform), 0);
+  const work = items.reduce((s, it) => s + updateWork(w, g, it.type, true, it.platform), 0);
+  const pulledFromProjects = !running && mode === 'everyone' && devs.some((e) => e.assignment && e.assignment !== g.id && w.games[e.assignment]?.status === 'development');
+  const toggle = (t: UpdateTypeId) => setBasket(basket.includes(t) ? basket.filter((x) => x !== t) : [...basket, t]);
+
+  const submit = () => {
+    const ids = running ? [] : team.map((e) => e.id);
+    const r = act((world) => queueUpdates(world, g.id, items, ids), running ? 'Added to the update queue' : `${items.length} update${items.length > 1 ? 's' : ''} started`);
+    if (r.ok) setBasket([]);
+  };
+
   return (
-    <Card title="Ship an update" subtitle="Updates keep players engaged and bring lapsed players back.">
-      <div className="grid grid-cols-2 gap-1.5">
-        {UPDATE_IDS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setType(t)}
-            className={cx('rounded-lg border px-2.5 py-2 text-left', type === t ? 'border-accent bg-accent-soft/50' : 'border-line bg-surface-2 hover:border-sub')}
-          >
-            <div className="text-xs font-semibold">{UPDATES[t].name}</div>
-          </button>
-        ))}
+    <Card title="Updates" subtitle="Pick one or more updates. They run back to back with the same team.">
+      <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
+        <input id={`auto-${g.id}`} type="checkbox" className="mt-1" checked={g.autoUpdates} onChange={(e) => act((world) => setAutoUpdates(world, g.id, e.target.checked))} />
+        <span>
+          <span className="block text-sm font-medium">Auto-update this game</span>
+          <span className="block text-xs text-muted">Your studio ships hotfixes, content drops, events and expansions on its own, borrowing a few developers when needed.</span>
+        </span>
+      </label>
+
+      {running && (
+        <div className="mb-4 rounded-lg border border-accent/40 bg-accent-soft/30 p-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold">{UPDATES[running.type].name}</span>
+            <span className="tabular text-sub">{Math.round((running.workDone / running.workRequired) * 100)}%</span>
+          </div>
+          <Progress value={running.workDone} max={running.workRequired} className="mt-2" />
+          <div className="mt-2 text-xs text-muted">
+            {onGame.length} on the team{daily > 0 ? ` · about ${days(Math.max(0, running.workRequired - running.workDone) / daily)} left` : ' · stalled, nobody assigned'}
+          </div>
+          {g.updateQueue.length > 0 && (
+            <div className="mt-2 space-y-1">
+              <div className="text-[11px] uppercase tracking-wide text-muted">Up next</div>
+              {g.updateQueue.map((q, i) => (
+                <div key={i} className="flex items-center justify-between rounded-md bg-surface-2 px-2 py-1 text-xs">
+                  <span>
+                    {i + 1}. {UPDATES[q.type].name}
+                    {q.platform ? ` · ${PLATFORMS[q.platform].name}` : ''}
+                  </span>
+                  <button onClick={() => act((world) => removeQueuedUpdate(world, g.id, i))} className="text-muted hover:text-bad" aria-label="Remove from queue">
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => act((world) => assignDevs(world, g.id, 'idle'), 'Idle developers joined the update')}>
+              <Users size={13} /> Add idle devs
+            </Button>
+            <Button size="sm" onClick={() => act((world) => assignDevs(world, g.id, 'everyone'), 'The whole studio is on this update')}>
+              Whole studio
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => act((world) => cancelUpdate(world, g.id))}>
+              Cancel all
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs font-medium text-sub">{running ? 'Queue more updates' : 'Choose updates'}</div>
+      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+        {UPDATE_IDS.map((t) => {
+          const on = basket.includes(t);
+          return (
+            <button key={t} onClick={() => toggle(t)} className={cx('flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left', on ? 'border-accent bg-accent-soft/50' : 'border-line bg-surface-2 hover:border-sub')}>
+              <span className={cx('flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px]', on ? 'border-accent bg-accent text-white' : 'border-line')}>{on ? basket.indexOf(t) + 1 : ''}</span>
+              <span className="text-xs font-semibold">{UPDATES[t].name}</span>
+            </button>
+          );
+        })}
       </div>
-      <p className="mt-2 text-xs text-muted">{UPDATES[type].blurb}</p>
-      {type === 'port' && (
-        <select className={cx(inputClass, 'mt-2')} value={platform} onChange={(e) => setPlatform(e.target.value as PlatformId)}>
-          <option value="">Choose a platform…</option>
+      {basket.length === 1 && <p className="mt-2 text-xs text-muted">{UPDATES[basket[0]].blurb}</p>}
+      {basket.includes('port') && (
+        <select id={`port-${g.id}`} className={cx(inputClass, 'mt-2')} value={platform} onChange={(e) => setPlatform(e.target.value as PlatformId)}>
+          <option value="">Port to which platform?</option>
           {portOptions.map((p) => (
             <option key={p} value={p} disabled={c.reputation < PLATFORMS[p].minRep}>
               {PLATFORMS[p].name} {c.reputation < PLATFORMS[p].minRep ? `(rep ${PLATFORMS[p].minRep})` : ''}
@@ -551,57 +605,63 @@ function UpdatePanel({ g }: { g: Game }) {
           ))}
         </select>
       )}
-      {type === 'monetization' && (
-        <select className={cx(inputClass, 'mt-2')} value={mon} onChange={(e) => setMon(e.target.value as MonetizationId)}>
+      {basket.includes('monetization') && (
+        <select id={`mon-${g.id}`} className={cx(inputClass, 'mt-2')} value={mon} onChange={(e) => setMon(e.target.value as MonetizationId)}>
           {MONETIZATION_IDS.map((m) => (
             <option key={m} value={m}>
-              {m === g.monetization ? `${MONETIZATIONS[m].name} (keep — new battle pass season)` : MONETIZATIONS[m].name}
+              {m === g.monetization ? `${MONETIZATIONS[m].name} (keep: new battle pass season)` : MONETIZATIONS[m].name}
             </option>
           ))}
         </select>
       )}
-      <div className="mt-3 text-xs font-medium text-sub">Team</div>
-      <div className="mt-1 max-h-40 space-y-1 overflow-y-auto">
-        {idle.length === 0 && <div className="text-xs text-muted">No idle developers.</div>}
-        {idle.map((e: Employee) => {
-          const on = teamIds.includes(e.id);
-          return (
-            <button key={e.id} onClick={() => setTeamIds(on ? teamIds.filter((x) => x !== e.id) : [...teamIds, e.id])} className={cx('flex w-full items-center justify-between rounded-md border px-2 py-1 text-xs', on ? 'border-accent bg-accent-soft/40' : 'border-line bg-surface-2')}>
-              <span>{e.name}</span>
-              <span className="text-muted">
-                {e.isFounder ? 'Founder' : ROLES[e.role].name} · {Math.round(e.skill)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-3 rounded-lg bg-surface-2 px-3 py-1.5">
-        <Kv k="Cost" v={money(cost)} />
-        <Kv k="Time" v={daily > 0 ? days(work / daily) : '—'} />
-      </div>
-      <Button
-        variant="primary"
-        className="mt-3 w-full"
-        disabled={teamIds.length === 0 || c.cash < cost || (type === 'port' && !platform)}
-        onClick={() => {
-          const r = act((world) => startUpdate(world, g.id, type, teamIds, { platform: platform || undefined, monetization: mon }), `${UPDATES[type].name} started`);
-          if (r.ok) setTeamIds([]);
-        }}
-      >
-        <Wrench size={14} /> Start {UPDATES[type].name}
-      </Button>
-    </Card>
-  );
-}
 
-function TeamAdd({ g }: { g: Game }) {
-  const w = useWorld();
-  const act = useGameStore((s) => s.act);
-  const idle = w.player.employees.filter((e) => ROLES[e.role].dev && !e.assignment);
-  return (
-    <Button size="sm" disabled={idle.length === 0} onClick={() => act((world) => assignEmployee(world, idle[0].id, g.id))}>
-      <Users size={13} /> Add idle dev
-    </Button>
+      {!running && (
+        <>
+          <div className="mt-3 text-xs font-medium text-sub">Who works on it</div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-lg border border-line bg-surface p-1">
+            {(
+              [
+                ['idle', `Idle (${idle.length})`],
+                ['everyone', `Everyone (${devs.length})`],
+                ['pick', 'Pick'],
+              ] as [TeamMode, string][]
+            ).map(([m, label]) => (
+              <button key={m} onClick={() => setMode(m)} className={cx('rounded-md px-2 py-1.5 text-xs font-medium', mode === m ? 'bg-surface-3 text-ink' : 'text-muted hover:text-ink')}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {pulledFromProjects && <p className="mt-1.5 text-[11px] text-warn">Games in development pause while everyone works on the update.</p>}
+          {mode === 'pick' && (
+            <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+              {devs.map((e: Employee) => {
+                const on = picked.includes(e.id);
+                const busy = e.assignment && e.assignment !== g.id ? w.games[e.assignment] : null;
+                return (
+                  <button key={e.id} onClick={() => setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])} className={cx('flex w-full items-center justify-between rounded-md border px-2 py-1 text-xs', on ? 'border-accent bg-accent-soft/40' : 'border-line bg-surface-2')}>
+                    <span>{e.name}</span>
+                    <span className="text-muted">
+                      {e.isFounder ? 'Founder' : ROLES[e.role].name} · {Math.round(e.skill)}
+                      {busy ? ` · on ${busy.title}` : ''}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="mt-3 rounded-lg bg-surface-2 px-3 py-1.5">
+        <Kv k="Cost" v={money(cost)} tone={cost > c.cash ? 'bad' : undefined} />
+        <Kv k="Time" v={daily > 0 && basket.length ? days(work / daily) : '—'} />
+      </div>
+      <Button variant="primary" className="mt-3 w-full" disabled={basket.length === 0 || team.length === 0 || c.cash < cost || (basket.includes('port') && !platform)} onClick={submit}>
+        <Wrench size={14} />
+        {basket.length === 0 ? 'Pick an update' : running ? `Add ${basket.length} to queue` : basket.length > 1 ? `Start ${basket.length} updates` : 'Start update'}
+      </Button>
+      {!running && team.length === 0 && <p className="mt-2 text-xs text-warn">Nobody selected. Choose Everyone or hire developers.</p>}
+    </Card>
   );
 }
 

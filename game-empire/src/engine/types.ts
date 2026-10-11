@@ -122,6 +122,12 @@ export interface ActiveUpdate {
   monetization?: MonetizationId;
 }
 
+export interface QueuedUpdate {
+  type: UpdateTypeId;
+  platform?: PlatformId;
+  monetization?: MonetizationId;
+}
+
 export interface UpdateRecord {
   day: number;
   type: UpdateTypeId;
@@ -201,6 +207,12 @@ export interface Game {
   meltdownUntil: number;
   goodwill: number;
   update: ActiveUpdate | null;
+  /** Updates waiting to start after the current one (player only). */
+  updateQueue: QueuedUpdate[];
+  /** Player: the studio keeps this game updated automatically. */
+  autoUpdates: boolean;
+  /** One of the player's first releases: gets newcomer buzz. */
+  newcomer: boolean;
   updates: UpdateRecord[];
   lastUpdateDay: number;
   awards: string[];
@@ -438,6 +450,9 @@ export interface PlayerState {
   lastFundingDay: number;
   autoSupportSubsidiaries: boolean;
   tutorialDismissed: boolean;
+  /** Idle developers join projects automatically. */
+  autoAssign: boolean;
+  lifelinesUsed: number;
 }
 
 export interface FundingOffer {

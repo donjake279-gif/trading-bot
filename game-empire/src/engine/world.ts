@@ -9,7 +9,7 @@ import { advanceDay } from './tick';
 import type { Company, Difficulty, Employee, GenreState, MarketState, PlatformState, World } from './types';
 import { emptyLedger, newId, pushNews } from './util';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface NewGameOptions {
   seed: string;
@@ -66,6 +66,8 @@ function blankPlayerState(): World['player'] {
     lastFundingDay: -9999,
     autoSupportSubsidiaries: true,
     tutorialDismissed: false,
+    autoAssign: true,
+    lifelinesUsed: 0,
   };
 }
 
@@ -183,7 +185,7 @@ export function createPlayer(w: World, opts: NewGameOptions): void {
     name: c.ceo,
     role: 'founder',
     specialty: opts.specialty,
-    skill: opts.difficulty === 'brutal' ? 40 : 45,
+    skill: diff.founderSkill,
     salary: 0,
     morale: 85,
     xp: 0,

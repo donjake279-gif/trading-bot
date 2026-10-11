@@ -1,6 +1,6 @@
 // Macro-economy, random world events, player decisions, awards and auctions.
-import { DIFFICULTIES, GENRES, GENRE_IDS, INSOLVENCY_GRACE_DAYS, PLATFORMS, PLATFORM_IDS, ROLES, SCOPE_IDS } from './constants';
-import { debtOf, profitTTM, revenueTTM } from './finance';
+import { DIFFICULTIES, GENRES, GENRE_IDS, MAX_LIFELINES, PLATFORMS, PLATFORM_IDS, PLAYER_GRACE_DAYS, ROLES, SCOPE_IDS } from './constants';
+import { amortizedPayment, debtOf, monthlyBurn, profitTTM, revenueTTM, takeLoan } from './finance';
 import { ratingOf } from './market';
 import { personName } from './names';
 import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
@@ -447,6 +447,25 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
       } else e.morale = Math.max(0, e.morale - 20);
       break;
     }
+    case 'lifeline': {
+      if (optionId === 'decline') break;
+      const amount = Number(d.amount);
+      w.player.lifelinesUsed += 1;
+      if (optionId === 'equity') {
+        const equity = Number(d.equity);
+        const newShares = (p.shares * equity) / (1 - equity);
+        p.shares += newShares;
+        p.investorShares += newShares;
+        p.cash += amount;
+        if (p.boardConfidence >= 100) p.boardConfidence = 65;
+        pushNews(w, { kind: 'finance', title: `An angel investor rescues ${p.name} with ${fmt(amount)}`, body: `${Math.round(equity * 100)}% equity.`, companyId: p.id, tone: 'good' });
+      } else {
+        takeLoan(w, p, amount, 36, Number(d.apr));
+        pushNews(w, { kind: 'finance', title: `${p.name} survives on an emergency loan of ${fmt(amount)}`, companyId: p.id, tone: 'good' });
+      }
+      toast(w, 'Lifeline accepted: you are back in business', 'good');
+      break;
+    }
     case 'lawsuit': {
       const settle = Number(d.settle);
       let cost = settle;
@@ -474,20 +493,21 @@ export function playerSolvency(w: World): void {
   if (w.player.gameOver) return;
   if (p.cash < 0) {
     p.insolventDays += 1;
-    const left = INSOLVENCY_GRACE_DAYS - p.insolventDays;
+    const left = PLAYER_GRACE_DAYS - p.insolventDays;
+    if ((p.insolventDays === 14 || p.insolventDays === 60) && w.player.lifelinesUsed < MAX_LIFELINES) offerLifeline(w);
     if (p.insolventDays === 1 || left === 30 || left === 14 || left === 7 || left === 3) {
       pushNews(w, { kind: 'player', title: `Cash is negative! ${left} days until bankruptcy`, body: 'Take a loan, raise funding, sell assets or cut costs now.', companyId: p.id, tone: 'bad' });
       toast(w, `Insolvent: ${left} days until bankruptcy`, 'bad');
       if (p.insolventDays === 1 || left === 14) w.pauseReason = `Cash is negative: ${left} days until bankruptcy. Raise money or cut costs.`;
     }
-    if (p.insolventDays > INSOLVENCY_GRACE_DAYS) {
+    if (p.insolventDays > PLAYER_GRACE_DAYS) {
       p.status = 'bankrupt';
       p.endDay = w.day;
       w.player.gameOver = {
         reason: 'bankrupt',
         day: w.day,
         title: `${p.name} is bankrupt`,
-        body: `After ${INSOLVENCY_GRACE_DAYS} days in the red with debts of ${fmt(debtOf(p) - p.cash)}, creditors seized everything. You lost it all.`,
+        body: `After ${PLAYER_GRACE_DAYS} days in the red with debts of ${fmt(debtOf(p) - p.cash)}, creditors seized everything. You lost it all.`,
         netWorth: 0,
       };
       pushNews(w, { kind: 'player', title: `${p.name} files for bankruptcy`, companyId: p.id, tone: 'major' });
@@ -495,6 +515,31 @@ export function playerSolvency(w: World): void {
   } else {
     p.insolventDays = 0;
   }
+}
+
+/** How much a rescue needs to be: clear the hole plus a few months of runway. */
+export function lifelineAmount(w: World): number {
+  const p = playerCompany(w);
+  return Math.round(Math.max(30000, -p.cash + monthlyBurn(w, p) * 4) / 1000) * 1000;
+}
+
+function offerLifeline(w: World): void {
+  const p = playerCompany(w);
+  const amount = lifelineAmount(w);
+  const equity = p.isPublic ? 0.1 : 0.15;
+  const apr = w.market.baseRate + 0.12;
+  pushDecision(w, {
+    kind: 'lifeline',
+    title: 'An angel investor offers a lifeline',
+    body: `${p.name} has been in the red for two weeks. A veteran of the industry believes in you and offers ${fmt(amount)} to keep the lights on. Take it as equity, or as an emergency loan your bank would never give you.`,
+    options: [
+      { id: 'equity', label: `Take ${fmt(amount)} for ${Math.round(equity * 100)}% of the company`, description: 'No repayments. Your ownership stake shrinks.' },
+      { id: 'loan', label: `Borrow ${fmt(amount)} at ${(apr * 100).toFixed(1)}% over 3 years`, description: `Keep full ownership. About ${fmt(amortizedPayment(amount, apr, 36))}/month in repayments.` },
+      { id: 'decline', label: 'Decline and fix it myself', description: `You have ${PLAYER_GRACE_DAYS - p.insolventDays} days before bankruptcy.` },
+    ],
+    data: { amount, equity, apr },
+    expiresDay: w.day + 14,
+  });
 }
 
 export function boardMonthly(w: World): void {

@@ -179,6 +179,9 @@ export function createGameRecord(w: World, company: Company, p: GameParams, isPl
     meltdownUntil: 0,
     goodwill: 0,
     update: null,
+    updateQueue: [],
+    autoUpdates: false,
+    newcomer: false,
     updates: [],
     lastUpdateDay: w.day,
     awards: [],
@@ -464,6 +467,7 @@ export function releaseGame(w: World, g: Game): void {
     for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
   }
   if (c.isPlayer) {
+    g.newcomer = w.player.stats.gamesReleased < 3;
     w.player.stats.gamesReleased += 1;
     w.player.stats.bestCritic = Math.max(w.player.stats.bestCritic, g.criticScore);
   }

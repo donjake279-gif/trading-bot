@@ -62,7 +62,7 @@ function Alerts() {
   const ready = devGamesOf(w, c.id).filter((g) => g.workDone >= g.workRequired);
   for (const g of ready) alerts.push({ tone: 'good', text: `${g.title} is feature-complete. Polish removes bugs; release when ready.`, go: () => navigate({ name: 'game', id: g.id }) });
   const idle = w.player.employees.filter((e) => !e.assignment && !['marketing', 'community'].includes(e.role));
-  if (idle.length > 0) alerts.push({ tone: 'warn', text: `${idle.length} developer${idle.length > 1 ? 's are' : ' is'} idle (still on payroll).`, go: () => navigate({ name: 'team' }) });
+  if (idle.length > 0 && !w.player.autoAssign) alerts.push({ tone: 'warn', text: `${idle.length} developer${idle.length > 1 ? 's are' : ' is'} idle (still on payroll).`, go: () => navigate({ name: 'team' }) });
   const unstaffed = devGamesOf(w, c.id).filter((g) => !w.player.employees.some((e) => e.assignment === g.id));
   for (const g of unstaffed) alerts.push({ tone: 'warn', text: `${g.title} has no team assigned — development is stalled.`, go: () => navigate({ name: 'game', id: g.id }) });
   if (founderStake(c) < 0.5 && c.boardConfidence < 40) alerts.push({ tone: 'bad', text: `Board confidence is ${Math.round(c.boardConfidence)}%. Below 15% you may be fired.`, go: () => navigate({ name: 'finance' }) });

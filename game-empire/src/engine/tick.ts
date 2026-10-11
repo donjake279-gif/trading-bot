@@ -1,6 +1,7 @@
 // The daily simulation step. Order matters: production, then the market,
 // then costs, then decisions, then capital markets, then events and closes.
 import { checkAchievements } from './achievements';
+import { playerAutomation } from './automation';
 import { aiDaily, aiDecide, aiSolvency, maybeSpawnStudio } from './ai';
 import { playerDevDay } from './development';
 import { annualAwards, boardMonthly, expireDecisions, hitFeedback, macroDay, playerSolvency, randomEvents, resolveAuctions } from './events';
@@ -30,6 +31,7 @@ export function advanceDay(w: World): void {
 
   // ---- production
   if (hasPlayer) {
+    playerAutomation(w);
     for (const id in w.games) {
       const g = w.games[id];
       if (g.companyId === player.id && g.status === 'development') playerDevDay(w, g, player);

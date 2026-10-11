@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { GraduationCap, RefreshCw, UserMinus, UserPlus } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { OFFICES, ROLES, TRAITS, salaryFor } from '../../engine/constants';
-import { assignEmployee, fire, giveRaise, hire, paidRefresh, recruiterCost, train, trainingCost } from '../../engine/actions';
+import { assignDevs, assignEmployee, fire, giveRaise, hire, paidRefresh, recruiterCost, setAutoAssign, train, trainingCost } from '../../engine/actions';
 import { playerPayroll } from '../../engine/finance';
 import { playerCompany } from '../../engine/util';
 import type { Employee, RoleId } from '../../engine/types';
@@ -28,6 +28,7 @@ export function Team() {
   const office = OFFICES[w.player.officeLevel];
   const [roleFilter, setRoleFilter] = useState<RoleId | 'all'>('all');
   const [firing, setFiring] = useState<Employee | null>(null);
+  const [bulkTarget, setBulkTarget] = useState('');
   const emps = w.player.employees.filter((e) => roleFilter === 'all' || e.role === roleFilter);
   const projects = Object.values(w.games).filter((g) => g.companyId === c.id && (g.status === 'development' || (g.status === 'released' && g.update)));
   const avgMorale = w.player.employees.reduce((s, e) => s + e.morale, 0) / Math.max(1, w.player.employees.length);
@@ -43,6 +44,34 @@ export function Team() {
         <Stat label="Average morale" value={`${Math.round(avgMorale)}%`} tone={avgMorale < 45 ? 'bad' : avgMorale < 65 ? 'warn' : 'good'} />
         <Stat label="Idle developers" value={w.player.employees.filter((e) => ROLES[e.role].dev && !e.assignment).length} />
       </div>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input id="auto-assign" type="checkbox" className="mt-1" checked={w.player.autoAssign} onChange={(e) => act((world) => setAutoAssign(world, e.target.checked))} />
+            <span>
+              <span className="block text-sm font-medium">Auto-assign idle developers</span>
+              <span className="block text-xs text-muted">Anyone without work joins the game in development that needs people most, or a running update.</span>
+            </span>
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <select id="bulk-target" className={cx(inputClass, 'h-8 w-56 text-xs')} value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
+              <option value="">Move developers to…</option>
+              {projects.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title} {g.status === 'released' ? '(update)' : ''}
+                </option>
+              ))}
+            </select>
+            <Button size="sm" disabled={!bulkTarget} onClick={() => act((world) => assignDevs(world, bulkTarget, 'idle'), 'Idle developers moved')}>
+              All idle
+            </Button>
+            <Button size="sm" disabled={!bulkTarget} onClick={() => act((world) => assignDevs(world, bulkTarget, 'everyone'), 'Everyone moved')}>
+              Everyone
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       <Card
         title="Employees"

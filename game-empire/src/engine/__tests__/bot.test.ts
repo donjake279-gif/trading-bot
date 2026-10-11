@@ -44,7 +44,8 @@ function botTick(w: World, log: string[]) {
   // answer decisions with the first sensible option
   while (w.pendingEvents.length) {
     const ev = w.pendingEvents[0];
-    const opt = ev.options.find((o) => ['decline', 'counter', 'accept', 'settle'].includes(o.id) && !o.disabled) ?? ev.options[0];
+    const prefer = ev.kind === 'lifeline' ? ['loan', 'equity'] : ['decline', 'counter', 'accept', 'settle'];
+    const opt = prefer.map((id) => ev.options.find((o) => o.id === id && !o.disabled)).find(Boolean) ?? ev.options[0];
     resolveDecision(w, ev.id, ev.kind === 'buyout' || ev.kind === 'takeover' ? 'decline' : opt.id);
     if (ev.kind === 'takeover') break;
   }

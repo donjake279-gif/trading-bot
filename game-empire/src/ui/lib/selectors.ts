@@ -66,7 +66,7 @@ export function statusLabel(g: Game): string {
     case 'development':
       return g.workDone >= g.workRequired ? 'Polishing' : 'In development';
     case 'released':
-      return g.update ? 'Live · updating' : 'Live';
+      return g.update ? `Live · updating${g.updateQueue.length ? ` (+${g.updateQueue.length})` : ''}` : g.autoUpdates ? 'Live · auto-updates' : 'Live';
     case 'shutdown':
       return 'Servers offline';
     case 'retired':

@@ -1,6 +1,6 @@
 # Game Empire
 
-A single-player browser tycoon: start as a solo developer with **$10,000** in a bedroom and try to build a
+A single-player browser tycoon: start as a solo developer with **$50,000** in a bedroom and try to build a
 game-development empire inside a **living, simulated games industry**. Rival studios grow, merge, go public and
 go bankrupt on their own. Millions of simulated players pick what to play every day. You can win big, or you can lose everything.
 
@@ -34,6 +34,9 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   The wizard projects how well your team covers what the genre needs, and estimates time, cost and fit.
 - **Develop.** Progress, bugs, polish, crunch (fast, but bad for morale and a scandal risk), marketing campaigns
   that build hype and wishlists, early release, cancellation.
+- **Less clicking.** Idle developers join the project that needs them most (toggle in Team). Put every idle
+  developer, or the whole studio, on a game with one click. Queue several updates to run back to back, or switch
+  on **auto-update** and the studio keeps a live game patched and fresh by itself.
 - **Run live games.** Watch live player counts, active players, sales, reviews and freshness. Ship hotfixes,
   balance patches, content updates, seasonal events, paid expansions, monetization changes and platform ports.
   You can also change prices, run sales, or shut servers down.
@@ -49,7 +52,10 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   regulation, viral hits, scandals, poaching, publisher deals, patent trolls, buyout offers, hostile takeovers,
   and the annual Game Awards.
 
-The run ends if you go **bankrupt** (45 days with negative cash), get **ousted** by your board, lose a
+Your first three releases get newcomer buzz, which helps early sales. If cash goes negative you get 90 days to
+recover, and an angel investor offers a lifeline (cash for equity, or an emergency loan) twice per run.
+
+The run ends if you go **bankrupt** (90 days with negative cash), get **ousted** by your board, lose a
 **hostile takeover**, or accept a buyout (**a successful exit**).
 
 ## The simulation

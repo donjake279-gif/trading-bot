@@ -28,7 +28,7 @@ import { investorName } from './names';
 import { randInt, randRange } from './rng';
 import { makeEmployee, refreshCandidates } from './staff';
 import { acquireCompany, acquisitionPrice, buyShares, floatShares, ipoCompany, marketCap, sellShares } from './stocks';
-import type { ActionResult, CampaignId, Company, Game, MonetizationId, PlatformId, ResearchId, StrategyId, UpdateTypeId, World, Focus } from './types';
+import type { ActionResult, CampaignId, Company, Game, MonetizationId, PlatformId, QueuedUpdate, ResearchId, StrategyId, UpdateTypeId, World, Focus } from './types';
 import { startUpdateRecord, updateCost } from './updates';
 import { addGame, clamp, newId, playerCompany, pushNews, toast } from './util';
 
@@ -194,10 +194,86 @@ export function startUpdate(
 
 export function cancelUpdate(w: World, gameId: string): ActionResult {
   const g = ownGame(w, gameId);
-  if (!g || !g.update) return fail('No update in progress.');
+  if (!g || (!g.update && g.updateQueue.length === 0)) return fail('No update in progress.');
   g.update = null;
+  g.updateQueue = [];
   for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
   return ok();
+}
+
+function validateQueued(w: World, g: Game, item: QueuedUpdate): string | null {
+  const c = playerCompany(w);
+  if (item.type === 'port') {
+    if (!item.platform) return 'Choose a platform for the port.';
+    if (g.platforms.includes(item.platform)) return `Already on ${PLATFORMS[item.platform].name}.`;
+    if (c.reputation < PLATFORMS[item.platform].minRep) return `${PLATFORMS[item.platform].name} requires reputation ${PLATFORMS[item.platform].minRep}.`;
+  }
+  if (item.type === 'monetization' && !item.monetization) return 'Choose a business model.';
+  return null;
+}
+
+/**
+ * Start one or more updates for a live game. The first starts now (or joins
+ * the queue if one is running); the rest run back to back with the same team.
+ */
+export function queueUpdates(w: World, gameId: string, items: QueuedUpdate[], teamIds: string[]): ActionResult {
+  const g = ownGame(w, gameId);
+  if (!g || g.status !== 'released') return fail('Game is not live.');
+  if (items.length === 0) return fail('Pick at least one update.');
+  for (const it of items) {
+    const err = validateQueued(w, g, it);
+    if (err) return fail(err);
+  }
+  for (const id of teamIds) {
+    const e = w.player.employees.find((x) => x.id === id);
+    if (e && ROLES[e.role].dev) e.assignment = g.id;
+  }
+  if (g.update) {
+    g.updateQueue.push(...items);
+    return ok();
+  }
+  const team = w.player.employees.filter((e) => e.assignment === g.id).map((e) => e.id);
+  if (team.length === 0) return fail('Assign at least one developer.');
+  const [first, ...rest] = items;
+  const res = startUpdate(w, gameId, first.type, team, { platform: first.platform, monetization: first.monetization });
+  if (!res.ok) return res;
+  g.updateQueue.push(...rest);
+  return ok();
+}
+
+export function removeQueuedUpdate(w: World, gameId: string, index: number): ActionResult {
+  const g = ownGame(w, gameId);
+  if (!g || index < 0 || index >= g.updateQueue.length) return fail('Nothing to remove.');
+  g.updateQueue.splice(index, 1);
+  return ok();
+}
+
+export function setAutoUpdates(w: World, gameId: string, on: boolean): ActionResult {
+  const g = ownGame(w, gameId);
+  if (!g || g.status !== 'released') return fail('Game is not live.');
+  g.autoUpdates = on;
+  return ok();
+}
+
+export function setAutoAssign(w: World, on: boolean): ActionResult {
+  w.player.autoAssign = on;
+  return ok();
+}
+
+/** Put every idle developer, or every developer in the studio, on one game. */
+export function assignDevs(w: World, gameId: string, who: 'idle' | 'everyone'): ActionResult {
+  const g = ownGame(w, gameId);
+  if (!g) return fail('Game not found.');
+  if (g.status === 'released' && !g.update) return fail('Start an update first.');
+  if (g.status !== 'development' && g.status !== 'released') return fail('That project is closed.');
+  let moved = 0;
+  for (const e of w.player.employees) {
+    if (!ROLES[e.role].dev || e.assignment === g.id) continue;
+    if (who === 'idle' && e.assignment) continue;
+    e.assignment = g.id;
+    moved++;
+  }
+  return moved > 0 ? ok() : fail(who === 'idle' ? 'Nobody is idle right now.' : 'Everyone is already on this game.');
 }
 
 export function setPrice(w: World, gameId: string, price: number): ActionResult {
