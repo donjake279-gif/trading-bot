@@ -138,7 +138,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
   const prevCash = c.cashHistory.length > 1 ? c.cashHistory[c.cashHistory.length - 2][1] : c.cash;
   const delta = c.cash - prevCash;
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
+    <header className="sticky z-30 border-b border-line bg-bg/90 backdrop-blur" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
         <button onClick={onMenu} className="rounded-md p-1.5 text-sub hover:bg-surface-2 lg:hidden" aria-label="Menu">
           <Menu size={18} />
@@ -196,13 +196,20 @@ export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="min-h-full lg:pl-[220px]">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[220px] flex-col gap-5 border-r border-line bg-surface px-3 py-4 lg:flex">
+      <aside
+        className="fixed inset-y-0 left-0 z-40 hidden w-[220px] flex-col gap-5 border-r border-line bg-surface px-3 lg:flex"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+      >
         <Brand />
         <NavList />
       </aside>
       {open && (
         <div className="fixed inset-0 z-50 bg-black/60 lg:hidden" onClick={() => setOpen(false)}>
-          <aside className="flex h-full w-[240px] flex-col gap-5 border-r border-line bg-surface px-3 py-4" onClick={(e) => e.stopPropagation()}>
+          <aside
+            className="flex h-full w-[240px] flex-col gap-5 border-r border-line bg-surface px-3"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <Brand />
               <button onClick={() => setOpen(false)} className="rounded-md p-1 text-sub" aria-label="Close menu">

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import { Code, Gamepad2, Palette, PenTool, Play, Trash, Upload } from 'lucide-react';
+import { ClipboardPaste, Code, Gamepad2, Palette, PenTool, Play, Trash, Upload } from 'lucide-react';
+import { PasteSaveModal } from './Settings';
 import { useGameStore } from '../../store/gameStore';
 import { deleteSlot, listSlots, type SlotMeta } from '../../engine/save';
 import { DIFFICULTIES } from '../../engine/constants';
@@ -24,6 +25,8 @@ export function StartScreen() {
   const error = useGameStore((s) => s.error);
   const clearError = useGameStore((s) => s.clearError);
   const [slots, setSlots] = useState<SlotMeta[]>(() => listSlots());
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [companyName, setCompanyName] = useState('Pixel Garage Games');
   const [founderName, setFounderName] = useState('');
   const [specialty, setSpecialty] = useState<'programmer' | 'artist' | 'designer'>('designer');
@@ -96,20 +99,37 @@ export function StartScreen() {
                         {date(s.day)} · {money(s.valuation)} · {new Date(s.savedAt).toLocaleDateString()}
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => loadSlot(s.id)}>
-                      Load
-                    </Button>
-                    <button
-                      onClick={async () => {
-                        if (!confirm(`Delete save "${s.name}"?`)) return;
-                        await deleteSlot(s.id);
-                        setSlots(listSlots());
-                      }}
-                      className="rounded-md p-1.5 text-muted hover:bg-bad-soft hover:text-bad"
-                      aria-label="Delete save"
-                    >
-                      <Trash size={15} />
-                    </button>
+                    {confirmDelete === s.id ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={async () => {
+                            await deleteSlot(s.id);
+                            setConfirmDelete(null);
+                            setSlots(listSlots());
+                          }}
+                        >
+                          Delete
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>
+                          Keep
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="sm" onClick={() => loadSlot(s.id)}>
+                          Load
+                        </Button>
+                        <button
+                          onClick={() => setConfirmDelete(s.id)}
+                          className="rounded-md p-1.5 text-muted hover:bg-bad-soft hover:text-bad"
+                          aria-label={`Delete save ${s.name}`}
+                        >
+                          <Trash size={15} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -126,9 +146,15 @@ export function StartScreen() {
               e.target.value = '';
             }}
           />
-          <Button variant="ghost" className="mt-3" onClick={() => fileRef.current?.click()}>
-            <Upload size={15} /> Import save file
-          </Button>
+          <div className="mt-3 flex flex-wrap gap-1">
+            <Button variant="ghost" onClick={() => fileRef.current?.click()}>
+              <Upload size={15} /> Import save file
+            </Button>
+            <Button variant="ghost" onClick={() => setPasteOpen(true)}>
+              <ClipboardPaste size={15} /> Paste save code
+            </Button>
+          </div>
+          <PasteSaveModal open={pasteOpen} onClose={() => setPasteOpen(false)} />
           {error && (
             <div className="mt-3 rounded-lg border border-bad/40 bg-bad-soft px-3 py-2 text-sm text-bad" onClick={clearError}>
               {error}

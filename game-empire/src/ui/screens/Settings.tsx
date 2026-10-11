@@ -1,9 +1,42 @@
 import { useRef, useState } from 'react';
-import { Download, LogOut, Save, Upload } from 'lucide-react';
+import { ClipboardPaste, Copy, Download, LogOut, Save, Upload } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
-import { exportFile, listSlots } from '../../engine/save';
+import { exportFile, listSlots, serializeWorld } from '../../engine/save';
 import { date, money } from '../lib/format';
-import { Button, Card, Kv, SectionTitle, inputClass } from '../components/ui';
+import { IS_ARTIFACT } from '../lib/env';
+import { Button, Card, Kv, Modal, SectionTitle, inputClass } from '../components/ui';
+
+/** Paste a save code (the JSON a "Copy save code" produced) to load it. */
+export function PasteSaveModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const importSave = useGameStore((s) => s.importSave);
+  const [text, setText] = useState('');
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Load a save code"
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            disabled={!text.trim()}
+            onClick={() => {
+              importSave(text.trim());
+              setText('');
+              onClose();
+            }}
+          >
+            Load save
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-2 text-sm text-sub">Paste the save code you copied from Game &amp; Saves.</p>
+      <textarea id="paste-save" className={`${inputClass} h-40 py-2 font-mono text-xs`} value={text} onChange={(e) => setText(e.target.value)} placeholder='{"version":1,...}' />
+    </Modal>
+  );
+}
 
 export function Settings() {
   const w = useWorld();
@@ -20,6 +53,18 @@ export function Settings() {
   const [name, setName] = useState('');
   const [slots, setSlots] = useState(() => listSlots());
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [fallbackCode, setFallbackCode] = useState<string | null>(null);
+  const copySave = async () => {
+    const code = serializeWorld(w);
+    try {
+      await navigator.clipboard.writeText(code);
+      pushToast('Save code copied. Keep it somewhere safe.', 'good');
+      setFallbackCode(null);
+    } catch {
+      setFallbackCode(code);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -63,11 +108,20 @@ export function Settings() {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => exportFile(w)}>
-              <Download size={14} /> Export save file
-            </Button>
+            {IS_ARTIFACT ? (
+              <Button onClick={copySave}>
+                <Copy size={14} /> Copy save code
+              </Button>
+            ) : (
+              <Button onClick={() => exportFile(w)}>
+                <Download size={14} /> Export save file
+              </Button>
+            )}
             <Button onClick={() => fileRef.current?.click()}>
               <Upload size={14} /> Import save file
+            </Button>
+            <Button onClick={() => setPasteOpen(true)}>
+              <ClipboardPaste size={14} /> Paste save code
             </Button>
             <input
               ref={fileRef}
@@ -81,6 +135,14 @@ export function Settings() {
               }}
             />
           </div>
+          {IS_ARTIFACT && <p className="mt-2 text-xs text-muted">Saves live in this browser. Copy the save code to move a game to another device or browser.</p>}
+          {fallbackCode && (
+            <div className="mt-3">
+              <p className="mb-1 text-xs text-warn">Copying was blocked. Select all of the code below and copy it yourself.</p>
+              <textarea id="save-code" readOnly className={`${inputClass} h-28 py-2 font-mono text-[10px]`} value={fallbackCode} onFocus={(e) => e.currentTarget.select()} />
+            </div>
+          )}
+          <PasteSaveModal open={pasteOpen} onClose={() => setPasteOpen(false)} />
         </Card>
         <Card title="Options">
           <label className="flex items-center justify-between gap-3 py-2 text-sm">

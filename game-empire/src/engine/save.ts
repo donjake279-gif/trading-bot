@@ -21,7 +21,38 @@ const DB_NAME = 'game-empire';
 const STORE = 'saves';
 
 function hasIDB(): boolean {
-  return typeof indexedDB !== 'undefined';
+  try {
+    return typeof indexedDB !== 'undefined' && indexedDB !== null;
+  } catch {
+    return false;
+  }
+}
+
+// Storage can be missing or throw (private windows, blocked site data,
+// sandboxed frames). Every access goes through these guards.
+function lsGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function lsSet(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function lsRemove(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // nothing to clean up
+  }
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -71,7 +102,7 @@ async function idbDelete(key: string): Promise<void> {
 
 export function listSlots(): SlotMeta[] {
   try {
-    const raw = localStorage.getItem(INDEX_KEY);
+    const raw = lsGet(INDEX_KEY);
     const list = raw ? (JSON.parse(raw) as SlotMeta[]) : [];
     return list.sort((a, b) => b.savedAt - a.savedAt);
   } catch {
@@ -80,11 +111,8 @@ export function listSlots(): SlotMeta[] {
 }
 
 function writeIndex(list: SlotMeta[]): void {
-  try {
-    localStorage.setItem(INDEX_KEY, JSON.stringify(list));
-  } catch {
-    // storage full or blocked: saves still exist in IndexedDB
-  }
+  // storage full or blocked: saves may still exist in IndexedDB
+  lsSet(INDEX_KEY, JSON.stringify(list));
 }
 
 export function serializeWorld(w: World): string {
@@ -102,14 +130,17 @@ export function deserializeWorld(json: string): World {
 export async function saveToSlot(w: World, slotId: string, name?: string): Promise<SlotMeta> {
   const json = serializeWorld(w);
   const key = `slot:${slotId}`;
+  let stored = false;
   if (hasIDB()) {
     try {
       await idbPut(key, json);
+      stored = true;
     } catch {
-      localStorage.setItem(`game-empire:${key}`, json);
+      stored = false;
     }
-  } else {
-    localStorage.setItem(`game-empire:${key}`, json);
+  }
+  if (!stored && !lsSet(`game-empire:${key}`, json)) {
+    throw new Error('This browser is blocking storage. Copy your save code from Game & Saves to keep your progress.');
   }
   const c = playerCompany(w);
   const meta: SlotMeta = {
@@ -138,7 +169,7 @@ export async function loadFromSlot(slotId: string): Promise<World> {
       json = undefined;
     }
   }
-  if (!json) json = localStorage.getItem(`game-empire:${key}`);
+  if (!json) json = lsGet(`game-empire:${key}`);
   if (!json) throw new Error('Save not found.');
   return deserializeWorld(json);
 }
@@ -152,7 +183,7 @@ export async function deleteSlot(slotId: string): Promise<void> {
       // ignore
     }
   }
-  localStorage.removeItem(`game-empire:${key}`);
+  lsRemove(`game-empire:${key}`);
   writeIndex(listSlots().filter((s) => s.id !== slotId));
 }
 

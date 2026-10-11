@@ -16,7 +16,13 @@ npm run dev        # http://localhost:5173
 npm run build      # production build in dist/ (static, works from any folder)
 npm test           # engine tests: determinism, saves, economy, long-run industry, scripted bot player
 npm run sim        # long-run headless industry report (prints yearly stats)
+npm run build:artifact  # hosted-page build: libraries load from jsDelivr, only app code ships
 ```
+
+The hosted build (`scripts/build-artifact.mjs`) loads React 18, Recharts, Zustand and the Lucide icons
+from pinned jsDelivr URLs through an import map, because the host only allows scripts from public CDNs.
+In that build, file downloads are blocked, so saves move between browsers with **Copy save code** and
+**Paste save code**.
 
 Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-game days per second).
 

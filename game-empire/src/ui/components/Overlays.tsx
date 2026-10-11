@@ -18,7 +18,7 @@ export function Toasts() {
     return () => clearInterval(t);
   }, [toasts.length, dismiss]);
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <div className="pointer-events-none fixed right-4 z-[60] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
       {toasts.map((t) => (
         <div
           key={t.id}

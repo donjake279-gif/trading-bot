@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "sim": "vitest run src/engine/__tests__/longrun.test.ts --silent=false"
+    "sim": "vitest run src/engine/__tests__/longrun.test.ts --silent=false",
+    "build:artifact": "node scripts/build-artifact.mjs dist-artifact/page"
   },
   "dependencies": {
     "lucide-react": "^1.55.0",
