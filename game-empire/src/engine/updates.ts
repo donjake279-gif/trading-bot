@@ -145,6 +145,7 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
   if (g.updates.length > 40) g.updates.splice(0, g.updates.length - 40);
   g.lastUpdateDay = w.day;
   g.update = null;
+  g.hype = Math.min(1400, g.hype);
   if (c.isPlayer) {
     for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
     pushNews(w, { kind: 'player', title: `${g.title}: ${label} is live`, body: `Player reception: ${Math.round(reception)}/100.`, companyId: c.id, gameId: g.id, tone: reception >= 60 ? 'good' : reception < 35 ? 'bad' : 'neutral' });

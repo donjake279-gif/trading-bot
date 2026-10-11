@@ -1,12 +1,12 @@
 // Macro-economy, random world events, player decisions, awards and auctions.
-import { DIFFICULTIES, GENRES, GENRE_IDS, INSOLVENCY_GRACE_DAYS, MONETIZATIONS, PLATFORMS, PLATFORM_IDS, ROLES } from './constants';
+import { DIFFICULTIES, GENRES, GENRE_IDS, INSOLVENCY_GRACE_DAYS, PLATFORMS, PLATFORM_IDS, ROLES, SCOPE_IDS } from './constants';
 import { debtOf, profitTTM, revenueTTM } from './finance';
 import { ratingOf } from './market';
 import { personName } from './names';
-import { chance, pick, rand, randInt, randNormal, randRange, weightedPick } from './rng';
+import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
 import { acquireCompany, founderStake, marketCap } from './stocks';
-import type { Company, DecisionEvent, Game, GenreId, World } from './types';
-import { activeCompanies, clamp, dayToDate, formatDate, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast, yearOf } from './util';
+import type { DecisionEvent, Game, GenreId, World } from './types';
+import { activeCompanies, clamp, dayToDate, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast, yearOf } from './util';
 
 const fmt = (n: number) => {
   const a = Math.abs(n);
@@ -538,10 +538,14 @@ export function annualAwards(w: World): void {
   const eligible = Object.values(w.games).filter((g) => g.releaseDay !== null && yearOf(g.releaseDay) === year && g.status !== 'cancelled');
   if (eligible.length < 3) return;
   const byScore = (a: Game, b: Game) => b.criticScore - a.criticScore || b.peakCcu - a.peakCcu;
+  // big categories weigh ambition and reach, not just the score
+  const prestige = (g: Game) => g.criticScore + SCOPE_IDS.indexOf(g.scope) * 2 + Math.log10(10 + g.peakActive) * 1.5;
+  const byPrestige = (a: Game, b: Game) => prestige(b) - prestige(a);
+  const major = eligible.filter((g) => SCOPE_IDS.indexOf(g.scope) >= 2);
   const categories: [string, Game[]][] = [
-    ['Game of the Year', [...eligible].sort(byScore)],
+    ['Game of the Year', (major.length ? major : eligible).sort(byPrestige)],
     ['Best Indie Game', eligible.filter((g) => ['tiny', 'small', 'medium'].includes(g.scope) && w.companies[g.companyId].headcount < 60).sort(byScore)],
-    ['Best Multiplayer', eligible.filter((g) => g.multiplayer === 'online' || g.multiplayer === 'massive').sort(byScore)],
+    ['Best Multiplayer', major.filter((g) => g.multiplayer === 'online' || g.multiplayer === 'massive').sort(byPrestige)],
     ['Players\' Choice', [...eligible].sort((a, b) => b.userScore * Math.log10(10 + b.peakActive) - a.userScore * Math.log10(10 + a.peakActive))],
   ];
   const lines: string[] = [];
@@ -549,7 +553,7 @@ export function annualAwards(w: World): void {
     const winner = list[0];
     if (!winner) continue;
     winner.awards.push(`${cat} ${year}`);
-    winner.hype += 150;
+    winner.hype = Math.min(1400, winner.hype + 150);
     winner.viralMult = Math.max(winner.viralMult, 1.5);
     winner.viralUntil = Math.max(winner.viralUntil, w.day + 30);
     const c = w.companies[winner.companyId];
@@ -643,14 +647,3 @@ export function hottestGenre(w: World): GenreId {
   }
   return best;
 }
-
-export function describeDate(w: World): string {
-  return formatDate(w.day, true);
-}
-
-export function randomFlavor(w: World): number {
-  return rand(w);
-}
-
-export { MONETIZATIONS };
-export type { Company };

@@ -219,7 +219,7 @@ export function computeValuation(w: World, c: Company): number {
     ipFans * 2.5 +
     subs +
     holdingsValue(w, c) +
-    c.reputation * 20000;
+    c.reputation * Math.min(20000, 1000 + rev * 0.02);
   return Math.max(Math.max(1000, c.cash * 0.3), v);
 }
 

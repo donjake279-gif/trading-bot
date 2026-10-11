@@ -127,7 +127,8 @@ export function marketingEfficiency(w: World): number {
 export function campaignHype(w: World, g: Game, id: CampaignId): number {
   const def = CAMPAIGNS[id];
   const c = playerCompany(w);
-  return def.hype * marketingEfficiency(w) * (1 + c.reputation / 150) * Math.max(0.08, 1 - g.hype / 1400);
+  const gain = def.hype * marketingEfficiency(w) * (1 + c.reputation / 150) * Math.max(0.05, 1 - g.hype / 1400);
+  return Math.max(0, Math.min(gain, 1400 - g.hype));
 }
 
 export function runCampaign(w: World, gameId: string, id: CampaignId): ActionResult {

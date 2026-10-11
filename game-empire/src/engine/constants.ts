@@ -724,7 +724,7 @@ export interface OfficeDef {
 }
 
 export const OFFICES: OfficeDef[] = [
-  { name: 'Bedroom', capacity: 2, rent: 450, productivity: 0.95, morale: -4, moveCost: 0 },
+  { name: 'Bedroom', capacity: 2, rent: 350, productivity: 0.95, morale: -4, moveCost: 0 },
   { name: 'Garage', capacity: 5, rent: 1500, productivity: 1.0, morale: 0, moveCost: 2000 },
   { name: 'Small Office', capacity: 15, rent: 7500, productivity: 1.03, morale: 3, moveCost: 15000 },
   { name: 'Studio Loft', capacity: 45, rent: 28000, productivity: 1.06, morale: 5, moveCost: 80000 },

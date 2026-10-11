@@ -11,6 +11,7 @@ import { marketDay as stockMarketDay, quarterlyEarnings, stockDay, sweepSubsidia
 import { updateDaily } from './updates';
 import type { World } from './types';
 import { dayToDate } from './util';
+import { WARMUP_DAYS } from './constants';
 
 export function advanceDay(w: World): void {
   if (w.player.gameOver) return;
@@ -111,7 +112,7 @@ export function advanceDay(w: World): void {
     }
     let rev = 0;
     for (const id in w.games) if (w.games[id].status === 'released') rev += w.games[id].dailyRevenue;
-    w.market.industryHistory.push([w.day, Math.round(totalActivePlayers(w)), Math.round(rev)]);
+    if (w.day > -WARMUP_DAYS + 270) w.market.industryHistory.push([w.day, Math.round(totalActivePlayers(w)), Math.round(rev)]);
     if (w.market.industryHistory.length > 180) w.market.industryHistory.shift();
     const m = date.getUTCMonth();
     if (m % 3 === 0) quarterlyEarnings(w);

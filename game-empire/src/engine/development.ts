@@ -31,7 +31,7 @@ import type {
   ScopeId,
   World,
 } from './types';
-import { clamp, newId, pushNews, toast } from './util';
+import { clamp, gamesOf, newId, pushNews, toast } from './util';
 
 export interface GameParams {
   title: string;
@@ -113,7 +113,7 @@ export function createGameRecord(w: World, company: Company, p: GameParams, isPl
   }
   const workRequired = estimateWork(w, p, isPlayer);
   const ip = w.ips[ipId];
-  const startHype = sequelNo > 1 ? Math.min(400, Math.log10(1 + ip.fans) * 25) : 0;
+  const startHype = sequelNo > 1 ? Math.min(400, Math.log10(1 + ip.fans) * 25) : 0; // capped well below the 1400 hype ceiling
   return {
     id,
     title: p.title,
@@ -396,9 +396,20 @@ export function baseQuality(w: World, g: Game, c: Company): number {
     const last = prev?.sort((a, b) => (b.releaseDay ?? 0) - (a.releaseDay ?? 0))[0];
     if (last && last.releaseDay !== null && w.day - last.releaseDay < 400) q -= 5;
   }
+  q -= genreRepetitionPenalty(w, g);
   const cap = qualityCap(w, g, isPlayer);
   if (q > cap) q = cap + (q - cap) * 0.2;
   return q;
+}
+
+/** Critics tire of a studio shipping the same genre over and over. */
+export function genreRepetitionPenalty(w: World, g: Game): number {
+  let recent = 0;
+  for (const o of gamesOf(w, g.companyId)) {
+    if (o.id === g.id || o.companyId !== g.companyId || o.genre !== g.genre || o.releaseDay === null) continue;
+    if (w.day - o.releaseDay < 240) recent++;
+  }
+  return Math.min(15, Math.max(0, recent - 1) * 4);
 }
 
 /** Fuzzy estimate shown to the player during development. */

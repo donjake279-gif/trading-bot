@@ -556,9 +556,12 @@ export function aiDaily(w: World, c: Company): void {
   }
 }
 
+export const HYPE_CAP = 1400;
+
 export function hypeFromSpend(amount: number, currentHype: number, efficiency: number): number {
   const raw = 9 * Math.pow(amount / 1000, 0.55) * efficiency;
-  return raw * Math.max(0.08, 1 - currentHype / 1400);
+  const gain = raw * Math.max(0.05, 1 - currentHype / HYPE_CAP);
+  return Math.max(0, Math.min(gain, HYPE_CAP - currentHype));
 }
 
 // ------------------------------------------------------------ distress & bankruptcy
@@ -705,6 +708,8 @@ export function makeStudio(w: World, tier: keyof typeof TIERS, taken: Set<string
   c.avgSalary = aiAvgSalary(talent, c.headcount);
   c.valuation = computeValuation(w, c) + c.headcount * 120000 * (c.talent / 60);
   if (chance(w, t.publicChance)) {
+    // most non-founder shares trade publicly
+    c.investorShares = c.shares * randRange(w, 0.02, 0.12);
     c.isPublic = true;
     c.ipoDay = w.day - randInt(w, 300, 6000);
     c.price = c.valuation / c.shares;
