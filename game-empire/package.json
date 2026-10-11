@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "sim": "vitest run src/engine/__tests__/longrun.test.ts"
+    "sim": "vitest run src/engine/__tests__/longrun.test.ts --silent=false"
   },
   "dependencies": {
     "lucide-react": "^1.55.0",

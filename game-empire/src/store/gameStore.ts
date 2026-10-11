@@ -222,12 +222,17 @@ function loop() {
   days = Math.min(days, 6);
   for (let i = 0; i < days; i++) {
     advanceDay(w);
-    if (w.player.gameOver) break;
+    if (w.player.gameOver || w.pauseReason) break;
     if (s.pauseOnEvents && w.pendingEvents.length > 0) break;
   }
   drainWorldToasts();
   const patch: Partial<GameStore> = { version: s.version + 1 };
   if (w.player.gameOver || (s.pauseOnEvents && w.pendingEvents.length > 0)) patch.paused = true;
+  if (w.pauseReason) {
+    patch.paused = true;
+    useGameStore.getState().pushToast(`Paused: ${w.pauseReason}`, 'bad');
+    w.pauseReason = null;
+  }
   useGameStore.setState(patch);
   if (s.autosave && w.day - s.lastAutosaveDay >= 30 && !w.player.gameOver) {
     useGameStore.setState({ lastAutosaveDay: w.day });

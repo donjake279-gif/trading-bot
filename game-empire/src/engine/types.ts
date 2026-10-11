@@ -465,6 +465,8 @@ export interface World {
   pendingEvents: DecisionEvent[];
   auctions: Auction[];
   player: PlayerState;
+  /** Set by the engine when the player must react now; the UI pauses and clears it. */
+  pauseReason?: string | null;
   /** Toast queue for the UI (drained by the store). */
   toasts: { id: string; title: string; tone: NewsItem['tone'] }[];
   awardsHistory: { year: number; category: string; gameId: string; title: string; companyId: string }[];

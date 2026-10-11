@@ -478,6 +478,7 @@ export function playerSolvency(w: World): void {
     if (p.insolventDays === 1 || left === 30 || left === 14 || left === 7 || left === 3) {
       pushNews(w, { kind: 'player', title: `Cash is negative! ${left} days until bankruptcy`, body: 'Take a loan, raise funding, sell assets or cut costs now.', companyId: p.id, tone: 'bad' });
       toast(w, `Insolvent: ${left} days until bankruptcy`, 'bad');
+      if (p.insolventDays === 1 || left === 14) w.pauseReason = `Cash is negative: ${left} days until bankruptcy. Raise money or cut costs.`;
     }
     if (p.insolventDays > INSOLVENCY_GRACE_DAYS) {
       p.status = 'bankrupt';
@@ -517,6 +518,7 @@ export function boardMonthly(w: World): void {
   const target = clamp(55 + 30 * clamp(margin, -1, 0.5) + stockPerf + growth + (p.cash < 0 ? -25 : 0) + (p.reputation - 40) * 0.2, 0, 100);
   p.boardConfidence = clamp(p.boardConfidence + (target - p.boardConfidence) * 0.35, 0, 100);
   if (p.boardConfidence < 30 && stake < 0.5) {
+    w.pauseReason = `Board confidence has fallen to ${Math.round(p.boardConfidence)}%. Below 15% you can be fired.`;
     pushNews(w, { kind: 'player', title: `Board confidence in ${w.player.founderName} is collapsing (${Math.round(p.boardConfidence)}%)`, body: 'Improve profitability or the board may vote you out.', companyId: p.id, tone: 'bad' });
   }
   if (p.boardConfidence < 15 && stake < 0.5 && chance(w, 0.6)) {
