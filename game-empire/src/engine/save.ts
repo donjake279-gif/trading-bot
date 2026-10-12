@@ -2,8 +2,8 @@
 // slot index (small, synchronous). Falls back to localStorage if IndexedDB is
 // unavailable. Saves can also be exported/imported as JSON files.
 import type { World } from './types';
-import { playerCompany } from './util';
-import { SAVE_VERSION } from './world';
+import { normalizeLedger, playerCompany } from './util';
+import { SAVE_VERSION, playerExtras } from './world';
 
 export interface SlotMeta {
   id: string;
@@ -135,9 +135,23 @@ function migrate(w: World): void {
     g.updateQueue ??= [];
     g.autoUpdates ??= false;
     g.newcomer ??= false;
+    g.backlashUntil ??= 0;
+    g.neglectWarned ??= false;
+    g.ccuMilestone ??= 0;
+    g.lastChurn ??= 0;
+  }
+  for (const id in w.companies) {
+    const c = w.companies[id];
+    c.ledger = normalizeLedger(c.ledger);
+    for (const m of c.monthly) m.ledger = normalizeLedger(m.ledger);
   }
   w.player.autoAssign ??= true;
   w.player.lifelinesUsed ??= 0;
+  const extras = playerExtras();
+  const pl = w.player as unknown as Record<string, unknown>;
+  for (const [k, v] of Object.entries(extras)) if (pl[k] === undefined) pl[k] = v;
+  w.notices ??= [];
+  w.pauseReason = null;
   w.version = SAVE_VERSION;
 }
 

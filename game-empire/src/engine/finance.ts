@@ -2,6 +2,9 @@
 import { MONETIZATIONS, OFFICES, TAX_RATE } from './constants';
 import { bankName } from './names';
 import { randRange } from './rng';
+import { investmentValue, policyMonthlyCost } from './business';
+import { infraMonthlyCost } from './infra';
+import { perkRank } from './progression';
 import type { Company, Loan, World } from './types';
 import {
   clamp,
@@ -41,11 +44,15 @@ export function playerPayroll(w: World): number {
 
 export function monthlyBurn(w: World, c: Company): number {
   let burn: number;
-  if (c.isPlayer) burn = playerPayroll(w) + OFFICES[w.player.officeLevel].rent;
+  if (c.isPlayer) burn = playerPayroll(w) + playerRent(w) + policyMonthlyCost(w) + infraMonthlyCost(w);
   else burn = c.headcount * (c.avgSalary + AI_OVERHEAD_PER_HEAD * aiSizeFactor(c.headcount));
   for (const l of c.loans) burn += l.monthlyPayment;
-  burn += (servers30(w, c) * 1);
+  if (!c.isPlayer) burn += servers30(w, c);
   return burn;
+}
+
+export function playerRent(w: World): number {
+  return OFFICES[w.player.officeLevel].rent * (1 - 0.06 * perkRank(w, 'lean'));
 }
 
 export function servers30(w: World, c: Company): number {
@@ -81,7 +88,7 @@ export function recentRevenue(c: Company, months: number): number {
 export function dailyCosts(w: World, c: Company): void {
   if (c.isPlayer) {
     spend(c, 'salaries', playerPayroll(w) / 30);
-    spend(c, 'rent', OFFICES[w.player.officeLevel].rent / 30);
+    spend(c, 'rent', playerRent(w) / 30);
   } else {
     spend(c, 'salaries', (c.headcount * c.avgSalary) / 30);
     spend(c, 'rent', (c.headcount * AI_OVERHEAD_PER_HEAD * aiSizeFactor(c.headcount)) / 30);
@@ -132,7 +139,7 @@ export function loanOffers(w: World, c: Company): LoanOffer[] {
   ];
   return terms.map(([frac, months, extra]) => {
     const amount = Math.floor((limit * frac) / 1000) * 1000;
-    const apr = w.market.baseRate + risk + extra;
+    const apr = Math.max(0.01, w.market.baseRate + risk + extra - (c.isPlayer ? 0.008 * perkRank(w, 'deals') : 0));
     return { amount, months, apr, monthlyPayment: amortizedPayment(amount, apr, months) };
   }).filter((o) => o.amount >= 1000);
 }
@@ -219,6 +226,7 @@ export function computeValuation(w: World, c: Company): number {
     ipFans * 2.5 +
     subs +
     holdingsValue(w, c) +
+    (c.isPlayer ? investmentValue(w) : 0) +
     c.reputation * Math.min(20000, 1000 + rev * 0.02);
   return Math.max(Math.max(1000, c.cash * 0.3), v);
 }

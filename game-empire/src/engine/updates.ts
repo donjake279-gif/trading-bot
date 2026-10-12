@@ -5,6 +5,7 @@ import { ratingOf } from './market';
 import { randNormal } from './rng';
 import type { Company, Game, MonetizationId, PlatformId, UpdateTypeId, World } from './types';
 import { clamp, earn, pushNews, toast } from './util';
+import { addXp, perkRank } from './progression';
 
 export function updateWork(w: World, g: Game, type: UpdateTypeId, isPlayer: boolean, platform?: PlatformId): number {
   const def = UPDATES[type];
@@ -12,6 +13,7 @@ export function updateWork(w: World, g: Game, type: UpdateTypeId, isPlayer: bool
   if (type === 'port' && platform) work *= PLATFORMS[platform].workMult / 0.3;
   if (isPlayer && hasResearch(w, 'liveOps')) work *= 0.65;
   if (isPlayer && type === 'port' && hasResearch(w, 'crossplay')) work *= 0.5;
+  if (isPlayer) work *= 1 - 0.12 * perkRank(w, 'patch');
   return work;
 }
 
@@ -54,7 +56,7 @@ export function startNextQueued(w: World, g: Game, c: Company): boolean {
     if (next.type === 'port' && (!next.platform || g.platforms.includes(next.platform))) continue;
     const cost = updateCost(g, next.type, next.platform);
     if (c.cash < cost) {
-      toast(w, `${g.title}: skipped queued ${UPDATES[next.type].name} (needs ${Math.round(cost).toLocaleString()} cash)`, 'bad');
+      toast(w, `${g.title}: skipped queued ${UPDATES[next.type].name} (needs $${Math.round(cost).toLocaleString()})`, 'bad', { category: 'game', link: { route: 'game', id: g.id } });
       continue;
     }
     if (team.length === 0) {
@@ -96,6 +98,9 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
   if (!u) return;
   let reception = 42 + (avgSkill - 50) * 0.7 + randNormal(w, 0, 9);
   if (c.isPlayer && hasResearch(w, 'liveOps')) reception += 8;
+  if (c.isPlayer) reception += 3 * perkRank(w, 'patch');
+  const fatigue = updateFatigue(w, g, u.type);
+  reception -= fatigue;
   reception = clamp(reception, 5, 98);
   const recF = reception / 70;
   const lapsed = Math.max(0, g.owners - g.active);
@@ -162,6 +167,17 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
       break;
   }
 
+  // how players react: a great drop brings lapsed players back, a flop starts a backlash
+  const bigDrop = u.type === 'content' || u.type === 'expansion' || u.type === 'seasonal' || u.type === 'port';
+  if (reception >= 75 && bigDrop) {
+    g.active += lapsed * 0.04 * recF;
+    g.viralMult = Math.max(g.viralMult, 1.2);
+    g.viralUntil = Math.max(g.viralUntil, w.day + 10);
+  } else if (reception < 35 && u.type !== 'hotfix') {
+    g.backlashUntil = w.day + 30;
+    g.goodwill -= 3;
+  }
+  g.neglectWarned = false;
   g.updates.push({ day: w.day, type: u.type, reception: Math.round(reception), label });
   if (g.updates.length > 40) g.updates.splice(0, g.updates.length - 40);
   g.lastUpdateDay = w.day;
@@ -170,8 +186,25 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
   if (c.isPlayer) {
     if (!startNextQueued(w, g, c)) for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
     pushNews(w, { kind: 'player', title: `${g.title}: ${label} is live`, body: `Player reception: ${Math.round(reception)}/100.`, companyId: c.id, gameId: g.id, tone: reception >= 60 ? 'good' : reception < 35 ? 'bad' : 'neutral' });
-    toast(w, `${g.title}: ${def.name} released (${Math.round(reception)}/100)`, reception >= 60 ? 'good' : 'neutral');
+    addXp(w, Math.round((8 + reception / 6) * (u.type === 'expansion' ? 3 : bigDrop ? 1.5 : 1)));
+    const body =
+      reception >= 75 && bigDrop
+        ? 'Players love it. Lapsed players are coming back.'
+        : reception < 35 && u.type !== 'hotfix'
+          ? 'Players hated it. Expect a month of backlash and higher churn.'
+          : fatigue > 0
+            ? 'Players are getting tired of the same kind of update. Mix it up.'
+            : undefined;
+    toast(w, `${g.title}: ${def.name} released (${Math.round(reception)}/100)`, reception >= 60 ? 'good' : reception < 35 ? 'bad' : 'neutral', { category: 'game', link: { route: 'game', id: g.id }, body });
   } else if (u.type === 'expansion' && g.peakCcu > 100000) {
     pushNews(w, { kind: 'release', title: `${c.name} launches a major expansion for ${g.title}`, companyId: c.id, gameId: g.id, tone: 'neutral' });
   }
+}
+
+/** Shipping the same kind of update back to back wears players out. */
+export function updateFatigue(w: World, g: Game, type: UpdateTypeId): number {
+  if (type === 'hotfix' || type === 'port') return 0;
+  let n = 0;
+  for (const u of g.updates) if (u.type === type && w.day - u.day < 45) n++;
+  return Math.min(18, n * 6);
 }

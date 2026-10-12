@@ -1,4 +1,5 @@
 import { founderStake } from './stocks';
+import { addXp } from './progression';
 import type { World } from './types';
 import { activeCompanies, playerCompany, pushNews, toast } from './util';
 
@@ -41,6 +42,15 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   } },
   { id: 'empire', name: 'Game Empire', desc: 'Own 3 subsidiaries.', check: (w) => Object.values(w.companies).filter((c) => c.parentId === w.player.companyId && c.status === 'active').length >= 3 },
   { id: 'titan', name: 'Titan of Industry', desc: 'Reach a $100B valuation.', check: (w) => playerCompany(w).valuation >= 1e11 },
+  { id: 'level_10', name: 'Rising Studio', desc: 'Reach studio level 10.', check: (w) => w.player.progression.level >= 10 },
+  { id: 'level_25', name: 'Industry Veteran', desc: 'Reach studio level 25.', check: (w) => w.player.progression.level >= 25 },
+  { id: 'goals_10', name: 'Goal Getter', desc: 'Complete 10 studio goals.', check: (w) => w.player.objectivesCompleted >= 10 },
+  { id: 'contracts_5', name: 'Hired Guns', desc: 'Deliver 5 client contracts.', check: (w) => w.player.contractsCompleted >= 5 },
+  { id: 'regional', name: 'Going Global', desc: 'Run your games on Regional Data Centers or better.', check: (w) => w.player.infra.tier >= 3 },
+  { id: 'uptime', name: 'Five Nines', desc: 'Run Hyperscale Edge servers.', check: (w) => w.player.infra.tier >= 5 },
+  { id: 'investor', name: 'Smart Money', desc: 'Hold $1M in investments.', check: (w) => w.player.investments.bonds + w.player.investments.indexUnits * w.market.index >= 1e6 },
+  { id: 'publisher', name: 'Publisher', desc: 'Earn $1M from publishing other studios\' games.', check: (w) => w.player.publishing.reduce((s, d) => s + d.earned, 0) + (w.player.flags.publishingEarned ?? 0) >= 1e6 },
+  { id: 'max_perk', name: 'Specialist', desc: 'Max out a perk.', check: (w) => Object.values(w.player.progression.perks).some((r) => (r ?? 0) >= 3) },
   { id: 'control', name: 'Iron Grip', desc: 'Be public while still owning over 50% of your company.', check: (w) => playerCompany(w).isPublic && founderStake(playerCompany(w)) > 0.5 },
 ];
 
@@ -52,7 +62,8 @@ export function checkAchievements(w: World): void {
     if (a.check(w)) {
       w.player.achievements[a.id] = w.day;
       pushNews(w, { kind: 'player', title: `Achievement unlocked: ${a.name}`, body: a.desc, companyId: p.id, tone: 'good' });
-      toast(w, `🏆 ${a.name}`, 'good');
+      toast(w, `Achievement unlocked: ${a.name}`, 'good', { category: 'goal', link: { route: 'achievements' }, body: a.desc });
+      addXp(w, 50);
     }
   }
 }

@@ -6,12 +6,16 @@ import { aiDaily, aiDecide, aiSolvency, maybeSpawnStudio } from './ai';
 import { playerDevDay } from './development';
 import { annualAwards, boardMonthly, expireDecisions, hitFeedback, macroDay, playerSolvency, randomEvents, resolveAuctions } from './events';
 import { computeValuation, dailyCosts, monthlyBurn, monthlyClose, recordCash, updateIpFans } from './finance';
-import { marketDay, totalActivePlayers } from './market';
+import { marketDay, playerGameAlerts, totalActivePlayers } from './market';
+import { expoDaily, investmentsDaily, licensesMonthly, policiesDaily, profitSharingMonthly, publishingDaily, salesDaily, updateRival } from './business';
+import { contractsDaily } from './contracts';
+import { infraDaily } from './infra';
+import { addXp, objectivesDaily } from './progression';
 import { refreshCandidates, engineLicensing, researchDaily, staffDaily, staffMonthly } from './staff';
 import { marketDay as stockMarketDay, quarterlyEarnings, stockDay, sweepSubsidiaries } from './stocks';
 import { updateDaily } from './updates';
 import type { World } from './types';
-import { dayToDate } from './util';
+import { dayToDate, ledgerExpenses, ledgerRevenue } from './util';
 import { WARMUP_DAYS } from './constants';
 
 export function advanceDay(w: World): void {
@@ -36,6 +40,7 @@ export function advanceDay(w: World): void {
       const g = w.games[id];
       if (g.companyId === player.id && g.status === 'development') playerDevDay(w, g, player);
     }
+    contractsDaily(w);
     staffDaily(w);
     researchDaily(w);
   }
@@ -50,6 +55,10 @@ export function advanceDay(w: World): void {
 
   // ---- the market
   marketDay(w);
+  if (hasPlayer) {
+    infraDaily(w);
+    if (w.day % 7 === 0) playerGameAlerts(w);
+  }
   for (const id in w.games) {
     const g = w.games[id];
     if (g.releaseDay === w.day && g.breakout > 1) hitFeedback(w, g);
@@ -60,6 +69,13 @@ export function advanceDay(w: World): void {
   for (const id in w.companies) {
     const c = w.companies[id];
     if (c.status === 'active') dailyCosts(w, c);
+  }
+  if (hasPlayer) {
+    policiesDaily(w);
+    investmentsDaily(w);
+    publishingDaily(w);
+    expoDaily(w);
+    salesDaily(w);
   }
 
   // ---- AI decisions (staggered weekly)
@@ -96,7 +112,13 @@ export function advanceDay(w: World): void {
 
   // ---- monthly close
   if (monthStart) {
-    if (hasPlayer) engineLicensing(w);
+    if (hasPlayer) {
+      engineLicensing(w);
+      licensesMonthly(w);
+      const revenue = ledgerRevenue(player.ledger);
+      profitSharingMonthly(w, revenue - ledgerExpenses(player.ledger));
+      if (revenue > 0) addXp(w, Math.min(600, 25 * Math.log10(1 + revenue / 1000) ** 1.6));
+    }
     for (const id in w.companies) {
       const c = w.companies[id];
       if (c.status === 'active') {
@@ -110,6 +132,7 @@ export function advanceDay(w: World): void {
       staffMonthly(w);
       boardMonthly(w);
       if (w.day - w.player.candidatesRefreshDay >= 28) refreshCandidates(w);
+      updateRival(w);
       w.player.stats.totalRevenue = player.revenueTotal;
     }
     let rev = 0;
@@ -121,7 +144,10 @@ export function advanceDay(w: World): void {
   }
 
   if (date.getUTCMonth() === 11 && date.getUTCDate() === 12) annualAwards(w);
-  if (hasPlayer && w.day % 7 === 0) checkAchievements(w);
+  if (hasPlayer) {
+    objectivesDaily(w);
+    if (w.day % 7 === 0) checkAchievements(w);
+  }
 }
 
 export function advanceDays(w: World, n: number): void {

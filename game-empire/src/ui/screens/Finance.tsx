@@ -27,7 +27,10 @@ const REV_LABELS: Record<(typeof REVENUE_KEYS)[number], string> = {
   subscriptions: 'Subscriptions',
   ads: 'Advertising',
   dlc: 'DLC',
-  licensing: 'Engine licensing',
+  licensing: 'Licensing & merch',
+  contracts: 'Client contracts',
+  investments: 'Investment income',
+  publishing: 'Publishing deals',
   other: 'Other',
 };
 const EXP_LABELS: Record<(typeof EXPENSE_KEYS)[number], string> = {
@@ -40,10 +43,11 @@ const EXP_LABELS: Record<(typeof EXPENSE_KEYS)[number], string> = {
   interest: 'Interest',
   taxes: 'Taxes',
   research: 'R&D',
+  perks: 'Benefits & perks',
   misc: 'Other',
 };
-const REV_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9'];
-const EXP_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#8a96a3'];
+const REV_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#8a96a3'];
+const EXP_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#6f7c8b', '#8a96a3'];
 
 export function Finance() {
   const w = useWorld();

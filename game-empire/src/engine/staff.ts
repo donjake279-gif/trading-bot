@@ -1,5 +1,6 @@
 // Player staff: candidates, morale, growth, research progress.
-import { HIREABLE_ROLES, OFFICES, RESEARCH, ROLES, TRAITS, salaryFor } from './constants';
+import { BENEFITS, HIREABLE_ROLES, HOURS, OFFICES, RESEARCH, ROLES, TRAITS, salaryFor } from './constants';
+import { perkRank } from './progression';
 import { chance, pick, randInt, randNormal, randRange } from './rng';
 import type { Candidate, Employee, RoleId, TraitId, World } from './types';
 import { clamp, newId, playerCompany, pushNews, toast } from './util';
@@ -30,7 +31,7 @@ export function refreshCandidates(w: World): void {
   const p = playerCompany(w);
   const surge = w.day < w.market.talentSurgeUntil;
   const count = 6 + Math.min(10, Math.floor(p.reputation / 8)) + (surge ? 4 : 0);
-  const center = 26 + p.reputation * 0.45 + (surge ? 8 : 0);
+  const center = 26 + p.reputation * 0.45 + (surge ? 8 : 0) + 4 * perkRank(w, 'talent') + BENEFITS[w.player.policies.benefits].candidateSkill;
   const fallen = surge
     ? Object.values(w.companies)
         .filter((c) => c.status === 'bankrupt' && c.endDay !== null && w.day - c.endDay < 90)
@@ -45,6 +46,11 @@ export function refreshCandidates(w: World): void {
   out.sort((a, b) => b.skill - a.skill);
   w.player.candidates = out;
   w.player.candidatesRefreshDay = w.day;
+}
+
+/** One-off recruiting cost for a candidate. */
+export function recruitFee(w: World, salary: number): number {
+  return Math.round(salary * 0.5 * (1 - 0.2 * perkRank(w, 'talent')));
 }
 
 export function makeEmployee(w: World, c: Candidate): Employee {
@@ -90,16 +96,17 @@ export function staffMonthly(w: World): void {
     if (crowded) target -= 15;
     if (toxic > 0 && !e.traits.includes('toxic')) target -= Math.min(18, (toxic / Math.max(1, headcount)) * 120);
     const crunching = e.assignment && w.games[e.assignment]?.crunch;
-    if (crunching && !e.traits.includes('crunchProof')) target -= 18;
+    if (crunching && !e.traits.includes('crunchProof')) target -= 18 * (1 - 0.3 * perkRank(w, 'crunch'));
+    target += BENEFITS[w.player.policies.benefits].morale + HOURS[w.player.policies.hours].morale;
     if (p.cash < 0) target -= 10;
     e.morale = clamp(e.morale + (target - e.morale) * 0.4 + randNormal(w, 0, 3), 0, 100);
-    const quitChance = e.traits.includes('loyal') ? 0.01 : e.morale < 25 ? 0.25 : e.morale < 40 ? 0.08 : 0.005;
+    const quitChance = (e.traits.includes('loyal') ? 0.01 : e.morale < 25 ? 0.25 : e.morale < 40 ? 0.08 : 0.005) * BENEFITS[w.player.policies.benefits].quit;
     if (chance(w, quitChance)) quitters.push(e);
   }
   for (const q of quitters) {
     w.player.employees = w.player.employees.filter((e) => e.id !== q.id);
     pushNews(w, { kind: 'player', title: `${q.name} quits ${p.name}`, body: `Morale was ${Math.round(q.morale)}%. ${ROLES[q.role].name}, skill ${Math.round(q.skill)}.`, companyId: p.id, tone: 'bad' });
-    toast(w, `${q.name} quit (low morale)`, 'bad');
+    toast(w, `${q.name} quit (low morale)`, 'bad', { category: 'studio', link: { route: 'team' }, body: 'Better pay, benefits or a bigger office keep people happy.' });
   }
 }
 

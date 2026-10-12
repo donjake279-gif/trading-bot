@@ -3,6 +3,8 @@ import { DIFFICULTIES, GENRES, GENRE_IDS, MAX_LIFELINES, PLATFORMS, PLATFORM_IDS
 import { amortizedPayment, debtOf, monthlyBurn, profitTTM, revenueTTM, takeLoan } from './finance';
 import { ratingOf } from './market';
 import { personName } from './names';
+import { opportunitiesDaily, resolveOpportunity } from './opportunities';
+import { addXp } from './progression';
 import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
 import { acquireCompany, founderStake, marketCap } from './stocks';
 import type { DecisionEvent, Game, GenreId, World } from './types';
@@ -187,37 +189,18 @@ function scandalEvent(w: World): void {
 
 // ------------------------------------------------------------ player decisions
 
-function pushDecision(w: World, ev: Omit<DecisionEvent, 'id' | 'day'>): void {
+export function pushDecision(w: World, ev: Omit<DecisionEvent, 'id' | 'day'>): void {
   if (w.pendingEvents.some((e) => e.kind === ev.kind)) return;
-  w.pendingEvents.push({ ...ev, id: newId(w, 'd'), day: w.day });
+  // the game never pauses for decisions, so give the player real time to answer
+  const expiresDay = Math.max(ev.expiresDay, w.day + 21);
+  w.pendingEvents.push({ ...ev, expiresDay, id: newId(w, 'd'), day: w.day });
+  toast(w, ev.title, 'major', { category: 'offer', link: { route: 'inbox' }, body: 'Decision waiting in your inbox.' });
 }
 
 function playerEvents(w: World): void {
   const p = playerCompany(w);
   if (!p || p.status !== 'active' || w.player.gameOver) return;
   const emps = w.player.employees.filter((e) => !e.isFounder);
-
-  // poaching
-  if (emps.length > 0 && chance(w, 0.0025)) {
-    const star = emps.filter((e) => e.skill >= 60 && !e.traits.includes('loyal')).sort((a, b) => b.skill - a.skill)[0];
-    const rivals = activeCompanies(w).filter((c) => !c.isPlayer && c.cash > 5e6);
-    if (star && rivals.length) {
-      const rival = pick(w, rivals);
-      const counter = Math.round(star.salary * 0.35);
-      pushDecision(w, {
-        kind: 'poach',
-        title: `${rival.name} is trying to poach ${star.name}`,
-        body: `Your ${ROLES[star.role].name.toLowerCase()} ${star.name} (skill ${Math.round(star.skill)}) has an offer from ${rival.name} for 35% more money.`,
-        options: [
-          { id: 'counter', label: `Counter-offer (+${fmt(counter)}/mo)`, description: 'Match the offer. They stay, happier than before.' },
-          { id: 'bonus', label: 'One-time retention bonus ($' + Math.round(star.salary * 3).toLocaleString() + ')', description: '65% chance they stay.' },
-          { id: 'let', label: 'Let them go', description: 'Wish them well. Your rival gets stronger.' },
-        ],
-        data: { employeeId: star.id, rivalId: rival.id, counter },
-        expiresDay: w.day + 10,
-      });
-    }
-  }
 
   // publisher deal
   const devGames = Object.values(w.games).filter((g) => g.companyId === p.id && g.status === 'development' && g.publisherCut === 0);
@@ -277,7 +260,8 @@ function playerEvents(w: World): void {
           { id: 'fight', label: 'Fight with shareholder letters', description: `Free, but odds ~${Math.round(clamp(founderStake(p) * 1.1 + p.boardConfidence / 300, 0.05, 0.85) * 100)}%. Losing means you are taken over.` },
         ],
         data: { raiderId: raider.id, premium, pillCost },
-        expiresDay: w.day + 7,
+        expiresDay: w.day + 30,
+        defaultOption: 'lapse',
       });
     }
   }
@@ -290,7 +274,7 @@ function playerEvents(w: World): void {
     if (p.isPublic) p.price *= 0.88;
     p.boardConfidence = Math.max(0, p.boardConfidence - 10);
     pushNews(w, { kind: 'player', title: `Exposé: crunch culture at ${p.name}`, body: 'Journalists report months of forced overtime. Reputation and morale suffer.', companyId: p.id, tone: 'bad' });
-    toast(w, 'Crunch scandal hits your studio!', 'bad');
+    toast(w, 'Crunch scandal hits your studio!', 'bad', { category: 'studio', body: 'Reputation -10 and the team is demoralised.' });
   }
 
   // predatory monetization aimed at kids
@@ -298,7 +282,7 @@ function playerEvents(w: World): void {
   if (predatory && chance(w, 0.006 * severity(w))) {
     p.reputation = Math.max(0, p.reputation - 12);
     pushNews(w, { kind: 'player', title: `Parents outraged by ${p.name}'s loot boxes in kids' games`, companyId: p.id, tone: 'bad' });
-    toast(w, 'Loot box outrage damages your reputation', 'bad');
+    toast(w, 'Loot box outrage damages your reputation', 'bad', { category: 'game', body: 'Aggressive monetization in a kids game. Reputation -12.' });
   }
 
   // raise request
@@ -336,44 +320,19 @@ function playerEvents(w: World): void {
     });
   }
 
-  // random server outage on an online player game
-  const online = Object.values(w.games).filter((g) => g.companyId === p.id && g.status === 'released' && (g.multiplayer === 'online' || g.multiplayer === 'massive') && g.active > 5000);
-  if (online.length && chance(w, 0.002 * online.length * (w.player.research.completed.includes('cloudInfra') ? 0.3 : 1))) {
-    const g = pick(w, online);
-    g.meltdownUntil = w.day + 2;
-    g.userScore = Math.max(1, g.userScore - 2);
-    pushNews(w, { kind: 'player', title: `${g.title} servers go down for 48 hours`, body: 'Angry players flood social media.', companyId: p.id, gameId: g.id, tone: 'bad' });
-  }
+  opportunitiesDaily(w);
 }
 
 export function resolveDecision(w: World, eventId: string, optionId: string): void {
   const idx = w.pendingEvents.findIndex((e) => e.id === eventId);
   if (idx < 0) return;
   const ev = w.pendingEvents[idx];
+  const opt = ev.options.find((o) => o.id === optionId);
+  if (opt?.disabled && !refreshDisabled(w, ev, optionId)) return;
   w.pendingEvents.splice(idx, 1);
   const p = playerCompany(w);
   const d = ev.data;
   switch (ev.kind) {
-    case 'poach': {
-      const e = w.player.employees.find((x) => x.id === d.employeeId);
-      const rival = w.companies[String(d.rivalId)];
-      if (!e) break;
-      const leave = () => {
-        w.player.employees = w.player.employees.filter((x) => x.id !== e.id);
-        if (rival && rival.status === 'active') rival.talent = Math.min(95, rival.talent + 0.3);
-        pushNews(w, { kind: 'player', title: `${e.name} leaves for ${rival?.name ?? 'a rival'}`, companyId: p.id, tone: 'bad' });
-      };
-      if (optionId === 'counter') {
-        e.salary += Number(d.counter);
-        e.morale = Math.min(100, e.morale + 15);
-      } else if (optionId === 'bonus') {
-        p.cash -= e.salary * 3;
-        p.ledger.salaries += e.salary * 3;
-        if (chance(w, 0.65)) e.morale = Math.min(100, e.morale + 10);
-        else leave();
-      } else leave();
-      break;
-    }
     case 'publisher': {
       const g = w.games[String(d.gameId)];
       if (optionId === 'accept' && g && g.status === 'development') {
@@ -405,6 +364,10 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
     }
     case 'takeover': {
       const raider = w.companies[String(d.raiderId)];
+      if (optionId === 'lapse') {
+        pushNews(w, { kind: 'player', title: `${raider?.name ?? 'A rival'}'s bid for ${p.name} lapses without shareholder support`, companyId: p.id, tone: 'good' });
+        break;
+      }
       const premium = Number(d.premium);
       const price = p.price * premium * p.shares;
       const lose = () => {
@@ -475,14 +438,23 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
       pushNews(w, { kind: 'player', title: optionId === 'fight' ? (cost < settle ? 'Court throws out patent troll lawsuit' : 'Court rules against you in patent case') : 'Patent lawsuit settled', body: `Cost: ${fmt(cost)}.`, companyId: p.id, tone: cost < settle ? 'good' : 'bad' });
       break;
     }
+    default:
+      resolveOpportunity(w, ev, optionId);
   }
+}
+
+/** Cost-gated options were disabled when offered; re-check against today's cash. */
+function refreshDisabled(w: World, ev: DecisionEvent, optionId: string): boolean {
+  const d = ev.data;
+  const cost = Number(d.fee ?? d.cost ?? d.bounty ?? d.amount ?? d.price ?? d.pillCost ?? (optionId === 'retreat' ? d.retreat : optionId === 'bonus' ? d.bonus : NaN));
+  return Number.isFinite(cost) && playerCompany(w).cash >= cost;
 }
 
 export function expireDecisions(w: World): void {
   const expired = w.pendingEvents.filter((e) => e.expiresDay <= w.day);
   for (const ev of expired) {
-    const fallback = ev.options.find((o) => o.id === 'decline' || o.id === 'let' || o.id === 'fight' || o.id === 'settle') ?? ev.options[ev.options.length - 1];
-    resolveDecision(w, ev.id, fallback.id);
+    const fallback = ev.defaultOption ?? (ev.options.find((o) => o.id === 'decline' || o.id === 'settle') ?? ev.options[ev.options.length - 1]).id;
+    resolveDecision(w, ev.id, fallback);
   }
 }
 
@@ -497,8 +469,8 @@ export function playerSolvency(w: World): void {
     if ((p.insolventDays === 14 || p.insolventDays === 60) && w.player.lifelinesUsed < MAX_LIFELINES) offerLifeline(w);
     if (p.insolventDays === 1 || left === 30 || left === 14 || left === 7 || left === 3) {
       pushNews(w, { kind: 'player', title: `Cash is negative! ${left} days until bankruptcy`, body: 'Take a loan, raise funding, sell assets or cut costs now.', companyId: p.id, tone: 'bad' });
-      toast(w, `Insolvent: ${left} days until bankruptcy`, 'bad');
-      if (p.insolventDays === 1 || left === 14) w.pauseReason = `Cash is negative: ${left} days until bankruptcy. Raise money or cut costs.`;
+      toast(w, `Cash is negative: ${left} days until bankruptcy`, 'bad', { category: 'finance', link: { route: 'finance' }, body: 'Take a loan, raise funding, sell assets or cut costs.' });
+
     }
     if (p.insolventDays > PLAYER_GRACE_DAYS) {
       p.status = 'bankrupt';
@@ -563,7 +535,7 @@ export function boardMonthly(w: World): void {
   const target = clamp(55 + 30 * clamp(margin, -1, 0.5) + stockPerf + growth + (p.cash < 0 ? -25 : 0) + (p.reputation - 40) * 0.2, 0, 100);
   p.boardConfidence = clamp(p.boardConfidence + (target - p.boardConfidence) * 0.35, 0, 100);
   if (p.boardConfidence < 30 && stake < 0.5) {
-    w.pauseReason = `Board confidence has fallen to ${Math.round(p.boardConfidence)}%. Below 15% you can be fired.`;
+    toast(w, `Board confidence is down to ${Math.round(p.boardConfidence)}%`, 'bad', { category: 'finance', link: { route: 'finance' }, body: 'Below 15% the board can fire you. Improve profits or the share price.' });
     pushNews(w, { kind: 'player', title: `Board confidence in ${w.player.founderName} is collapsing (${Math.round(p.boardConfidence)}%)`, body: 'Improve profitability or the board may vote you out.', companyId: p.id, tone: 'bad' });
   }
   if (p.boardConfidence < 15 && stake < 0.5 && chance(w, 0.6)) {
@@ -607,7 +579,10 @@ export function annualAwards(w: World): void {
     c.reputation = Math.min(100, c.reputation + 5);
     w.awardsHistory.push({ year, category: cat, gameId: winner.id, title: winner.title, companyId: c.id });
     lines.push(`${cat}: ${winner.title} (${c.name})`);
-    if (c.isPlayer) toast(w, `${winner.title} wins ${cat}!`, 'good');
+    if (c.isPlayer) {
+      toast(w, `${winner.title} wins ${cat}!`, 'good', { category: 'game', link: { route: 'game', id: winner.id } });
+      addXp(w, 150);
+    }
     for (const nominee of list.slice(1, 5)) {
       const nc = w.companies[nominee.companyId];
       nc.reputation = Math.min(100, nc.reputation + 1.5);

@@ -45,8 +45,9 @@ function botTick(w: World, log: string[]) {
   while (w.pendingEvents.length) {
     const ev = w.pendingEvents[0];
     const prefer = ev.kind === 'lifeline' ? ['loan', 'equity'] : ['decline', 'counter', 'accept', 'settle'];
-    const opt = prefer.map((id) => ev.options.find((o) => o.id === id && !o.disabled)).find(Boolean) ?? ev.options[0];
+    const opt = prefer.map((id) => ev.options.find((o) => o.id === id && !o.disabled)).find(Boolean) ?? ev.options.find((o) => !o.disabled) ?? ev.options[0];
     resolveDecision(w, ev.id, ev.kind === 'buyout' || ev.kind === 'takeover' ? 'decline' : opt.id);
+    if (w.pendingEvents[0] === ev) w.pendingEvents.shift();
     if (ev.kind === 'takeover') break;
   }
   const mine = Object.values(w.games).filter((g) => g.companyId === c.id);
@@ -131,11 +132,16 @@ describe('bot player', () => {
       for (let d = 0; d < 365 * 8; d++) {
         botTick(w, log);
         advanceDay(w);
+        if (process.env.BOT_DEBUG === seed && w.day % 30 === 0) {
+          const c = playerCompany(w);
+          const last = c.monthly[c.monthly.length - 1];
+          if (last) log.push(`== m d${w.day} cash ${fmt(c.cash)} rev ${fmt(last.revenue)} exp ${fmt(last.expenses)} ${Object.entries(last.ledger).filter(([, v]) => v > 500).map(([k, v]) => `${k}:${fmt(v)}`).join(' ')} staff ${w.player.employees.length} loans ${c.loans.length} events ${w.pendingEvents.map((e) => e.kind).join(',')}`);
+        }
         if (w.player.gameOver) break;
         if (w.day % 365 === 0) {
           const c = playerCompany(w);
           log.push(
-            `== year ${w.day / 365}: cash ${fmt(c.cash)} rev TTM ${fmt(revenueTTM(c))} valuation ${fmt(c.valuation)} staff ${w.player.employees.length} office ${OFFICES[w.player.officeLevel].name} rep ${c.reputation.toFixed(0)} games ${w.player.stats.gamesReleased} best ${w.player.stats.bestCritic} research ${w.player.research.completed.length}`,
+            `== year ${w.day / 365}: cash ${fmt(c.cash)} rev TTM ${fmt(revenueTTM(c))} valuation ${fmt(c.valuation)} staff ${w.player.employees.length} office ${OFFICES[w.player.officeLevel].name} rep ${c.reputation.toFixed(0)} games ${w.player.stats.gamesReleased} best ${w.player.stats.bestCritic} research ${w.player.research.completed.length} lvl ${w.player.progression.level} goals ${w.player.objectivesCompleted} servers ${w.player.infra.tier}x${w.player.infra.nodes} load ${w.player.infra.load.toFixed(2)} peak ${Math.round(w.player.stats.peakCcu)} xp ${Math.round(w.player.progression.xp)} | ${w.player.objectives.map((o) => o.title).join(' / ')}`,
           );
         }
       }

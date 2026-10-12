@@ -1,5 +1,5 @@
 import { NEWS_CAP, START_YEAR } from './constants';
-import type { Company, Game, Ledger, NewsItem, Point, World } from './types';
+import type { Company, Game, Ledger, NewsItem, Notice, NoticeCategory, NoticeLink, Point, World } from './types';
 
 export const DAY_MS = 86400000;
 const EPOCH = Date.UTC(START_YEAR, 0, 1);
@@ -59,6 +59,9 @@ export function emptyLedger(): Ledger {
     ads: 0,
     dlc: 0,
     licensing: 0,
+    contracts: 0,
+    investments: 0,
+    publishing: 0,
     other: 0,
     salaries: 0,
     rent: 0,
@@ -69,11 +72,19 @@ export function emptyLedger(): Ledger {
     interest: 0,
     taxes: 0,
     research: 0,
+    perks: 0,
     misc: 0,
   };
 }
 
-export const REVENUE_KEYS = ['sales', 'microtransactions', 'subscriptions', 'ads', 'dlc', 'licensing', 'other'] as const;
+/** Fill categories missing from ledgers written by older versions. */
+export function normalizeLedger(l: Partial<Ledger> | undefined): Ledger {
+  const out = emptyLedger();
+  if (l) for (const k of Object.keys(out) as (keyof Ledger)[]) out[k] = Number.isFinite(l[k]) ? (l[k] as number) : 0;
+  return out;
+}
+
+export const REVENUE_KEYS = ['sales', 'microtransactions', 'subscriptions', 'ads', 'dlc', 'licensing', 'contracts', 'investments', 'publishing', 'other'] as const;
 export const EXPENSE_KEYS = [
   'salaries',
   'rent',
@@ -84,6 +95,7 @@ export const EXPENSE_KEYS = [
   'interest',
   'taxes',
   'research',
+  'perks',
   'misc',
 ] as const;
 
@@ -121,9 +133,41 @@ export function pushNews(w: World, item: Omit<NewsItem, 'id' | 'day'>): void {
   if (w.news.length > NEWS_CAP) w.news.length = NEWS_CAP;
 }
 
-export function toast(w: World, title: string, tone: NewsItem['tone'] = 'neutral'): void {
-  w.toasts.push({ id: newId(w, 't'), title, tone });
-  if (w.toasts.length > 12) w.toasts.splice(0, w.toasts.length - 12);
+export interface NotifyInput {
+  title: string;
+  body?: string;
+  tone?: NewsItem['tone'];
+  category?: NoticeCategory;
+  link?: NoticeLink;
+  /** Keep it in the history only, without a toast. */
+  silent?: boolean;
+}
+
+const NOTICE_CAP = 300;
+
+/** Record a notification in the history and show it briefly as a toast. */
+export function notify(w: World, n: NotifyInput): void {
+  const notice: Notice = {
+    id: newId(w, 'nt'),
+    day: w.day,
+    title: n.title,
+    body: n.body,
+    tone: n.tone ?? 'neutral',
+    category: n.category ?? 'studio',
+    link: n.link,
+    read: false,
+  };
+  if (!w.notices) w.notices = [];
+  w.notices.unshift(notice);
+  if (w.notices.length > NOTICE_CAP) w.notices.length = NOTICE_CAP;
+  if (!n.silent) {
+    w.toasts.push({ id: notice.id, title: notice.title, tone: notice.tone, category: notice.category, link: notice.link });
+    if (w.toasts.length > 12) w.toasts.splice(0, w.toasts.length - 12);
+  }
+}
+
+export function toast(w: World, title: string, tone: NewsItem['tone'] = 'neutral', extra: Omit<NotifyInput, 'title' | 'tone'> = {}): void {
+  notify(w, { title, tone, ...extra });
 }
 
 export function playerCompany(w: World): Company {
@@ -222,4 +266,25 @@ export function sumBy<T>(items: T[], f: (t: T) => number): number {
 
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** Stable 32-bit hash of a string (for deterministic per-item variation). */
+export function hashString(s: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Steam-style label for a player review score. */
+export function reviewLabel(score: number, players = 1000): string {
+  if (players < 50) return 'Too few reviews';
+  if (score >= 95) return 'Overwhelmingly Positive';
+  if (score >= 85) return 'Very Positive';
+  if (score >= 75) return 'Mostly Positive';
+  if (score >= 55) return 'Mixed';
+  if (score >= 35) return 'Mostly Negative';
+  return 'Overwhelmingly Negative';
 }

@@ -213,6 +213,14 @@ export interface Game {
   autoUpdates: boolean;
   /** One of the player's first releases: gets newcomer buzz. */
   newcomer: boolean;
+  /** Players are angry about a bad update until this day. */
+  backlashUntil: number;
+  /** Player already warned that this game feels abandoned. */
+  neglectWarned: boolean;
+  /** Highest concurrent-player milestone already celebrated. */
+  ccuMilestone: number;
+  /** Yesterday's daily churn rate (for retention stats). */
+  lastChurn: number;
   updates: UpdateRecord[];
   lastUpdateDay: number;
   awards: string[];
@@ -248,6 +256,9 @@ export interface Ledger {
   ads: number;
   dlc: number;
   licensing: number;
+  contracts: number;
+  investments: number;
+  publishing: number;
   other: number;
   salaries: number;
   rent: number;
@@ -258,6 +269,7 @@ export interface Ledger {
   interest: number;
   taxes: number;
   research: number;
+  perks: number;
   misc: number;
 }
 
@@ -396,6 +408,8 @@ export interface DecisionEvent {
   options: DecisionOption[];
   data: Record<string, string | number | boolean | null>;
   expiresDay: number;
+  /** Option applied if the player lets the offer lapse. */
+  defaultOption?: string;
 }
 
 export interface Auction {
@@ -453,6 +467,24 @@ export interface PlayerState {
   /** Idle developers join projects automatically. */
   autoAssign: boolean;
   lifelinesUsed: number;
+  infra: InfraState;
+  progression: Progression;
+  objectives: Objective[];
+  objectivesCompleted: number;
+  objectiveRerollDay: number;
+  contracts: Contract[];
+  contractOffers: ContractOffer[];
+  contractsRefreshDay: number;
+  contractsCompleted: number;
+  policies: Policies;
+  investments: Investments;
+  publishing: PublishingDeal[];
+  licenses: LicenseDeal[];
+  /** Booth tier booked for this year's GameExpo (0 = none). */
+  expoBooking: { year: number; tier: number } | null;
+  /** One-off notices already sent (keyed), so they don't repeat. */
+  flags: Record<string, number>;
+  rivalId: string | null;
 }
 
 export interface FundingOffer {
@@ -463,6 +495,152 @@ export interface FundingOffer {
   equity: number;
   preMoney: number;
   expiresDay: number;
+}
+
+export type NoticeCategory = 'studio' | 'game' | 'team' | 'finance' | 'market' | 'industry' | 'offer' | 'achievement' | 'server' | 'goal';
+
+export interface NoticeLink {
+  /** A UI route name (dashboard, game, company, servers, ...). */
+  route: string;
+  id?: string;
+}
+
+/** A notification: shown briefly as a toast, kept in the notification history. */
+export interface Notice {
+  id: string;
+  day: number;
+  title: string;
+  body?: string;
+  tone: NewsItem['tone'];
+  category: NoticeCategory;
+  link?: NoticeLink;
+  read: boolean;
+}
+
+export interface ServerIncident {
+  day: number;
+  days: number;
+  cause: string;
+}
+
+export interface InfraState {
+  tier: number;
+  nodes: number;
+  autoscale: boolean;
+  incidents: ServerIncident[];
+  /** Days in a row the servers ran nearly empty (autoscale shrink). */
+  lowLoadDays: number;
+  /** Yesterday's concurrent players on your online games and capacity use. */
+  demand: number;
+  load: number;
+  outageUntil: number;
+  overloadDays: number;
+  /** Days the infrastructure was down in the trailing window (for uptime). */
+  downtime: Point[];
+}
+
+export type PerkId =
+  | 'prototyping'
+  | 'polish'
+  | 'press'
+  | 'marketing'
+  | 'hype'
+  | 'patch'
+  | 'community'
+  | 'talent'
+  | 'crunch'
+  | 'lean'
+  | 'deals'
+  | 'merch';
+
+export interface Progression {
+  xp: number;
+  level: number;
+  perkPoints: number;
+  perks: Partial<Record<PerkId, number>>;
+}
+
+export type ObjectiveKind =
+  | 'ccu'
+  | 'critic'
+  | 'monthRevenue'
+  | 'employees'
+  | 'updates'
+  | 'reputation'
+  | 'valuation'
+  | 'liveGames'
+  | 'owners'
+  | 'cash'
+  | 'contracts'
+  | 'serverTier'
+  | 'releases';
+
+export interface Objective {
+  id: string;
+  kind: ObjectiveKind;
+  title: string;
+  target: number;
+  /** Counter value when the goal was set, for "ship N more" style goals. */
+  baseline: number;
+  rewardCash: number;
+  rewardXp: number;
+  rewardRep: number;
+  rewardPerk: boolean;
+  createdDay: number;
+}
+
+export interface ContractOffer {
+  id: string;
+  client: string;
+  kind: string;
+  title: string;
+  work: number;
+  days: number;
+  pay: number;
+  rep: number;
+  expiresDay: number;
+}
+
+export interface Contract extends ContractOffer {
+  workDone: number;
+  startDay: number;
+  deadline: number;
+}
+
+export type BenefitsPolicy = 'basic' | 'standard' | 'premium';
+export type HoursPolicy = 'flexible' | 'standard' | 'extended';
+export type QaPolicy = 'fast' | 'standard' | 'rigorous';
+
+export interface Policies {
+  benefits: BenefitsPolicy;
+  profitSharing: boolean;
+  hours: HoursPolicy;
+  qa: QaPolicy;
+  retainer: boolean;
+}
+
+export interface Investments {
+  bonds: number;
+  indexUnits: number;
+  indexCost: number;
+}
+
+export interface PublishingDeal {
+  id: string;
+  gameId: string;
+  companyId: string;
+  title: string;
+  share: number;
+  paid: number;
+  earned: number;
+  startDay: number;
+}
+
+export interface LicenseDeal {
+  id: string;
+  label: string;
+  monthly: number;
+  monthsLeft: number;
 }
 
 export interface World {
@@ -480,10 +658,12 @@ export interface World {
   pendingEvents: DecisionEvent[];
   auctions: Auction[];
   player: PlayerState;
-  /** Set by the engine when the player must react now; the UI pauses and clears it. */
+  /** Legacy (pre-v3 saves); the game no longer pauses itself. */
   pauseReason?: string | null;
+  /** Notification history (newest first). */
+  notices: Notice[];
   /** Toast queue for the UI (drained by the store). */
-  toasts: { id: string; title: string; tone: NewsItem['tone'] }[];
+  toasts: { id: string; title: string; tone: NewsItem['tone']; category?: NoticeCategory; link?: NoticeLink }[];
   awardsHistory: { year: number; category: string; gameId: string; title: string; companyId: string }[];
 }
 

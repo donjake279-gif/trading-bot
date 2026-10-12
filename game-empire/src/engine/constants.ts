@@ -1,5 +1,6 @@
 // Game design tables. Tuning lives here so the simulation code stays generic.
 import type {
+  PerkId,
   ArtStyleId,
   AudienceId,
   CampaignId,
@@ -708,7 +709,7 @@ export const TRAITS: Record<TraitId, { name: string; blurb: string; good: boolea
   crunchProof: { name: 'Crunch-Proof', blurb: 'Morale unaffected by crunch.', good: true },
   toxic: { name: 'Toxic', blurb: 'Talented but drags team morale down.', good: false },
   genius: { name: 'Genius', blurb: '+30% quality output.', good: true },
-  loyal: { name: 'Loyal', blurb: 'Rarely quits, immune to poaching.', good: true },
+  loyal: { name: 'Loyal', blurb: 'Rarely quits, even when morale dips.', good: true },
   mentor: { name: 'Mentor', blurb: 'Teammates learn faster.', good: true },
 };
 
@@ -766,7 +767,7 @@ export const RESEARCH_IDS: ResearchId[] = [
 export const RESEARCH: Record<ResearchId, ResearchDef> = {
   agile: { name: 'Agile Pipeline', cost: 12000, days: 30, requires: [], minRep: 0, blurb: '+10% development speed.' },
   analytics: { name: 'Player Analytics', cost: 20000, days: 30, requires: [], minRep: 0, blurb: '-8% churn. Reveals genre focus targets and quality estimates.' },
-  netcode: { name: 'Netcode Expertise', cost: 45000, days: 40, requires: [], minRep: 5, blurb: '+tech quality on online games, -15% server costs.' },
+  netcode: { name: 'Netcode Expertise', cost: 45000, days: 40, requires: [], minRep: 5, blurb: '+tech quality on online games, -10% server costs, unlocks Regional Data Centers.' },
   communityHub: { name: 'Community Platform', cost: 70000, days: 40, requires: ['analytics'], minRep: 5, blurb: '-6% churn, faster reputation growth.' },
   qaAutomation: { name: 'Automated QA', cost: 40000, days: 45, requires: ['agile'], minRep: 5, blurb: '-35% bugs created during development.' },
   marketingData: { name: 'Marketing Data Science', cost: 110000, days: 40, requires: ['analytics'], minRep: 10, blurb: '+30% marketing efficiency.' },
@@ -774,7 +775,7 @@ export const RESEARCH: Record<ResearchId, ResearchDef> = {
   engine1: { name: 'In-House Engine v1', cost: 250000, days: 120, requires: ['agile'], minRep: 15, blurb: 'Your own engine: no royalties, quality cap 86.' },
   crossplay: { name: 'Cross-Platform Tech', cost: 350000, days: 60, requires: ['netcode'], minRep: 20, blurb: 'Porting work -50%; multiplatform online games share one network.' },
   antiCheat: { name: 'Anti-Cheat Systems', cost: 150000, days: 50, requires: ['netcode'], minRep: 20, blurb: '-12% churn on competitive genres.' },
-  cloudInfra: { name: 'Cloud Infrastructure', cost: 300000, days: 60, requires: ['netcode'], minRep: 20, blurb: '-40% server costs, prevents launch-day meltdowns.' },
+  cloudInfra: { name: 'Cloud Infrastructure', cost: 300000, days: 60, requires: ['netcode'], minRep: 20, blurb: '-25% server costs, unlocks the global server tiers.' },
   mocap: { name: 'Motion Capture Studio', cost: 600000, days: 60, requires: [], minRep: 30, blurb: '+graphics quality for realistic and photoreal games.' },
   engine2: { name: 'In-House Engine v2', cost: 3000000, days: 180, requires: ['engine1'], minRep: 35, blurb: 'Engine quality cap 95, faster production.' },
   esports: { name: 'Esports Program', cost: 2500000, days: 90, requires: ['antiCheat'], minRep: 45, blurb: 'Competitive games gain visibility and retention.' },
@@ -868,3 +869,115 @@ export const PLAYER_GRACE_DAYS = 90;
 /** Times an angel investor will rescue a sinking player company. */
 export const MAX_LIFELINES = 2;
 export const NEWS_CAP = 450;
+
+// ---------------------------------------------------------------- server infrastructure
+
+export interface ServerTierDef {
+  name: string;
+  blurb: string;
+  /** Concurrent players one node can serve. */
+  nodeCapacity: number;
+  nodeCost: number;
+  /** Monthly upkeep per node. */
+  nodeMaintenance: number;
+  /** Daily cost per concurrent player served. */
+  bandwidth: number;
+  /** Base daily chance of an outage. */
+  outage: number;
+  /** 0..1: latency and stability, lifts player satisfaction on online games. */
+  performance: number;
+  upgradeCost: number;
+  maxNodes: number;
+  minRep: number;
+  research?: ResearchId;
+}
+
+export const SERVER_TIERS: ServerTierDef[] = [
+  { name: 'Shared Hosting', blurb: 'A rented slice of someone else\'s machine. Fine for a tiny community.', nodeCapacity: 250, nodeCost: 150, nodeMaintenance: 110, bandwidth: 0.006, outage: 0.006, performance: 0, upgradeCost: 0, maxNodes: 8, minRep: 0 },
+  { name: 'Virtual Private Servers', blurb: 'Your own virtual machines. Cheap to scale, still a little laggy.', nodeCapacity: 1500, nodeCost: 1800, nodeMaintenance: 520, bandwidth: 0.0055, outage: 0.004, performance: 0.25, upgradeCost: 4000, maxNodes: 20, minRep: 3 },
+  { name: 'Dedicated Servers', blurb: 'Bare-metal machines in a colocation facility. Solid and fast.', nodeCapacity: 10000, nodeCost: 30000, nodeMaintenance: 3600, bandwidth: 0.0048, outage: 0.0025, performance: 0.45, upgradeCost: 50000, maxNodes: 40, minRep: 12 },
+  { name: 'Regional Data Centers', blurb: 'Clusters on three continents. Low latency for most players.', nodeCapacity: 80000, nodeCost: 450000, nodeMaintenance: 26000, bandwidth: 0.004, outage: 0.0015, performance: 0.65, upgradeCost: 1200000, maxNodes: 60, minRep: 25, research: 'netcode' },
+  { name: 'Global Cloud Network', blurb: 'Elastic cloud regions worldwide with automatic failover.', nodeCapacity: 500000, nodeCost: 4500000, nodeMaintenance: 150000, bandwidth: 0.003, outage: 0.0008, performance: 0.85, upgradeCost: 15000000, maxNodes: 80, minRep: 40, research: 'cloudInfra' },
+  { name: 'Hyperscale Edge', blurb: 'Your own edge network in every major city. Practically never down.', nodeCapacity: 3000000, nodeCost: 40000000, nodeMaintenance: 850000, bandwidth: 0.002, outage: 0.0003, performance: 1, upgradeCost: 150000000, maxNodes: 100, minRep: 60, research: 'cloudInfra' },
+];
+
+// ---------------------------------------------------------------- progression
+
+/** XP needed to go from `level` to the next one. */
+export function xpForLevel(level: number): number {
+  return Math.round(80 * Math.pow(level, 1.45));
+}
+export const MAX_LEVEL = 50;
+
+export interface PerkDef {
+  name: string;
+  blurb: string;
+  maxRank: number;
+  /** Studio level needed to unlock the first rank. */
+  minLevel: number;
+}
+
+export const PERK_IDS: PerkId[] = ['prototyping', 'polish', 'press', 'marketing', 'hype', 'patch', 'community', 'talent', 'crunch', 'lean', 'deals', 'merch'];
+
+export const PERKS: Record<PerkId, PerkDef> = {
+  prototyping: { name: 'Rapid Prototyping', blurb: '+5% development speed per rank.', maxRank: 3, minLevel: 1 },
+  polish: { name: 'Polish Pass', blurb: '-12% bugs created per rank.', maxRank: 3, minLevel: 1 },
+  press: { name: 'Press Darling', blurb: '+1.5 critic score per rank.', maxRank: 3, minLevel: 4 },
+  marketing: { name: 'Marketing Network', blurb: '+12% hype from campaigns per rank.', maxRank: 3, minLevel: 2 },
+  hype: { name: 'Hype Machine', blurb: 'Hype fades 25% slower and wishlists grow 10% faster per rank.', maxRank: 3, minLevel: 6 },
+  patch: { name: 'Patch Masters', blurb: 'Updates need 12% less work and land 3 points better per rank.', maxRank: 3, minLevel: 3 },
+  community: { name: 'Community Darlings', blurb: '-4% player churn per rank.', maxRank: 3, minLevel: 5 },
+  talent: { name: 'Talent Magnet', blurb: 'Candidates are 4 skill better and cost 20% less to recruit per rank.', maxRank: 3, minLevel: 2 },
+  crunch: { name: 'Healthy Crunch', blurb: 'Crunch hurts morale 30% less per rank.', maxRank: 3, minLevel: 3 },
+  lean: { name: 'Lean Operations', blurb: '-6% rent and server upkeep per rank.', maxRank: 3, minLevel: 7 },
+  deals: { name: 'Deal Maker', blurb: 'Better loans, investor valuations and contract pay per rank.', maxRank: 3, minLevel: 8 },
+  merch: { name: 'Merch & Licensing', blurb: '+3% extra revenue from every game per rank.', maxRank: 3, minLevel: 10 },
+};
+
+// ---------------------------------------------------------------- policies
+
+export const BENEFITS = {
+  basic: { name: 'Basic', perHead: 0, morale: 0, quit: 1, candidateSkill: 0, blurb: 'Salary only.' },
+  standard: { name: 'Standard', perHead: 450, morale: 6, quit: 0.7, candidateSkill: 1, blurb: 'Health cover, decent hardware, team lunches.' },
+  premium: { name: 'Premium', perHead: 1300, morale: 12, quit: 0.4, candidateSkill: 4, blurb: 'Top-tier perks. People rarely leave and talent seeks you out.' },
+} as const;
+
+export const HOURS = {
+  flexible: { name: 'Flexible', speed: 0.97, morale: 5, blurb: 'Choose your hours. Happier, slightly slower.' },
+  standard: { name: 'Standard', speed: 1, morale: 0, blurb: 'A normal working week.' },
+  extended: { name: 'Extended', speed: 1.08, morale: -8, blurb: 'Long weeks as policy. Faster, but people burn out.' },
+} as const;
+
+export const QA_POLICIES = {
+  fast: { name: 'Ship fast', bugs: 1.25, speed: 1.05, blurb: 'Less testing, quicker builds, more bugs.' },
+  standard: { name: 'Standard', bugs: 1, speed: 1, blurb: 'A sensible testing pass.' },
+  rigorous: { name: 'Rigorous', bugs: 0.7, speed: 0.94, blurb: 'Every build is tested hard. Fewer bugs, slower.' },
+} as const;
+
+/** Monthly marketing-agency retainer, scaled to company size. */
+export function retainerCost(headcount: number): number {
+  return Math.round(Math.max(2500, headcount * 600) / 100) * 100;
+}
+
+// ---------------------------------------------------------------- contracts
+
+export const CONTRACT_KINDS = [
+  { kind: 'port', title: 'Port a game to a new platform', clients: ['Bluefin Publishing', 'Retro Revival Co.', 'Pocket Arcade'] },
+  { kind: 'advergame', title: 'Build a branded mini-game', clients: ['FizzPop Drinks', 'Turbo Toys', 'Nimbus Telecom', 'BurgerVerse'] },
+  { kind: 'art', title: 'Outsourced art for a rival studio', clients: [] as string[] },
+  { kind: 'qa', title: 'QA testing contract', clients: ['Certify Labs', 'Platform Compliance Group'] },
+  { kind: 'edu', title: 'Educational game for schools', clients: ['BrightMinds Learning', 'Science Museum Trust'] },
+  { kind: 'sim', title: 'Training simulator', clients: ['Aerodyne Training', 'Metro Transit Authority', 'MedSim Institute'] },
+];
+
+/** Pay per point of work before reputation and perk bonuses. */
+export const CONTRACT_RATE = 300;
+
+// ---------------------------------------------------------------- calendar
+
+export const EXPO_BOOTHS = [
+  { name: 'No booth', cost: 0, hype: 0 },
+  { name: 'Indie Corner table', cost: 4000, hype: 25 },
+  { name: 'Show-floor booth', cost: 60000, hype: 90 },
+  { name: 'Main-stage presentation', cost: 650000, hype: 260 },
+];

@@ -26,7 +26,8 @@ import { ipValue } from './events';
 import { debtOf, loanOffers, revenueTTM, takeLoan as financeTakeLoan, randomInvestorAppetite } from './finance';
 import { investorName } from './names';
 import { randInt, randRange } from './rng';
-import { makeEmployee, refreshCandidates } from './staff';
+import { makeEmployee, recruitFee, refreshCandidates } from './staff';
+import { perkRank } from './progression';
 import { acquireCompany, acquisitionPrice, buyShares, floatShares, ipoCompany, marketCap, sellShares } from './stocks';
 import type { ActionResult, CampaignId, Company, Game, MonetizationId, PlatformId, QueuedUpdate, ResearchId, StrategyId, UpdateTypeId, World, Focus } from './types';
 import { startUpdateRecord, updateCost } from './updates';
@@ -127,7 +128,7 @@ export function marketingEfficiency(w: World): number {
 export function campaignHype(w: World, g: Game, id: CampaignId): number {
   const def = CAMPAIGNS[id];
   const c = playerCompany(w);
-  const gain = def.hype * marketingEfficiency(w) * (1 + c.reputation / 150) * Math.max(0.05, 1 - g.hype / 1400);
+  const gain = def.hype * marketingEfficiency(w) * (1 + c.reputation / 150) * (1 + 0.12 * perkRank(w, 'marketing')) * Math.max(0.05, 1 - g.hype / 1400);
   return Math.max(0, Math.min(gain, 1400 - g.hype));
 }
 
@@ -142,7 +143,7 @@ export function runCampaign(w: World, gameId: string, id: CampaignId): ActionRes
   c.ledger.marketing += def.cost;
   g.marketingSpent += def.cost;
   g.hype += gain;
-  toast(w, `${def.name}: +${Math.round(gain)} hype for ${g.title}`, 'neutral');
+  toast(w, `${def.name}: +${Math.round(gain)} hype for ${g.title}`, 'neutral', { category: 'game', link: { route: 'game', id: g.id }, silent: true });
   return ok();
 }
 
@@ -310,7 +311,7 @@ export function hire(w: World, candidateId: string): ActionResult {
   const c = playerCompany(w);
   const cap = OFFICES[w.player.officeLevel].capacity;
   if (w.player.employees.length >= cap) return fail(`Your ${OFFICES[w.player.officeLevel].name} is full (${cap}). Move to a bigger office.`);
-  const fee = Math.round(k.salary * 0.5);
+  const fee = recruitFee(w, k.salary);
   if (c.cash < fee) return fail(`Recruiting costs $${fee.toLocaleString()}.`);
   c.cash -= fee;
   c.ledger.salaries += fee;
@@ -457,7 +458,7 @@ export function pitchInvestors(w: World): ActionResult {
   const count = randInt(w, 1, 3);
   w.player.fundingOffers = [];
   for (let i = 0; i < count; i++) {
-    const preMoney = Math.max(round.floor * randRange(w, 0.8, 1.2), c.valuation * randomInvestorAppetite(w) * randRange(w, 0.85, 1.25));
+    const preMoney = Math.max(round.floor * randRange(w, 0.8, 1.2), c.valuation * randomInvestorAppetite(w) * randRange(w, 0.85, 1.25)) * (1 + 0.08 * perkRank(w, 'deals'));
     const equity = randRange(w, round.equity[0], round.equity[1]);
     const amount = Math.round((preMoney * equity) / (1 - equity) / 1000) * 1000;
     w.player.fundingOffers.push({ id: newId(w, 'f'), investor: investorName(w), round: round.name, amount, equity, preMoney, expiresDay: w.day + 21 });

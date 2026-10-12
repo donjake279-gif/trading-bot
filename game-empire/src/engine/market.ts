@@ -19,9 +19,12 @@ import {
   platformAffinity,
 } from './constants';
 import { engineStats, hasResearch, bugDensity } from './development';
+import { ccuMult, saleActive, shopperMult } from './calendar';
+import { infraEffects } from './infra';
+import { addXp, perkRank } from './progression';
 import { rand } from './rng';
 import type { Company, Game, GenreId, World } from './types';
-import { clamp, earn, spend, isPlayerGroup } from './util';
+import { clamp, earn, gamesOf, spend, isPlayerGroup, toast } from './util';
 
 export const OUTSIDE_OPTION = 30;
 export const SHOP_RATE = 0.02;
@@ -133,6 +136,7 @@ function churnMods(w: World, g: Game, c: Company): number {
       for (const e of w.player.employees) if (e.role === 'community') cm += e.skill / 50;
       const load = Math.max(1, g.active / 250000);
       m *= 1 - Math.min(0.15, (0.05 * cm) / load);
+      m *= 1 - 0.04 * perkRank(w, 'community');
     }
   } else if (c.reputation > 60) {
     m *= 0.95;
@@ -169,6 +173,15 @@ export function marketDay(w: World): void {
 
   const sentiment = w.market.sentiment * surgeMult(w);
   const regulation = regulationMult(w);
+  const player = w.companies[w.player.companyId];
+  const hasPlayer = !!player && player.status === 'active';
+  const fx = hasPlayer ? infraEffects(w) : null;
+  const shopDay = shopperMult(day);
+  const ccuDay = ccuMult(day);
+  const sale = saleActive(day);
+  const deals = new Map((w.player.publishing ?? []).map((d) => [d.gameId, d]));
+  const merchRank = hasPlayer ? perkRank(w, 'merch') : 0;
+  const hypeRank = hasPlayer ? perkRank(w, 'hype') : 0;
 
   for (const g of live) {
     const c = w.companies[g.companyId];
@@ -182,7 +195,8 @@ export function marketDay(w: World): void {
     const pool = audiencePool(w, g);
     const wgt = weights.get(g.id) ?? 0;
     const share = wgt / (genreWeight[g.genre] + OUTSIDE_OPTION);
-    const shoppers = pool * SHOP_RATE * sentiment;
+    const shoppers = pool * SHOP_RATE * sentiment * shopDay;
+    const playerOnline = c.isPlayer && fx !== null && (g.multiplayer === 'online' || g.multiplayer === 'massive');
 
     // conversion
     if (g.discountUntil <= day) g.discount = 0;
@@ -193,6 +207,7 @@ export function marketDay(w: World): void {
       const expected = scope.price * (0.6 + 0.8 * r);
       priceFactor = clamp(Math.pow(expected / Math.max(0.99, unitPrice), 1.15), 0.12, 3);
       conv = mon.conversion * priceFactor * mix.premium * (0.6 + 0.4 * aud.spend);
+      if (sale && g.discount > 0) conv *= 1.35; // seasonal sale shoppers
     } else {
       conv = mon.conversion * (g.monetization === 'subscription' ? Math.min(1.4, aud.spend * mix.spend * 1.2) : 1);
     }
@@ -208,6 +223,7 @@ export function marketDay(w: World): void {
       g.wishlists *= 0.88;
       if (age === 11) g.wishlists = 0;
     }
+    if (playerOnline) newPlayers *= fx.acquire;
     if (!(newPlayers > 0)) newPlayers = 0;
     g.owners += newPlayers;
     g.dailyNew = newPlayers;
@@ -223,16 +239,19 @@ export function marketDay(w: World): void {
         (1.6 - 0.6 * g.freshness) *
         (1 + density / 40) *
         (w.day < g.meltdownUntil ? 1.5 : 1) *
+        (w.day < g.backlashUntil ? 1.3 : 1) *
+        (playerOnline ? fx.churn : 1) *
         churnMods(w, g, c),
       0.001,
       0.25,
     );
+    g.lastChurn = churn;
     // lapsed players drift back to games that stay fresh and well-liked
     const lapsed = Math.max(0, g.owners - g.active);
     const returning = lapsed * 0.0018 * g.freshness * r * (mp.serverBase > 0 ? 1.4 : 0.6);
     g.active = Math.max(0, g.active * (1 - churn) + newPlayers * 0.92 + returning);
     if (g.active < 0.5) g.active = 0;
-    g.ccu = g.active * mp.ccuRatio * (0.93 + 0.14 * rand(w));
+    g.ccu = g.active * mp.ccuRatio * ccuDay * (0.93 + 0.14 * rand(w));
     if (g.ccu > g.peakCcu) g.peakCcu = g.ccu;
     if (g.active > g.peakActive) g.peakActive = g.active;
 
@@ -254,28 +273,55 @@ export function marketDay(w: World): void {
       earn(c, key, recurringGross * (1 - mix.storeCut));
     }
     if (royalty > 0) spend(c, 'royalties', royalty);
-    if (pubCut > 0) spend(c, 'royalties', pubCut);
+    if (pubCut > 0) {
+      spend(c, 'royalties', pubCut);
+      const deal = deals.get(g.id);
+      if (deal && hasPlayer) {
+        earn(player, 'publishing', pubCut);
+        deal.earned += pubCut;
+      }
+    }
 
-    // servers
+    // servers: rivals pay per game; the player's fleet is billed in infra.ts
     let server = 0;
-    if (mp.serverBase > 0) server = (mp.serverBase + g.ccu * mp.serverCostPerCcu) * serverCostMult(w, c);
+    if (!c.isPlayer && mp.serverBase > 0) server = (mp.serverBase + g.ccu * mp.serverCostPerCcu) * serverCostMult(w, c);
     if (server > 0) spend(c, 'servers', server);
 
-    const revenue = net - royalty - pubCut;
+    let revenue = net - royalty - pubCut;
+    if (merchRank > 0 && c.isPlayer && revenue > 0) {
+      const extra = revenue * 0.03 * merchRank;
+      earn(c, 'licensing', extra);
+      revenue += extra;
+    }
     g.dailyRevenue = revenue;
-    g.dailyCost = server;
     g.revenueTotal += revenue;
-    g.costTotal += server;
     g.rev30 = g.rev30 * (29 / 30) + revenue;
-    g.cost30 = g.cost30 * (29 / 30) + server;
+    if (!c.isPlayer) {
+      g.dailyCost = server;
+      g.costTotal += server;
+      g.cost30 = g.cost30 * (29 / 30) + server;
+    }
     c.rev30 = c.rev30 + revenue;
 
     // ageing
     const decay = scope.freshnessDecay * mp.freshnessDecay * ART_STYLES[g.artStyle].aging;
     g.freshness = Math.max(0.03, g.freshness - decay * (0.6 + 0.4 * g.freshness));
-    g.hype *= 0.965;
+    g.hype *= c.isPlayer ? 1 - 0.035 * (1 - 0.25 * hypeRank) : 0.965;
     g.goodwill *= 0.995;
-    const target = clamp(g.quality + mon.userScore - density * 1.2 + g.goodwill - (g.monetization === 'f2pAggressive' && regulation < 1 ? 5 : 0), 1, 99);
+    // neglect: live-service and popular games that go quiet lose their players' patience
+    const neglectAfter = !mon.upfront || mp.serverBase > 0 ? 100 : 160;
+    if (g.active > 500 && day - g.lastUpdateDay > neglectAfter) {
+      g.goodwill = Math.max(-10, g.goodwill - 0.05);
+      if (c.isPlayer && !g.neglectWarned) {
+        g.neglectWarned = true;
+        toast(w, `Players feel ${g.title} has been abandoned`, 'bad', { category: 'game', link: { route: 'game', id: g.id }, body: 'No update in months. Reviews and retention will slide until you ship one.' });
+      }
+    }
+    const target = clamp(
+      g.quality + mon.userScore - density * 1.2 + g.goodwill - (g.monetization === 'f2pAggressive' && regulation < 1 ? 5 : 0) + (playerOnline ? fx.score : 0),
+      1,
+      99,
+    );
     g.userScoreTarget = target;
     g.userScore = clamp(g.userScore + (target - g.userScore) * 0.03, 1, 99);
 
@@ -283,6 +329,8 @@ export function marketDay(w: World): void {
       g.history.push([day, Math.round(g.active), Math.round(g.ccu), Math.round(revenue)]);
       if (g.history.length > 320) thinGameHistory(g, day);
     }
+
+    if (c.isPlayer) celebrateMilestones(w, g);
 
     // retire long-dead offline games to keep the simulation lean
     if (age > 400 && g.active < 25 && newPlayers < 1 && mp.serverBase === 0) {
@@ -323,16 +371,50 @@ function thinGameHistory(g: Game, day: number) {
   g.history = out;
 }
 
+const CCU_MILESTONES = [1000, 10000, 100000, 1000000, 10000000];
+
+function celebrateMilestones(w: World, g: Game): void {
+  for (const m of CCU_MILESTONES) {
+    if (g.ccu >= m && g.ccuMilestone < m) {
+      g.ccuMilestone = m;
+      const label = m >= 1e6 ? `${m / 1e6}M` : `${m / 1e3}K`;
+      addXp(w, 40 * Math.log10(m));
+      toast(w, `${g.title} just passed ${label} players online`, 'good', { category: 'game', link: { route: 'game', id: g.id } });
+    }
+  }
+}
+
+/** Weekly: warn when one of the player's games is losing players fast. */
+export function playerGameAlerts(w: World): void {
+  for (const g of gamesOf(w, w.player.companyId)) {
+    if (g.status !== 'released' || g.ccu < 150) continue;
+    const weekAgo = [...g.history].reverse().find((h) => h[0] <= w.day - 7);
+    if (!weekAgo || weekAgo[2] <= 0) continue;
+    const change = g.ccu / weekAgo[2] - 1;
+    const key = `drop:${g.id}`;
+    if (change < -0.3 && w.day - (w.player.flags[key] ?? -999) > 45) {
+      w.player.flags[key] = w.day;
+      toast(w, `Players are leaving ${g.title} (${Math.round(change * 100)}% this week)`, 'bad', {
+        category: 'game',
+        link: { route: 'game', id: g.id },
+        body: g.update ? 'An update is on the way.' : 'A content update or seasonal event would bring them back.',
+      });
+    }
+  }
+}
+
 /** Pre-release hype decay and wishlist accumulation. */
 function devHypeAndWishlists(w: World) {
   for (const id in w.games) {
     const g = w.games[id];
     if (g.status !== 'development') continue;
-    g.hype *= 0.996;
+    const mine = g.companyId === w.player.companyId;
+    const rank = mine ? perkRank(w, 'hype') : 0;
+    g.hype *= 1 - 0.004 * (1 - 0.25 * rank);
     if (g.hype > 1) {
       const pool = audiencePool(w, g);
       const cap = pool * 0.25;
-      g.wishlists += pool * WISHLIST_RATE * SCOPES[g.scope].presence * (g.hype / 100) * Math.max(0, 1 - g.wishlists / cap);
+      g.wishlists += pool * WISHLIST_RATE * SCOPES[g.scope].presence * (g.hype / 100) * Math.max(0, 1 - g.wishlists / cap) * (1 + 0.1 * rank);
     }
   }
 }

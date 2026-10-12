@@ -1,5 +1,6 @@
 // Player conveniences that run every day: auto live-ops for games the player
 // opted in, and idle developers joining projects on their own.
+import { contractDailyWork } from './contracts';
 import { MONETIZATIONS, ROLES, SCOPES } from './constants';
 import { bugDensity } from './development';
 import { startUpdateRecord, updateCost } from './updates';
@@ -69,8 +70,16 @@ export function playerAutomation(w: World): void {
   }
 
   if (!w.player.autoAssign) return;
-  const idle = developers(w).filter((e) => !e.assignment);
+  let idle = developers(w).filter((e) => !e.assignment);
   if (idle.length === 0) return;
+  // contracts that would miss their deadline get help first
+  for (const k of w.player.contracts) {
+    const daysLeft = Math.max(1, k.deadline - w.day);
+    while (idle.length > 0 && contractDailyWork(w, k.id) * daysLeft < k.work - k.workDone) {
+      idle[0].assignment = k.id;
+      idle = idle.slice(1);
+    }
+  }
   const projects = games.filter((g) => g.status === 'development');
   const updating = games.filter((g) => g.status === 'released' && g.update);
   const size = new Map<string, number>();

@@ -6,9 +6,12 @@ import {
   GENRES,
   MONETIZATIONS,
   MULTIPLAYER,
+  HOURS,
   OFFICES,
   PLATFORMS,
+  QA_POLICIES,
   ROLES,
+  SCOPE_IDS,
   SCOPES,
   artFit,
   audienceFit,
@@ -32,6 +35,7 @@ import type {
   World,
 } from './types';
 import { clamp, gamesOf, newId, pushNews, toast } from './util';
+import { addXp, perkRank, releaseXp } from './progression';
 
 export interface GameParams {
   title: string;
@@ -182,6 +186,10 @@ export function createGameRecord(w: World, company: Company, p: GameParams, isPl
     updateQueue: [],
     autoUpdates: false,
     newcomer: false,
+    backlashUntil: 0,
+    neglectWarned: false,
+    ccuMilestone: 0,
+    lastChurn: 0,
     updates: [],
     lastUpdateDay: w.day,
     awards: [],
@@ -203,7 +211,9 @@ export function playerSpeedMods(w: World): number {
   let m = OFFICES[w.player.officeLevel].productivity;
   if (hasResearch(w, 'agile')) m *= 1.1;
   if (hasResearch(w, 'aiTools')) m *= 1.2;
-  return m;
+  const pol = w.player.policies;
+  if (pol) m *= HOURS[pol.hours].speed * QA_POLICIES[pol.qa].speed;
+  return m * (1 + 0.05 * perkRank(w, 'prototyping'));
 }
 
 export function memberOutput(w: World, e: Employee, f: Focus, crunch: boolean, teamEff: number, producerBoost: number): MemberOutput {
@@ -258,7 +268,8 @@ export function playerBugRate(w: World, g: Game, e: Employee): number {
   if (hasResearch(w, 'aiTools')) r *= 0.8;
   if (e.traits.includes('speedster')) r *= 1.25;
   if (e.traits.includes('perfectionist')) r *= 0.7;
-  return r;
+  if (w.player.policies) r *= QA_POLICIES[w.player.policies.qa].bugs;
+  return r * (1 - 0.12 * perkRank(w, 'polish'));
 }
 
 /** Estimated work per day the current team produces on a game. */
@@ -440,7 +451,7 @@ export function releaseGame(w: World, g: Game): void {
   const mon = MONETIZATIONS[g.monetization];
   g.quality = q;
   g.breakout = breakout;
-  g.criticScore = Math.round(clamp(q + randNormal(w, 0, 3), 1, 99));
+  g.criticScore = Math.round(clamp(q + randNormal(w, 0, 3) + (c.isPlayer ? 1.5 * perkRank(w, 'press') : 0), 1, 99));
   const density = bugDensity(g);
   g.userScoreTarget = clamp(q + mon.userScore - density * 1.2, 1, 99);
   g.userScore = Math.round(clamp(g.userScoreTarget + randNormal(w, 0, 5), 1, 99));
@@ -453,9 +464,9 @@ export function releaseGame(w: World, g: Game): void {
   g.lastUpdateDay = w.day;
 
   const online = g.multiplayer === 'online' || g.multiplayer === 'massive';
-  if (online && g.hype > 150) {
-    const protectedInfra = c.isPlayer ? hasResearch(w, 'cloudInfra') : c.headcount > 400;
-    if (!protectedInfra && chance(w, 0.45)) {
+  // the player's launch-day load is simulated by their own server fleet (infra.ts)
+  if (online && g.hype > 150 && !c.isPlayer) {
+    if (c.headcount <= 400 && chance(w, 0.45)) {
       g.meltdownUntil = w.day + 5;
       g.userScore = Math.max(1, g.userScore - 8);
     }
@@ -470,6 +481,9 @@ export function releaseGame(w: World, g: Game): void {
     g.newcomer = w.player.stats.gamesReleased < 3;
     w.player.stats.gamesReleased += 1;
     w.player.stats.bestCritic = Math.max(w.player.stats.bestCritic, g.criticScore);
+    addXp(w, releaseXp(g.criticScore, SCOPE_IDS.indexOf(g.scope)));
+  } else if (g.hype > 250) {
+    warnCompetitorLaunch(w, g);
   }
 
   const verdict =
@@ -484,9 +498,22 @@ export function releaseGame(w: World, g: Game): void {
     tone: c.isPlayer ? (g.criticScore >= 70 ? 'good' : g.criticScore < 50 ? 'bad' : 'neutral') : isMajor ? 'major' : 'neutral',
   });
   if (c.isPlayer) {
-    toast(w, `${g.title} launched! Critics: ${g.criticScore}/100`, g.criticScore >= 70 ? 'good' : g.criticScore < 50 ? 'bad' : 'neutral');
-    if (g.meltdownUntil > w.day) {
-      pushNews(w, { kind: 'player', title: `Servers buckle under ${g.title} launch demand`, body: 'Players are furious about queues and disconnects. Cloud Infrastructure research prevents this.', gameId: g.id, companyId: c.id, tone: 'bad' });
-    }
+    toast(w, `${g.title} launched! Critics: ${g.criticScore}/100`, g.criticScore >= 70 ? 'good' : g.criticScore < 50 ? 'bad' : 'neutral', {
+      category: 'game',
+      link: { route: 'game', id: g.id },
+      body: online ? 'Keep an eye on your server load as players arrive.' : undefined,
+    });
   }
+}
+
+/** A heavily hyped rival game launching into a genre where the player has a live game. */
+function warnCompetitorLaunch(w: World, g: Game): void {
+  const mine = gamesOf(w, w.player.companyId).find((m) => m.status === 'released' && m.genre === g.genre && m.active > 200);
+  if (!mine) return;
+  const rival = w.companies[g.companyId];
+  toast(w, `${rival.name} launched ${g.title}, a ${GENRES[g.genre].name} rival to ${mine.title}`, 'neutral', {
+    category: 'industry',
+    link: { route: 'game', id: g.id },
+    body: 'Expect some of your players to try it. An update now would help keep them.',
+  });
 }

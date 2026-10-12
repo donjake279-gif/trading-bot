@@ -1,15 +1,18 @@
 // World generation: a seeded industry of rival studios with a back-catalogue,
 // warmed up for a year and a half before the player's company is founded.
+import { refreshContractOffers } from './contracts';
+import { refillObjectives } from './progression';
+import { updateRival } from './business';
 import { DIFFICULTIES, GENRE_IDS, PLATFORMS, PLATFORM_IDS, WARMUP_DAYS } from './constants';
 import { makeStudio, seedCatalog, TIERS } from './ai';
 import { computeValuation } from './finance';
 import { hashSeed, randInt, randRange, shuffle } from './rng';
 import { refreshCandidates } from './staff';
 import { advanceDay } from './tick';
-import type { Company, Difficulty, Employee, GenreState, MarketState, PlatformState, World } from './types';
+import type { Company, Difficulty, Employee, GenreState, MarketState, PlatformState, PlayerState, World } from './types';
 import { emptyLedger, newId, pushNews } from './util';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface NewGameOptions {
   seed: string;
@@ -49,6 +52,46 @@ function initialMarket(w: World): MarketState {
   };
 }
 
+/** Player state added in save version 3 (also used to migrate old saves). */
+export function playerExtras(): Pick<
+  PlayerState,
+  | 'infra'
+  | 'progression'
+  | 'objectives'
+  | 'objectivesCompleted'
+  | 'objectiveRerollDay'
+  | 'contracts'
+  | 'contractOffers'
+  | 'contractsRefreshDay'
+  | 'contractsCompleted'
+  | 'policies'
+  | 'investments'
+  | 'publishing'
+  | 'licenses'
+  | 'expoBooking'
+  | 'flags'
+  | 'rivalId'
+> {
+  return {
+    infra: { tier: 0, nodes: 1, autoscale: true, incidents: [], lowLoadDays: 0, demand: 0, load: 0, outageUntil: 0, overloadDays: 0, downtime: [] },
+    progression: { xp: 0, level: 1, perkPoints: 0, perks: {} },
+    objectives: [],
+    objectivesCompleted: 0,
+    objectiveRerollDay: -9999,
+    contracts: [],
+    contractOffers: [],
+    contractsRefreshDay: -9999,
+    contractsCompleted: 0,
+    policies: { benefits: 'basic', profitSharing: false, hours: 'standard', qa: 'standard', retainer: false },
+    investments: { bonds: 0, indexUnits: 0, indexCost: 0 },
+    publishing: [],
+    licenses: [],
+    expoBooking: null,
+    flags: {},
+    rivalId: null,
+  };
+}
+
 function blankPlayerState(): World['player'] {
   return {
     companyId: '',
@@ -68,6 +111,7 @@ function blankPlayerState(): World['player'] {
     tutorialDismissed: false,
     autoAssign: true,
     lifelinesUsed: 0,
+    ...playerExtras(),
   };
 }
 
@@ -88,6 +132,7 @@ export function createIndustry(seed: string, difficulty: Difficulty, rivals: num
     auctions: [],
     player: blankPlayerState(),
     toasts: [],
+    notices: [],
     awardsHistory: [],
   };
   w.market = initialMarket(w);
@@ -124,6 +169,7 @@ export function createIndustry(seed: string, difficulty: Difficulty, rivals: num
   // Warm up: let the industry run so the player arrives in a living market.
   for (let i = 0; i < WARMUP_DAYS; i++) advanceDay(w);
   w.toasts = [];
+  w.notices = [];
   w.pendingEvents = [];
   return w;
 }
@@ -196,6 +242,9 @@ export function createPlayer(w: World, opts: NewGameOptions): void {
   };
   w.player.employees = [founder];
   refreshCandidates(w);
+  refreshContractOffers(w);
+  refillObjectives(w);
+  updateRival(w);
   pushNews(w, {
     kind: 'player',
     title: `${c.name} is founded`,
