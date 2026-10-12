@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { advanceDay } from '../engine/tick';
 import { createWorld, type NewGameOptions } from '../engine/world';
 import { deserializeWorld, loadFromSlot, saveToSlot } from '../engine/save';
-import type { ActionResult, NewsItem, World } from '../engine/types';
+import type { ActionResult, NewsItem, NoticeCategory, NoticeLink, World } from '../engine/types';
 
 export type Route =
   | { name: 'dashboard' }
@@ -21,7 +21,11 @@ export type Route =
   | { name: 'finance' }
   | { name: 'news' }
   | { name: 'achievements' }
+  | { name: 'servers' }
+  | { name: 'goals' }
   | { name: 'settings' };
+
+const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'settings'] as const;
 
 export const SPEEDS = [
   { label: '1×', dps: 1 },
@@ -33,8 +37,27 @@ export const SPEEDS = [
 export interface UiToast {
   id: string;
   title: string;
+  body?: string;
   tone: NewsItem['tone'];
+  category?: NoticeCategory;
+  link?: NoticeLink;
+  /** When it became the visible toast (0 = still queued). */
   at: number;
+  /** How long the toast stays up (ms). */
+  ttl: number;
+  leaving?: boolean;
+}
+
+export type DrawerTab = 'inbox' | 'all';
+export type ToastLevel = 'all' | 'important' | 'off';
+
+function readToastLevel(): ToastLevel {
+  try {
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem('game-empire:toasts') : null;
+    return v === 'important' || v === 'off' ? v : 'all';
+  } catch {
+    return 'all';
+  }
 }
 
 interface GameStore {
@@ -48,7 +71,8 @@ interface GameStore {
   toasts: UiToast[];
   slotId: string;
   autosave: boolean;
-  pauseOnEvents: boolean;
+  drawer: DrawerTab | null;
+  toastLevel: ToastLevel;
   lastAutosaveDay: number;
   lastSavedAt: number | null;
   error: string | null;
@@ -64,11 +88,15 @@ interface GameStore {
   back: () => void;
   act: (fn: (w: World) => ActionResult | void, successToast?: string) => ActionResult;
   bump: () => void;
-  pushToast: (title: string, tone?: NewsItem['tone']) => void;
+  pushToast: (title: string, tone?: NewsItem['tone'], body?: string) => void;
   dismissToast: (id: string) => void;
+  holdToast: (id: string, hold: boolean) => void;
+  startToast: (id: string) => void;
+  follow: (link: NoticeLink | undefined) => void;
+  openDrawer: (tab: DrawerTab | null) => void;
   quitToMenu: () => void;
   setAutosave: (v: boolean) => void;
-  setPauseOnEvents: (v: boolean) => void;
+  setToastLevel: (v: ToastLevel) => void;
   clearError: () => void;
 }
 
@@ -85,7 +113,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toasts: [],
   slotId: 'slot-1',
   autosave: true,
-  pauseOnEvents: true,
+  drawer: null,
+  toastLevel: readToastLevel(),
   lastAutosaveDay: 0,
   lastSavedAt: null,
   error: null,
@@ -165,30 +194,86 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   bump: () => set({ version: get().version + 1 }),
 
-  pushToast: (title, tone = 'neutral') => {
-    const t: UiToast = { id: `ui${++toastSeq}`, title, tone, at: Date.now() };
-    set({ toasts: [...get().toasts.slice(-5), t] });
+  pushToast: (title, tone = 'neutral', body) => {
+    const t: UiToast = { id: `ui${++toastSeq}`, title, body, tone, at: 0, ttl: toastTtl(tone, body) };
+    set({ toasts: limitToasts([...get().toasts, t]) });
   },
-  dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
+  dismissToast: (id) => {
+    const t = get().toasts.find((x) => x.id === id);
+    if (!t || t.leaving) return;
+    set({ toasts: get().toasts.map((x) => (x.id === id ? { ...x, leaving: true } : x)) });
+    setTimeout(() => set({ toasts: get().toasts.filter((x) => x.id !== id) }), 220);
+  },
+  holdToast: (id, hold) => {
+    // hovering keeps a toast up; leaving restarts a short countdown
+    set({ toasts: get().toasts.map((x) => (x.id === id ? { ...x, at: hold ? Number.POSITIVE_INFINITY : Date.now() - x.ttl + 1500 } : x)) });
+  },
+  startToast: (id) => set({ toasts: get().toasts.map((x) => (x.id === id && x.at === 0 ? { ...x, at: Date.now() } : x)) }),
+  follow: (link) => {
+    if (!link) return;
+    if (link.route === 'inbox') return set({ drawer: 'inbox' });
+    const nav = get().navigate;
+    if (link.route === 'game' && link.id) nav({ name: 'game', id: link.id });
+    else if (link.route === 'company' && link.id) nav({ name: 'company', id: link.id });
+    else if ((SIMPLE_ROUTES as readonly string[]).includes(link.route)) nav({ name: link.route } as Route);
+    set({ drawer: null });
+  },
+  openDrawer: (tab) => {
+    const w = get().world;
+    // closing the history marks everything as read
+    if (tab === null && w) for (const n of w.notices) n.read = true;
+    set({ drawer: tab, version: get().version + 1 });
+  },
 
   quitToMenu: () => {
     const s = get();
     if (s.world && !s.world.player.gameOver) void s.saveNow();
-    set({ world: null, status: 'menu', paused: true, toasts: [] });
+    set({ world: null, status: 'menu', paused: true, toasts: [], drawer: null });
   },
   setAutosave: (v) => set({ autosave: v }),
-  setPauseOnEvents: (v) => set({ pauseOnEvents: v }),
+  setToastLevel: (v) => {
+    try {
+      localStorage.setItem('game-empire:toasts', v);
+    } catch {
+      /* storage blocked: keep it for this session */
+    }
+    set({ toastLevel: v });
+  },
   clearError: () => set({ error: null }),
 }));
+
+/** Toasts show one at a time; this many can wait in line. */
+const MAX_TOASTS = 4;
+
+function toastTtl(tone: NewsItem['tone'], body?: string): number {
+  return (tone === 'bad' || tone === 'major' ? 5000 : 3500) + (body ? 1000 : 0);
+}
+
+/** Keep the line short: drop the oldest waiting calm toasts first, never the one on screen. */
+function limitToasts(list: UiToast[]): UiToast[] {
+  const live = list.filter((t) => !t.leaving);
+  if (live.length <= MAX_TOASTS) return list;
+  const queued = live.filter((t) => t.at === 0);
+  const calm = queued.filter((t) => t.tone !== 'bad' && t.tone !== 'major');
+  const order = [...calm, ...queued.filter((t) => !calm.includes(t))];
+  const drop = new Set(order.slice(0, live.length - MAX_TOASTS).map((t) => t.id));
+  return list.filter((t) => !drop.has(t.id));
+}
 
 function drainWorldToasts() {
   const s = useGameStore.getState();
   const w = s.world;
   if (!w || w.toasts.length === 0) return;
-  const now = Date.now();
-  const add = w.toasts.map((t) => ({ id: `w${++toastSeq}`, title: t.title, tone: t.tone, at: now }));
+  const level = s.toastLevel;
+  const incoming = level === 'off' ? [] : level === 'important' ? w.toasts.filter((t) => t.tone === 'bad' || t.tone === 'major' || t.category === 'offer') : w.toasts;
+  if (incoming.length === 0) {
+    w.toasts = [];
+    return;
+  }
+  // at high speed many things happen at once: show the most recent few
+  const add: UiToast[] = incoming.slice(-MAX_TOASTS).map((t) => ({ id: `w${++toastSeq}`, title: t.title, body: t.body, tone: t.tone, category: t.category, link: t.link, at: 0, ttl: toastTtl(t.tone, t.body) }));
   w.toasts = [];
-  useGameStore.setState({ toasts: [...s.toasts, ...add].slice(-6) });
+  useGameStore.setState({ toasts: limitToasts([...s.toasts, ...add]) });
 }
 
 /** Subscribe a component to world changes and return the (mutable) world. */
@@ -211,10 +296,6 @@ function loop() {
     return;
   }
   if (s.paused) return;
-  if (s.pauseOnEvents && w.pendingEvents.length > 0) {
-    useGameStore.setState({ paused: true });
-    return;
-  }
   accumulator += SPEEDS[s.speed].dps * (TICK_MS / 1000);
   let days = Math.floor(accumulator);
   if (days <= 0) return;
@@ -222,17 +303,12 @@ function loop() {
   days = Math.min(days, 6);
   for (let i = 0; i < days; i++) {
     advanceDay(w);
-    if (w.player.gameOver || w.pauseReason) break;
-    if (s.pauseOnEvents && w.pendingEvents.length > 0) break;
+    if (w.player.gameOver) break;
   }
+  w.pauseReason = null;
   drainWorldToasts();
   const patch: Partial<GameStore> = { version: s.version + 1 };
-  if (w.player.gameOver || (s.pauseOnEvents && w.pendingEvents.length > 0)) patch.paused = true;
-  if (w.pauseReason) {
-    patch.paused = true;
-    useGameStore.getState().pushToast(`Paused: ${w.pauseReason}`, 'bad');
-    w.pauseReason = null;
-  }
+  if (w.player.gameOver) patch.paused = true;
   useGameStore.setState(patch);
   if (s.autosave && w.day - s.lastAutosaveDay >= 30 && !w.player.gameOver) {
     useGameStore.setState({ lastAutosaveDay: w.day });

@@ -15,6 +15,7 @@ import {
   takeLoanOffer,
 } from '../../engine/actions';
 import { floatShares, founderStake, marketCap } from '../../engine/stocks';
+import { investmentValue, moveBonds, tradeIndexFund } from '../../engine/business';
 import { EXPENSE_KEYS, REVENUE_KEYS, ledgerExpenses, ledgerRevenue, playerCompany } from '../../engine/util';
 import type { Ledger } from '../../engine/types';
 import { date, money, pct } from '../lib/format';
@@ -190,8 +191,151 @@ export function Finance() {
         </Card>
       </div>
 
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Investments />
+        <SideIncome />
+      </div>
+
       <Subsidiaries />
     </div>
+  );
+}
+
+function AmountInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <input
+      className="h-8 w-full rounded-lg border border-line bg-surface px-2.5 text-sm tabular text-ink outline-none focus:border-accent"
+      inputMode="decimal"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9.kmbKMB]/g, ''))}
+    />
+  );
+}
+
+function parseAmount(v: string): number {
+  const m = v.trim().toLowerCase().match(/^([0-9]*\.?[0-9]+)([kmb]?)$/);
+  if (!m) return 0;
+  const mult = m[2] === 'k' ? 1e3 : m[2] === 'm' ? 1e6 : m[2] === 'b' ? 1e9 : 1;
+  return Math.round(Number(m[1]) * mult);
+}
+
+function Investments() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const c = playerCompany(w);
+  const inv = w.player.investments;
+  const [bonds, setBonds] = useState('');
+  const [index, setIndex] = useState('');
+  const indexValue = inv.indexUnits * w.market.index;
+  const gain = indexValue - inv.indexCost;
+  const yieldRate = Math.max(0.005, w.market.baseRate - 0.005);
+  const quick = (frac: number) => String(Math.max(0, Math.floor((c.cash * frac) / 1000) * 1000));
+  return (
+    <Card title="Investments" subtitle={`Park spare cash. Total ${money(investmentValue(w))} · counts toward your valuation.`}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-line bg-surface-2 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">Treasury bonds</span>
+            <Badge tone="good">{pct(yieldRate, 1)} / yr</Badge>
+          </div>
+          <div className="mt-1 text-xl font-semibold tabular">{money(inv.bonds)}</div>
+          <div className="text-[11px] text-muted">Safe. Interest paid daily, withdraw any time.</div>
+          <div className="mt-2 flex gap-1.5">
+            <AmountInput value={bonds} onChange={setBonds} placeholder="amount, e.g. 50k" />
+            <Button size="sm" onClick={() => setBonds(quick(0.25))} title="25% of cash">
+              ¼
+            </Button>
+          </div>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            <Button size="sm" variant="primary" disabled={parseAmount(bonds) <= 0} onClick={() => act((world) => moveBonds(world, parseAmount(bonds)), 'Bonds bought')}>
+              Buy
+            </Button>
+            <Button size="sm" disabled={inv.bonds <= 0} onClick={() => act((world) => moveBonds(world, -(parseAmount(bonds) || inv.bonds)), 'Bonds sold')}>
+              Sell{parseAmount(bonds) ? '' : ' all'}
+            </Button>
+          </div>
+        </div>
+        <div className="rounded-lg border border-line bg-surface-2 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">Market index fund</span>
+            <Badge tone={w.market.regime === 'bear' ? 'bad' : 'accent'}>{w.market.regime === 'bear' ? 'bear market' : 'tracks the market'}</Badge>
+          </div>
+          <div className="mt-1 text-xl font-semibold tabular">{money(indexValue)}</div>
+          <div className={cx('text-[11px]', gain >= 0 ? 'text-good' : 'text-bad')}>{inv.indexCost > 0 ? `${gain >= 0 ? '+' : ''}${money(gain)} (${pct(gain / inv.indexCost, 1)})` : 'Higher returns, real risk. 0.3% fee per trade.'}</div>
+          <div className="mt-2 flex gap-1.5">
+            <AmountInput value={index} onChange={setIndex} placeholder="amount, e.g. 1m" />
+            <Button size="sm" onClick={() => setIndex(quick(0.25))} title="25% of cash">
+              ¼
+            </Button>
+          </div>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            <Button size="sm" variant="primary" disabled={parseAmount(index) <= 0} onClick={() => act((world) => tradeIndexFund(world, parseAmount(index)), 'Index fund bought')}>
+              Buy
+            </Button>
+            <Button size="sm" disabled={indexValue <= 0} onClick={() => act((world) => tradeIndexFund(world, -(parseAmount(index) || indexValue + 1)), 'Index fund sold')}>
+              Sell{parseAmount(index) ? '' : ' all'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SideIncome() {
+  const w = useWorld();
+  const navigate = useGameStore((s) => s.navigate);
+  const deals = w.player.publishing;
+  const licenses = w.player.licenses;
+  return (
+    <Card title="Publishing & licensing" subtitle="Income from other studios' games and from your brands.">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted">Publishing deals</div>
+      {deals.length === 0 ? (
+        <p className="mt-1 text-sm text-muted">
+          Fund promising indie games for a share of their revenue.{' '}
+          <button className="text-accent underline" onClick={() => navigate({ name: 'industry' })}>
+            Find games to publish
+          </button>
+        </p>
+      ) : (
+        <div className="mt-1.5 space-y-1.5">
+          {deals.map((d) => {
+            const g = w.games[d.gameId];
+            const roi = d.paid > 0 ? d.earned / d.paid : 0;
+            return (
+              <div key={d.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{d.title}</div>
+                  <div className="text-[11px] text-muted">
+                    {w.companies[d.companyId]?.name} · {pct(d.share)} share · {g?.status === 'development' ? `${Math.round((g.workDone / g.workRequired) * 100)}% done` : g?.status === 'released' ? 'live' : g?.status}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="tabular">{money(d.earned)}</div>
+                  <div className={cx('text-[11px] tabular', roi >= 1 ? 'text-good' : 'text-muted')}>of {money(d.paid)} paid</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="mt-4 text-xs font-medium uppercase tracking-wide text-muted">Licensing</div>
+      {licenses.length === 0 ? (
+        <p className="mt-1 text-sm text-muted">Film, merchandise and esports offers arrive in your inbox when your games get popular.</p>
+      ) : (
+        <div className="mt-1.5 space-y-1.5">
+          {licenses.map((l) => (
+            <div key={l.id} className="flex items-center justify-between rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm">
+              <span className="truncate">{l.label}</span>
+              <span className="tabular text-sub">
+                {money(l.monthly)}/mo · {l.monthsLeft} mo left
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

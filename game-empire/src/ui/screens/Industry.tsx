@@ -4,6 +4,7 @@ import { useGameStore, useWorld } from '../../store/gameStore';
 import { GENRES, GENRE_IDS, MONETIZATIONS, PLATFORMS, PLATFORM_IDS, SCOPES } from '../../engine/constants';
 import { genreTrend, totalActivePlayers } from '../../engine/market';
 import { auctionEstimate, bidAuction } from '../../engine/actions';
+import { MAX_PUBLISHING_DEALS, fundPublishing, publishingOpportunities, publishingTerms } from '../../engine/business';
 import { groupRoot, playerCompany } from '../../engine/util';
 import { date, money, num, pct, SERIES } from '../lib/format';
 import { Donut, Sparkline, TimeChart, foldSlices } from '../components/charts';
@@ -190,6 +191,7 @@ export function Industry() {
           </div>
         </Card>
         <div className="space-y-4">
+          <Publishing />
           <Auctions />
           <Card title="Game Awards" subtitle="Recent winners" pad={false}>
             <div className="divide-y divide-line-soft">
@@ -252,6 +254,48 @@ function Auctions() {
           })}
         </div>
       )}
+    </Card>
+  );
+}
+
+function Publishing() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const navigate = useGameStore((s) => s.navigate);
+  const me = playerCompany(w);
+  const opps = publishingOpportunities(w).slice(0, 6);
+  const full = w.player.publishing.length >= MAX_PUBLISHING_DEALS;
+  return (
+    <Card
+      title="Publish an indie game"
+      subtitle={`Fund a smaller studio's game for a share of its revenue for life. ${w.player.publishing.length}/${MAX_PUBLISHING_DEALS} deals.`}
+      pad={false}
+    >
+      <div className="divide-y divide-line-soft">
+        {opps.map((g) => {
+          const c = w.companies[g.companyId];
+          const t = publishingTerms(w, g);
+          return (
+            <div key={g.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+              <CompanyDot color={c.color} />
+              <button className="min-w-0 flex-1 text-left" onClick={() => navigate({ name: 'company', id: c.id })}>
+                <div className="truncate font-medium">{g.title}</div>
+                <div className="text-[11px] text-muted">
+                  {c.name} · {SCOPES[g.scope].name} {GENRES[g.genre].name} · {Math.round((g.workDone / g.workRequired) * 100)}% done · talent {Math.round(c.talent)}
+                </div>
+              </button>
+              <div className="text-right text-xs">
+                <div className="tabular text-sub">{pct(t.share)} share</div>
+                <div className="text-[11px] text-muted">{Math.round(g.hype)} hype</div>
+              </div>
+              <Button size="sm" disabled={full || me.cash < t.price} onClick={() => act((world) => fundPublishing(world, g.id), `You will publish ${g.title}`)}>
+                {money(t.price)}
+              </Button>
+            </div>
+          );
+        })}
+        {opps.length === 0 && <div className="p-4 text-sm text-muted">No independent studios are looking for a publisher right now.</div>}
+      </div>
     </Card>
   );
 }

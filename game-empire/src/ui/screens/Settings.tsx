@@ -4,7 +4,7 @@ import { useGameStore, useWorld } from '../../store/gameStore';
 import { exportFile, listSlots, serializeWorld } from '../../engine/save';
 import { date, money } from '../lib/format';
 import { IS_ARTIFACT } from '../lib/env';
-import { Button, Card, Kv, Modal, SectionTitle, inputClass } from '../components/ui';
+import { Button, Card, Kv, Modal, SectionTitle, Tabs, inputClass } from '../components/ui';
 
 /** Paste a save code (the JSON a "Copy save code" produced) to load it. */
 export function PasteSaveModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -45,8 +45,8 @@ export function Settings() {
   const lastSavedAt = useGameStore((s) => s.lastSavedAt);
   const autosave = useGameStore((s) => s.autosave);
   const setAutosave = useGameStore((s) => s.setAutosave);
-  const pauseOnEvents = useGameStore((s) => s.pauseOnEvents);
-  const setPauseOnEvents = useGameStore((s) => s.setPauseOnEvents);
+  const toastLevel = useGameStore((s) => s.toastLevel);
+  const setToastLevel = useGameStore((s) => s.setToastLevel);
   const quit = useGameStore((s) => s.quitToMenu);
   const importSave = useGameStore((s) => s.importSave);
   const pushToast = useGameStore((s) => s.pushToast);
@@ -152,13 +152,21 @@ export function Settings() {
             </span>
             <input type="checkbox" checked={autosave} onChange={(e) => setAutosave(e.target.checked)} />
           </label>
-          <label className="flex items-center justify-between gap-3 py-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
             <span>
-              Pause when a decision is needed
-              <div className="text-xs text-muted">Unanswered decisions resolve to a default when they expire.</div>
+              Notification pop-ups
+              <div className="text-xs text-muted">Everything is still kept in the notification history (bell icon).</div>
             </span>
-            <input type="checkbox" checked={pauseOnEvents} onChange={(e) => setPauseOnEvents(e.target.checked)} />
-          </label>
+            <Tabs
+              value={toastLevel}
+              onChange={setToastLevel}
+              tabs={[
+                { id: 'all', label: 'All' },
+                { id: 'important', label: 'Important' },
+                { id: 'off', label: 'Off' },
+              ]}
+            />
+          </div>
           <div className="mt-3 border-t border-line-soft pt-3">
             <Kv k="World seed" v={w.seed.toString(16).toUpperCase()} />
             <Kv k="Difficulty" v={w.difficulty} />

@@ -305,3 +305,48 @@ export function Th({ children, className, onClick, active }: { children?: ReactN
 export function Td({ children, className }: { children?: ReactNode; className?: string }) {
   return <td className={cx('whitespace-nowrap px-3 py-2 text-sm', className)}>{children}</td>;
 }
+
+/** A destructive button that asks for a second click inline instead of opening a dialog. */
+export function ConfirmButton({
+  children,
+  confirmLabel = 'Click again to confirm',
+  onConfirm,
+  variant = 'danger',
+  size = 'sm',
+  disabled,
+  className,
+  title,
+}: {
+  children: ReactNode;
+  confirmLabel?: ReactNode;
+  onConfirm: () => void;
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'good';
+  size?: 'sm' | 'md' | 'lg';
+  disabled?: boolean;
+  className?: string;
+  title?: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 3500);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <Button
+      size={size}
+      variant={armed ? 'danger' : variant}
+      disabled={disabled}
+      title={title}
+      className={cx(armed && 'ring-1 ring-bad/60', className)}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else setArmed(true);
+      }}
+    >
+      {armed ? confirmLabel : children}
+    </Button>
+  );
+}

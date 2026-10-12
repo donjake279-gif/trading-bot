@@ -103,7 +103,7 @@ export interface Candidate {
   skill: number;
   salary: number;
   traits: TraitId[];
-  /** Former employer, if they came out of a studio collapse or poach. */
+  /** Former employer, if they came out of a studio collapse. */
   formerStudio?: string;
 }
 
@@ -537,6 +537,9 @@ export interface InfraState {
   overloadDays: number;
   /** Days the infrastructure was down in the trailing window (for uptime). */
   downtime: Point[];
+  /** Online concurrent players and fleet capacity over time (for charts). */
+  demandHistory: Point[];
+  capacityHistory: Point[];
 }
 
 export type PerkId =
@@ -663,7 +666,7 @@ export interface World {
   /** Notification history (newest first). */
   notices: Notice[];
   /** Toast queue for the UI (drained by the store). */
-  toasts: { id: string; title: string; tone: NewsItem['tone']; category?: NoticeCategory; link?: NoticeLink }[];
+  toasts: { id: string; title: string; body?: string; tone: NewsItem['tone']; category?: NoticeCategory; link?: NoticeLink }[];
   awardsHistory: { year: number; category: string; gameId: string; title: string; companyId: string }[];
 }
 

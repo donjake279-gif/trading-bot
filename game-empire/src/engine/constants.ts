@@ -893,12 +893,12 @@ export interface ServerTierDef {
 }
 
 export const SERVER_TIERS: ServerTierDef[] = [
-  { name: 'Shared Hosting', blurb: 'A rented slice of someone else\'s machine. Fine for a tiny community.', nodeCapacity: 250, nodeCost: 150, nodeMaintenance: 110, bandwidth: 0.006, outage: 0.006, performance: 0, upgradeCost: 0, maxNodes: 8, minRep: 0 },
-  { name: 'Virtual Private Servers', blurb: 'Your own virtual machines. Cheap to scale, still a little laggy.', nodeCapacity: 1500, nodeCost: 1800, nodeMaintenance: 520, bandwidth: 0.0055, outage: 0.004, performance: 0.25, upgradeCost: 4000, maxNodes: 20, minRep: 3 },
-  { name: 'Dedicated Servers', blurb: 'Bare-metal machines in a colocation facility. Solid and fast.', nodeCapacity: 10000, nodeCost: 30000, nodeMaintenance: 3600, bandwidth: 0.0048, outage: 0.0025, performance: 0.45, upgradeCost: 50000, maxNodes: 40, minRep: 12 },
-  { name: 'Regional Data Centers', blurb: 'Clusters on three continents. Low latency for most players.', nodeCapacity: 80000, nodeCost: 450000, nodeMaintenance: 26000, bandwidth: 0.004, outage: 0.0015, performance: 0.65, upgradeCost: 1200000, maxNodes: 60, minRep: 25, research: 'netcode' },
-  { name: 'Global Cloud Network', blurb: 'Elastic cloud regions worldwide with automatic failover.', nodeCapacity: 500000, nodeCost: 4500000, nodeMaintenance: 150000, bandwidth: 0.003, outage: 0.0008, performance: 0.85, upgradeCost: 15000000, maxNodes: 80, minRep: 40, research: 'cloudInfra' },
-  { name: 'Hyperscale Edge', blurb: 'Your own edge network in every major city. Practically never down.', nodeCapacity: 3000000, nodeCost: 40000000, nodeMaintenance: 850000, bandwidth: 0.002, outage: 0.0003, performance: 1, upgradeCost: 150000000, maxNodes: 100, minRep: 60, research: 'cloudInfra' },
+  { name: 'Shared Hosting', blurb: 'A rented slice of someone else\'s machine. Fine for a tiny community.', nodeCapacity: 250, nodeCost: 150, nodeMaintenance: 110, bandwidth: 0.006, outage: 0.003, performance: 0, upgradeCost: 0, maxNodes: 8, minRep: 0 },
+  { name: 'Virtual Private Servers', blurb: 'Your own virtual machines. Cheap to scale, still a little laggy.', nodeCapacity: 1500, nodeCost: 1800, nodeMaintenance: 520, bandwidth: 0.0055, outage: 0.002, performance: 0.25, upgradeCost: 4000, maxNodes: 20, minRep: 3 },
+  { name: 'Dedicated Servers', blurb: 'Bare-metal machines in a colocation facility. Solid and fast.', nodeCapacity: 10000, nodeCost: 30000, nodeMaintenance: 3600, bandwidth: 0.0048, outage: 0.0012, performance: 0.45, upgradeCost: 50000, maxNodes: 40, minRep: 12 },
+  { name: 'Regional Data Centers', blurb: 'Clusters on three continents. Low latency for most players.', nodeCapacity: 80000, nodeCost: 450000, nodeMaintenance: 26000, bandwidth: 0.004, outage: 0.0007, performance: 0.65, upgradeCost: 1200000, maxNodes: 60, minRep: 25, research: 'netcode' },
+  { name: 'Global Cloud Network', blurb: 'Elastic cloud regions worldwide with automatic failover.', nodeCapacity: 500000, nodeCost: 4500000, nodeMaintenance: 150000, bandwidth: 0.003, outage: 0.0004, performance: 0.85, upgradeCost: 15000000, maxNodes: 80, minRep: 40, research: 'cloudInfra' },
+  { name: 'Hyperscale Edge', blurb: 'Your own edge network in every major city. Practically never down.', nodeCapacity: 3000000, nodeCost: 40000000, nodeMaintenance: 850000, bandwidth: 0.002, outage: 0.00015, performance: 1, upgradeCost: 150000000, maxNodes: 100, minRep: 60, research: 'cloudInfra' },
 ];
 
 // ---------------------------------------------------------------- progression

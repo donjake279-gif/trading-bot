@@ -130,6 +130,10 @@ export function infraDaily(w: World): void {
   }
 
   if (i.autoscale) autoscale(w);
+  if (w.day % 2 === 0 && (games.length > 0 || i.demandHistory.length > 0)) {
+    pushPoint(i.demandHistory, w.day, Math.round(demand), 240);
+    pushPoint(i.capacityHistory, w.day, infraCapacity(w), 240);
+  }
 }
 
 function autoscale(w: World): void {

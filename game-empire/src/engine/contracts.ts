@@ -104,6 +104,24 @@ export function contractTeam(w: World, id: string): Employee[] {
   return w.player.employees.filter((e) => e.assignment === id);
 }
 
+/** Daily work a given set of employees would put into a contract. */
+export function teamContractWork(w: World, team: Employee[]): number {
+  const { teamEff, producerBoost } = teamFactors(team, 'medium');
+  let work = 0;
+  for (const e of team) work += memberOutput(w, e, FLAT, false, teamEff, producerBoost).work;
+  return work;
+}
+
+/** Move developers onto a running contract (from whatever they were doing). */
+export function staffContract(w: World, id: string, employeeIds: string[]): ActionResult {
+  const c = w.player.contracts.find((x) => x.id === id);
+  if (!c) return { ok: false, error: 'Contract not found.' };
+  const team = w.player.employees.filter((e) => employeeIds.includes(e.id) && ROLES[e.role].dev);
+  if (team.length === 0) return { ok: false, error: 'No developers selected.' };
+  for (const e of team) e.assignment = id;
+  return { ok: true };
+}
+
 export function contractDailyWork(w: World, id: string): number {
   const team = contractTeam(w, id);
   const { teamEff, producerBoost } = teamFactors(team, 'medium');

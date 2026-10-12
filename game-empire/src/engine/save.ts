@@ -150,6 +150,8 @@ function migrate(w: World): void {
   const extras = playerExtras();
   const pl = w.player as unknown as Record<string, unknown>;
   for (const [k, v] of Object.entries(extras)) if (pl[k] === undefined) pl[k] = v;
+  w.player.infra.demandHistory ??= [];
+  w.player.infra.capacityHistory ??= [];
   w.notices ??= [];
   w.pauseReason = null;
   w.version = SAVE_VERSION;

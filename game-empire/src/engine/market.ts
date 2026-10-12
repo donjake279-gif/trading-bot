@@ -310,7 +310,7 @@ export function marketDay(w: World): void {
     g.goodwill *= 0.995;
     // neglect: live-service and popular games that go quiet lose their players' patience
     const neglectAfter = !mon.upfront || mp.serverBase > 0 ? 100 : 160;
-    if (g.active > 500 && day - g.lastUpdateDay > neglectAfter) {
+    if (g.active > 2000 && day - g.lastUpdateDay > neglectAfter) {
       g.goodwill = Math.max(-10, g.goodwill - 0.05);
       if (c.isPlayer && !g.neglectWarned) {
         g.neglectWarned = true;

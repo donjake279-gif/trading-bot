@@ -511,7 +511,8 @@ function warnCompetitorLaunch(w: World, g: Game): void {
   const mine = gamesOf(w, w.player.companyId).find((m) => m.status === 'released' && m.genre === g.genre && m.active > 200);
   if (!mine) return;
   const rival = w.companies[g.companyId];
-  toast(w, `${rival.name} launched ${g.title}, a ${GENRES[g.genre].name} rival to ${mine.title}`, 'neutral', {
+  const genre = GENRES[g.genre].name;
+  toast(w, `${rival.name} launched ${g.title}, ${/^[AEIOU]/i.test(genre) ? 'an' : 'a'} ${genre} rival to ${mine.title}`, 'neutral', {
     category: 'industry',
     link: { route: 'game', id: g.id },
     body: 'Expect some of your players to try it. An update now would help keep them.',

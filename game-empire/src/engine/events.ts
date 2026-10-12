@@ -327,8 +327,7 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
   const idx = w.pendingEvents.findIndex((e) => e.id === eventId);
   if (idx < 0) return;
   const ev = w.pendingEvents[idx];
-  const opt = ev.options.find((o) => o.id === optionId);
-  if (opt?.disabled && !refreshDisabled(w, ev, optionId)) return;
+  if (!decisionOptionEnabled(w, ev, optionId)) return;
   w.pendingEvents.splice(idx, 1);
   const p = playerCompany(w);
   const d = ev.data;
@@ -426,7 +425,7 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
         takeLoan(w, p, amount, 36, Number(d.apr));
         pushNews(w, { kind: 'finance', title: `${p.name} survives on an emergency loan of ${fmt(amount)}`, companyId: p.id, tone: 'good' });
       }
-      toast(w, 'Lifeline accepted: you are back in business', 'good');
+      toast(w, 'Lifeline accepted: you are back in business', 'good', { category: 'finance', link: { route: 'finance' } });
       break;
     }
     case 'lawsuit': {
@@ -443,8 +442,10 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
   }
 }
 
-/** Cost-gated options were disabled when offered; re-check against today's cash. */
-function refreshDisabled(w: World, ev: DecisionEvent, optionId: string): boolean {
+/** Cost-gated options are disabled when offered without the cash; re-check against today's cash. */
+export function decisionOptionEnabled(w: World, ev: DecisionEvent, optionId: string): boolean {
+  const opt = ev.options.find((o) => o.id === optionId);
+  if (!opt?.disabled) return true;
   const d = ev.data;
   const cost = Number(d.fee ?? d.cost ?? d.bounty ?? d.amount ?? d.price ?? d.pillCost ?? (optionId === 'retreat' ? d.retreat : optionId === 'bonus' ? d.bonus : NaN));
   return Number.isFinite(cost) && playerCompany(w).cash >= cost;
@@ -511,6 +512,8 @@ function offerLifeline(w: World): void {
     ],
     data: { amount, equity, apr },
     expiresDay: w.day + 14,
+    // the game never pauses, so an unanswered lifeline quietly becomes the loan
+    defaultOption: 'loan',
   });
 }
 

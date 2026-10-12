@@ -1,6 +1,6 @@
 import { useGameStore } from './store/gameStore';
 import { Layout } from './ui/components/Layout';
-import { DecisionModal, GameOverModal, Toasts } from './ui/components/Overlays';
+import { GameOverModal, NotificationDrawer, Toasts } from './ui/components/Overlays';
 import { StartScreen, GeneratingScreen } from './ui/screens/StartScreen';
 import { Dashboard } from './ui/screens/Dashboard';
 import { Projects } from './ui/screens/Projects';
@@ -15,6 +15,8 @@ import { Finance } from './ui/screens/Finance';
 import { News } from './ui/screens/News';
 import { Achievements } from './ui/screens/Achievements';
 import { Settings } from './ui/screens/Settings';
+import { Servers } from './ui/screens/Servers';
+import { Goals } from './ui/screens/Goals';
 
 function Screen() {
   const route = useGameStore((s) => s.route);
@@ -45,21 +47,32 @@ function Screen() {
       return <News />;
     case 'achievements':
       return <Achievements />;
+    case 'servers':
+      return <Servers />;
+    case 'goals':
+      return <Goals />;
     case 'settings':
       return <Settings />;
   }
 }
 
+function routeKey(r: ReturnType<typeof useGameStore.getState>['route']): string {
+  return 'id' in r && r.id ? `${r.name}:${r.id}` : r.name;
+}
+
 export default function App() {
   const status = useGameStore((s) => s.status);
+  const route = useGameStore((s) => s.route);
   if (status === 'menu') return <StartScreen />;
   if (status === 'generating') return <GeneratingScreen />;
   return (
     <>
       <Layout>
-        <Screen />
+        <div key={routeKey(route)} className="page-in">
+          <Screen />
+        </div>
       </Layout>
-      <DecisionModal />
+      <NotificationDrawer />
       <GameOverModal />
       <Toasts />
     </>

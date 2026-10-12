@@ -161,7 +161,7 @@ export function notify(w: World, n: NotifyInput): void {
   w.notices.unshift(notice);
   if (w.notices.length > NOTICE_CAP) w.notices.length = NOTICE_CAP;
   if (!n.silent) {
-    w.toasts.push({ id: notice.id, title: notice.title, tone: notice.tone, category: notice.category, link: notice.link });
+    w.toasts.push({ id: notice.id, title: notice.title, body: notice.body, tone: notice.tone, category: notice.category, link: notice.link });
     if (w.toasts.length > 12) w.toasts.splice(0, w.toasts.length - 12);
   }
 }

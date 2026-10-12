@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { Copy, Gamepad2, Plus } from 'lucide-react';
+import { BriefcaseBusiness, CalendarClock, Copy, Gamepad2, Plus, Users } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
-import { GENRES, MONETIZATIONS, PLATFORMS, SCOPES } from '../../engine/constants';
+import { GENRES, MONETIZATIONS, PLATFORMS, ROLES, SCOPES } from '../../engine/constants';
+import { MAX_CONTRACTS, abandonContract, acceptContract, contractDailyWork, contractTeam, staffContract, teamContractWork } from '../../engine/contracts';
+import type { ContractOffer } from '../../engine/types';
 import { playerCompany } from '../../engine/util';
 import type { Game } from '../../engine/types';
-import { money, num } from '../lib/format';
+import { date, days, money, num } from '../lib/format';
 import { statusLabel } from '../lib/selectors';
 import { Sparkline } from '../components/charts';
-import { Badge, Button, Card, Empty, LiveNumber, Progress, ScoreBadge, SectionTitle, Tabs, Td, Th } from '../components/ui';
+import { Badge, Button, Card, ConfirmButton, Empty, LiveNumber, Progress, ScoreBadge, SectionTitle, Tabs, Td, Th, cx } from '../components/ui';
 
-type Tab = 'dev' | 'live' | 'all' | 'ips';
+type Tab = 'dev' | 'live' | 'contracts' | 'all' | 'ips';
 
 export function Projects() {
   const w = useWorld();
@@ -42,6 +44,7 @@ export function Projects() {
           tabs={[
             { id: 'dev', label: `In development (${dev.length})` },
             { id: 'live', label: `Live (${live.length})` },
+            { id: 'contracts', label: `Contracts (${w.player.contracts.length})` },
             { id: 'all', label: `Catalogue (${all.length})` },
             { id: 'ips', label: `Franchises (${ips.length})` },
           ]}
@@ -96,6 +99,7 @@ export function Projects() {
         ))}
 
       {tab === 'live' && <GameTable games={live} empty="No live games yet." />}
+      {tab === 'contracts' && <Contracts />}
       {tab === 'all' && <GameTable games={all} empty="Your catalogue is empty." />}
       {tab === 'ips' &&
         (ips.length === 0 ? (
@@ -188,6 +192,137 @@ function GameTable({ games, empty, showStudio }: { games: Game[]; empty: string;
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ contracts
+
+function Contracts() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const idle = w.player.employees.filter((e) => ROLES[e.role].dev && !e.assignment);
+  const full = w.player.contracts.length >= MAX_CONTRACTS;
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-line bg-surface p-4 text-sm text-sub">
+        Work-for-hire keeps the lights on between your own games. Deliver on time for full pay and reputation; late work earns half. Blow the deadline by a month and the client walks.
+        {w.player.autoAssign && <span className="text-muted"> Auto-assign sends idle developers to contracts that are falling behind.</span>}
+      </div>
+      {w.player.contracts.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {w.player.contracts.map((k) => {
+            const team = contractTeam(w, k.id);
+            const daily = contractDailyWork(w, k.id);
+            const left = Math.max(0, k.work - k.workDone);
+            const eta = daily > 0 ? left / daily : Infinity;
+            const dueIn = k.deadline - w.day;
+            const late = w.day + eta > k.deadline;
+            return (
+              <Card key={k.id} title={k.title} subtitle={`${k.client} · ${money(k.pay)}`}>
+                <Progress value={k.workDone} max={k.work} tone={late ? 'warn' : 'accent'} height={8} />
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <div className="text-muted">Progress</div>
+                    <div className="font-semibold tabular">{Math.round((k.workDone / k.work) * 100)}%</div>
+                  </div>
+                  <div>
+                    <div className="text-muted">Due</div>
+                    <div className={cx('font-semibold tabular', dueIn < 0 ? 'text-bad' : dueIn < 10 ? 'text-warn' : '')}>{dueIn >= 0 ? `${dueIn}d` : `${-dueIn}d late`}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted">Finish</div>
+                    <div className={cx('font-semibold', late ? 'text-warn' : 'text-good')}>{Number.isFinite(eta) ? `~${days(eta)}` : 'stalled'}</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-muted">
+                  <Users size={11} className="mr-1 inline" />
+                  {team.length ? team.map((e) => e.name.split(' ')[0]).join(', ') : 'Nobody assigned'}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" disabled={idle.length === 0} onClick={() => act((world) => staffContract(world, k.id, idle.map((e) => e.id)), 'Idle developers joined the contract')}>
+                    <Users size={12} /> Add idle ({idle.length})
+                  </Button>
+                  <ConfirmButton confirmLabel="Lose reputation? Confirm" onConfirm={() => act((world) => abandonContract(world, k.id))}>
+                    Abandon
+                  </ConfirmButton>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      <Card title="Offers" subtitle={`New offers every month${full ? ` · you are running the maximum of ${MAX_CONTRACTS}` : ''}`}>
+        {w.player.contractOffers.length === 0 ? (
+          <Empty icon={<BriefcaseBusiness size={24} />} title="No offers right now">New clients get in touch at the start of each month.</Empty>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {w.player.contractOffers.map((o) => (
+              <OfferCard key={o.id} o={o} disabled={full} />
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function OfferCard({ o, disabled }: { o: ContractOffer; disabled: boolean }) {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const devs = w.player.employees.filter((e) => ROLES[e.role].dev);
+  const idle = devs.filter((e) => !e.assignment);
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<string[]>(() => (idle.length ? idle : devs.slice(0, 1)).map((e) => e.id));
+  const team = devs.filter((e) => picked.includes(e.id));
+  const daily = teamContractWork(w, team);
+  const eta = daily > 0 ? o.work / daily : Infinity;
+  const ok = eta <= o.days;
+  return (
+    <div className="flex flex-col rounded-lg border border-line bg-surface-2 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold">{o.title}</div>
+          <div className="text-xs text-muted">{o.client}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-semibold text-good tabular">{money(o.pay)}</div>
+          <div className="text-[11px] text-muted">+{o.rep} rep</div>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
+        <span>
+          <CalendarClock size={11} className="mr-0.5 inline" /> {o.days} days
+        </span>
+        <span>{num(o.work)} work</span>
+        <span>offer ends {date(o.expiresDay)}</span>
+      </div>
+      <div className={cx('mt-2 text-xs', ok ? 'text-good' : 'text-warn')}>
+        {team.length === 0 ? 'Pick at least one developer' : Number.isFinite(eta) ? `${team.length} dev${team.length > 1 ? 's' : ''}: about ${days(eta)}${ok ? ', on time' : ', would be late'}` : 'Too slow'}
+      </div>
+      {picking && (
+        <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
+          {devs.map((e) => {
+            const on = picked.includes(e.id);
+            const busy = e.assignment ? (w.games[e.assignment]?.title ?? 'a contract') : null;
+            return (
+              <label key={e.id} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-surface-3">
+                <input type="checkbox" checked={on} onChange={() => setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])} />
+                <span className="flex-1 truncate">{e.name}</span>
+                <span className="text-muted">{busy ? `on ${busy}` : 'idle'}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+      <div className="mt-3 flex gap-2">
+        <Button size="sm" variant="primary" className="flex-1" disabled={disabled || team.length === 0} onClick={() => act((world) => acceptContract(world, o.id, picked), `Contract signed with ${o.client}`)}>
+          Accept
+        </Button>
+        <Button size="sm" onClick={() => setPicking(!picking)}>
+          <Users size={12} /> {picking ? 'Done' : `Team (${team.length})`}
+        </Button>
+      </div>
     </div>
   );
 }

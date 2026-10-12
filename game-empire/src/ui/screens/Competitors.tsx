@@ -78,6 +78,7 @@ export function Competitors() {
                   <div className="flex items-center gap-2 font-medium">
                     <CompanyDot color={c.color} />
                     {c.name}
+                    {c.id === w.player.rivalId && <Badge tone="warn">Rival</Badge>}
                   </div>
                   <div className="pl-[18px] text-[11px] text-muted">{c.hq}</div>
                 </Td>
@@ -150,6 +151,7 @@ export function CompanyDetail({ id }: { id: string }) {
       </SectionTitle>
       <div className="-mt-2 flex flex-wrap items-center gap-2 text-sm text-sub">
         {statusBadge(w, c)}
+        {c.id === w.player.rivalId && <Badge tone="warn">Your rival</Badge>}
         <Badge>{STRATEGIES[c.strategy].name}</Badge>
         <span>
           CEO {c.ceo} · {c.hq} · founded {date(c.founded)}

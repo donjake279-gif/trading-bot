@@ -7,7 +7,10 @@ import { playerPayroll } from '../../engine/finance';
 import { playerCompany } from '../../engine/util';
 import type { Employee, RoleId } from '../../engine/types';
 import { date, money } from '../lib/format';
-import { Badge, Button, Card, Modal, Progress, SectionTitle, Stat, Td, Th, cx, inputClass } from '../components/ui';
+import { Badge, Button, Card, ConfirmButton, Progress, SectionTitle, Stat, Td, Th, cx, inputClass } from '../components/ui';
+import { recruitFee } from '../../engine/staff';
+import { BENEFITS, HOURS, QA_POLICIES, retainerCost } from '../../engine/constants';
+import { policyMonthlyCost, setPolicies } from '../../engine/business';
 
 function Traits({ traits }: { traits: Employee['traits'] }) {
   return (
@@ -27,7 +30,6 @@ export function Team() {
   const c = playerCompany(w);
   const office = OFFICES[w.player.officeLevel];
   const [roleFilter, setRoleFilter] = useState<RoleId | 'all'>('all');
-  const [firing, setFiring] = useState<Employee | null>(null);
   const [bulkTarget, setBulkTarget] = useState('');
   const emps = w.player.employees.filter((e) => roleFilter === 'all' || e.role === roleFilter);
   const projects = Object.values(w.games).filter((g) => g.companyId === c.id && (g.status === 'development' || (g.status === 'released' && g.update)));
@@ -72,6 +74,8 @@ export function Team() {
           </div>
         </div>
       </Card>
+
+      <Policies />
 
       <Card
         title="Employees"
@@ -155,9 +159,9 @@ export function Team() {
                             <Button size="sm" variant="ghost" title="Give a 10% raise" onClick={() => act((world) => giveRaise(world, e.id), `${e.name} got a raise`)}>
                               +10%
                             </Button>
-                            <Button size="sm" variant="ghost" title="Fire (1 month severance)" onClick={() => setFiring(e)}>
+                            <ConfirmButton variant="ghost" title="Fire (1 month severance)" confirmLabel={`Fire? ${money(e.salary)}`} onConfirm={() => act((world) => fire(world, e.id), `${e.name} was let go`)}>
                               <UserMinus size={14} />
-                            </Button>
+                            </ConfirmButton>
                           </>
                         )}
                       </div>
@@ -203,7 +207,7 @@ export function Team() {
               <div className="mt-3 flex items-center justify-between">
                 <div className="text-xs">
                   <span className="font-semibold tabular text-ink">{money(k.salary)}</span>
-                  <span className="text-muted">/mo · fee {money(k.salary * 0.5)}</span>
+                  <span className="text-muted">/mo · fee {money(recruitFee(w, k.salary))}</span>
                 </div>
                 <Button size="sm" variant="primary" disabled={full} onClick={() => act((world) => hire(world, k.id), `Hired ${k.name}`)}>
                   <UserPlus size={13} /> Hire
@@ -215,27 +219,86 @@ export function Team() {
         </div>
       </Card>
 
-      <Modal
-        open={!!firing}
-        onClose={() => setFiring(null)}
-        title={`Fire ${firing?.name}?`}
-        footer={
-          <>
-            <Button onClick={() => setFiring(null)}>Cancel</Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                if (firing) act((world) => fire(world, firing.id), `${firing.name} was let go`);
-                setFiring(null);
-              }}
-            >
-              Fire ({money(firing?.salary ?? 0)} severance)
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-sub">Severance is one month of salary. The rest of the team will be a little shaken.</p>
-      </Modal>
     </div>
+  );
+}
+
+function PolicyChoice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { id: T; name: string; detail: string }[]; onChange: (v: T) => void }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-medium text-sub">{label}</div>
+      <div className="grid gap-1.5">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            onClick={() => onChange(o.id)}
+            className={cx('rounded-lg border px-3 py-2 text-left transition-colors', value === o.id ? 'border-accent bg-accent-soft/40' : 'border-line bg-surface-2 hover:border-sub')}
+          >
+            <div className="text-xs font-semibold">{o.name}</div>
+            <div className="text-[11px] text-muted">{o.detail}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Policies() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const pol = w.player.policies;
+  const heads = w.player.employees.length;
+  const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+  return (
+    <Card title="Company policies" subtitle={`How you treat your people shapes speed, quality and who stays. Policies cost ${money(policyMonthlyCost(w))}/mo right now.`}>
+      <div className="grid gap-4 md:grid-cols-3">
+        <PolicyChoice
+          label="Benefits"
+          value={pol.benefits}
+          onChange={(v) => act((world) => setPolicies(world, { benefits: v }))}
+          options={(Object.keys(BENEFITS) as (keyof typeof BENEFITS)[]).map((id) => ({
+            id,
+            name: `${BENEFITS[id].name}${BENEFITS[id].perHead ? ` · ${money(BENEFITS[id].perHead * heads)}/mo` : ''}`,
+            detail: `${BENEFITS[id].blurb}${BENEFITS[id].morale ? ` Morale ${sign(BENEFITS[id].morale)}.` : ''}`,
+          }))}
+        />
+        <PolicyChoice
+          label="Working hours"
+          value={pol.hours}
+          onChange={(v) => act((world) => setPolicies(world, { hours: v }))}
+          options={(Object.keys(HOURS) as (keyof typeof HOURS)[]).map((id) => ({
+            id,
+            name: HOURS[id].name,
+            detail: `${HOURS[id].blurb} Speed ×${HOURS[id].speed.toFixed(2)}${HOURS[id].morale ? `, morale ${sign(HOURS[id].morale)}` : ''}.`,
+          }))}
+        />
+        <PolicyChoice
+          label="Quality assurance"
+          value={pol.qa}
+          onChange={(v) => act((world) => setPolicies(world, { qa: v }))}
+          options={(Object.keys(QA_POLICIES) as (keyof typeof QA_POLICIES)[]).map((id) => ({
+            id,
+            name: QA_POLICIES[id].name,
+            detail: `${QA_POLICIES[id].blurb} Bugs ×${QA_POLICIES[id].bugs.toFixed(2)}, speed ×${QA_POLICIES[id].speed.toFixed(2)}.`,
+          }))}
+        />
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
+          <input type="checkbox" className="mt-1" checked={pol.profitSharing} onChange={(e) => act((world) => setPolicies(world, { profitSharing: e.target.checked }))} />
+          <span>
+            <span className="block text-sm font-medium">Profit sharing</span>
+            <span className="block text-xs text-muted">5% of every profitable month goes to the team. Morale +8 each payout.</span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
+          <input type="checkbox" className="mt-1" checked={pol.retainer} onChange={(e) => act((world) => setPolicies(world, { retainer: e.target.checked }))} />
+          <span>
+            <span className="block text-sm font-medium">Marketing agency retainer · {money(retainerCost(heads))}/mo</span>
+            <span className="block text-xs text-muted">A PR firm keeps every game in development in the news: steady hype every day.</span>
+          </span>
+        </label>
+      </div>
+    </Card>
   );
 }

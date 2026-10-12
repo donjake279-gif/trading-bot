@@ -16,6 +16,7 @@ import {
   MONETIZATION_IDS,
   MULTIPLAYER,
   MULTIPLAYER_IDS,
+  SERVER_TIERS,
   PLATFORMS,
   PLATFORM_IDS,
   RESEARCH,
@@ -38,6 +39,7 @@ import {
 import { createGame, validateGameParams } from '../../engine/actions';
 import { audiencePool, genreTrend } from '../../engine/market';
 import { gameTitle, sequelTitle } from '../../engine/names';
+import { infraCapacity } from '../../engine/infra';
 import { playerCompany } from '../../engine/util';
 import type { Employee, Focus, FocusId, Game } from '../../engine/types';
 import { days, money, num, pct } from '../lib/format';
@@ -181,7 +183,10 @@ export function CreateGame({ ipId }: { ipId?: string }) {
   if (Number.isFinite(estDays) && estDays > 700) warnings.push(`At this team size development takes ${days(estDays)}. Hire more people or reduce scope.`);
   if (totalCost > c.cash * 1.2 && totalCost > 5000) warnings.push(`Estimated total cost ${money(totalCost)} exceeds your cash. You will need revenue or financing.`);
   if (p.audience === 'kids' && p.monetization === 'f2pAggressive') warnings.push('Loot boxes aimed at kids invite scandals.');
-  if ((p.multiplayer === 'online' || p.multiplayer === 'massive') && SCOPES[p.scope].presence < 0.05) warnings.push('Online games pay for servers every day, even with few players.');
+  if (p.multiplayer === 'online' || p.multiplayer === 'massive') {
+    const cap = infraCapacity(w);
+    warnings.push(`Online games run on your own servers (${SERVER_TIERS[w.player.infra.tier].name}, room for ${num(cap)} players${w.player.infra.autoscale ? ', autoscaling on' : ''}). A busy launch can overload them: check Servers before release.`);
+  }
   if (p.monetization === 'subscription' && p.genre !== 'mmorpg') warnings.push('Players only accept subscriptions for MMORPGs.');
   if (p.monetization === 'ads' && !p.platforms.includes('mobile')) warnings.push('Ad-supported games really only work on mobile.');
   if (!MONETIZATIONS[p.monetization].upfront && p.multiplayer === 'single') warnings.push('Free-to-play single-player games struggle to monetize.');
@@ -341,7 +346,7 @@ export function CreateGame({ ipId }: { ipId?: string }) {
                           <FitBadge f={GENRES[p.genre].mp[m]} />
                         </div>
                         <div className="mt-0.5 text-[11px] text-muted">
-                          work ×{MULTIPLAYER[m].workMult} {MULTIPLAYER[m].serverBase > 0 ? '· pays server costs · lower churn' : '· no servers · faster churn'}
+                          work ×{MULTIPLAYER[m].workMult} {MULTIPLAYER[m].serverBase > 0 ? '· runs on your servers · lower churn' : '· no servers · faster churn'}
                         </div>
                       </Choice>
                     ))}

@@ -48,12 +48,32 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
 - **Capital markets.** A simulated stock market with bull and bear regimes, crashes and quarterly earnings
   surprises. You can trade rivals' shares, acquire studios (they become AI-run subsidiaries you steer), and bid
   on bankrupt studios' IP at sealed-bid auctions.
-- **Survive events.** Genre crazes and fatigue, recessions, market crashes, console launches, loot-box
-  regulation, viral hits, scandals, poaching, publisher deals, patent trolls, buyout offers, hostile takeovers,
-  and the annual Game Awards.
+- **Run servers.** Every online and MMO game you ship runs on your own server fleet. Buy nodes, move up six tiers
+  (Shared Hosting → Hyperscale Edge, gated by reputation and research) and watch load, uptime and the monthly
+  bill. Overloaded servers turn new players away, raise churn and hurt reviews; outages take every online game
+  down at once. Autoscaling adds nodes at 85% load and moves up a tier when it can.
+- **Level up.** Studio XP comes from releases, updates, contracts, player milestones, awards and goals. Each level
+  gives a perk point for 12 permanent perks (faster development, fewer bugs, cheaper servers, better deals...).
+  Three rotating goals always give you something to chase, with cash, XP and perk-point rewards.
+- **Grow the business.** Take work-for-hire contracts between your own games. Set company policies (benefits,
+  working hours, QA, profit sharing, a marketing retainer). Park cash in bonds or an index fund. Publish smaller
+  studios' games for a revenue share. License your hits to film, merchandise and esports. Book GameExpo booths,
+  join the Summer and Holiday sales, and keep an eye on your rival studio.
+- **Live with consequences.** Weekends and holidays move player counts. Great updates bring lapsed players back,
+  flops trigger a month of backlash, shipping the same update over and over tires players, and popular games
+  that go quiet for months feel abandoned. Hyped rival launches in your genre steal attention.
+- **Handle opportunities and dilemmas.** Streamers asking for early builds, storefront deals, review bombs,
+  security exploits, burnout, crowdfunding, distressed studios for sale, film rights, charity drives, plus
+  genre crazes, recessions, crashes, console launches, regulation, viral hits, scandals, patent trolls, buyout
+  offers, hostile takeovers and the annual Game Awards.
+- **Notifications that never interrupt.** Small toasts slide in at the top right and fade after a few seconds
+  (click one to jump to what it's about). The bell keeps a filterable history; the inbox holds decisions with
+  their options inline. The game never pauses for them. Every offer shows what happens if you let it lapse,
+  and the default is always the safe choice.
 
 Your first three releases get newcomer buzz, which helps early sales. If cash goes negative you get 90 days to
-recover, and an angel investor offers a lifeline (cash for equity, or an emergency loan) twice per run.
+recover, and an angel investor offers a lifeline (cash for equity, or an emergency loan) twice per run. If you
+don't answer, the emergency loan is taken for you.
 
 The run ends if you go **bankrupt** (90 days with negative cash), get **ousted** by your board, lose a
 **hostile takeover**, or accept a buyout (**a successful exit**).
@@ -75,7 +95,11 @@ actions.
 | `finance.ts` | Running costs, loans, valuation, monthly close and taxes, reputation drift |
 | `stocks.ts` | Index, prices, earnings, IPOs, trading, splits, acquisitions, subsidiary cash sweeps |
 | `events.ts` | Macro economy, random world events, player decisions, board, solvency, awards, auctions |
-| `updates.ts`, `staff.ts`, `achievements.ts`, `actions.ts`, `save.ts` | Live ops, people and research, goals, the player action API, persistence |
+| `infra.ts` | The player's server fleet: capacity, load, costs, outages, autoscaling |
+| `progression.ts` | Studio XP and levels, perks, rotating goals |
+| `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales, rival |
+| `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |
+| `updates.ts`, `staff.ts`, `achievements.ts`, `actions.ts`, `save.ts` | Live ops, people and research, achievements, the player action API, persistence |
 
 **Player market.** Each genre has an audience drawn from platform user bases, genre interest, target audience
 and a drifting trend. Every day a slice of that audience shops. Games win attention in proportion to
@@ -84,7 +108,8 @@ genre/audience/art/mode fit, content freshness, viral and seasonal boosts. Visib
 featuring, hype, word of mouth, reputation, franchise fans and network effects. Owners accumulate toward a
 penetration cap. Active players churn, at rates set by genre, mode, quality, bugs and freshness, and lapsed
 players drift back to well-kept games. Revenue follows the business model, after platform store cuts, engine
-royalties and publisher shares. Online games pay for servers.
+royalties and publisher shares. Rival online games pay per-game server costs; the player's online games share
+one fleet whose load feeds back into acquisition, churn and user scores.
 
 **AI studios.** Each studio has a strategy: Aggressive Growth, Quality First, Monetization Machine, Indie
 Artisan, Conglomerate or Trend Chaser. Every week it decides based on its own runway, revenue and catalogue:

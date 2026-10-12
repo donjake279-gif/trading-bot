@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   Bell,
+  Inbox,
+  Server,
+  Target,
   ChartCandlestick,
   FlaskConical,
   Gamepad2,
@@ -22,8 +25,10 @@ import { SPEEDS, useGameStore, useWorld, type Route } from '../../store/gameStor
 import { playerCompany } from '../../engine/util';
 import { founderStake } from '../../engine/stocks';
 import { formatDate } from '../../engine/util';
-import { PLAYER_GRACE_DAYS } from '../../engine/constants';
+import { PLAYER_GRACE_DAYS, xpForLevel } from '../../engine/constants';
+import { isOnline } from '../../engine/infra';
 import { money, pct } from '../lib/format';
+import { unreadCount } from './Overlays';
 import { cx } from './ui';
 
 const NAV: { route: Route['name']; label: string; icon: ReactNode }[] = [
@@ -31,6 +36,8 @@ const NAV: { route: Route['name']; label: string; icon: ReactNode }[] = [
   { route: 'projects', label: 'Studio', icon: <Gamepad2 size={17} /> },
   { route: 'team', label: 'Team', icon: <Users size={17} /> },
   { route: 'office', label: 'Office & R&D', icon: <FlaskConical size={17} /> },
+  { route: 'servers', label: 'Servers', icon: <Server size={17} /> },
+  { route: 'goals', label: 'Goals & Perks', icon: <Target size={17} /> },
   { route: 'industry', label: 'Industry', icon: <Globe size={17} /> },
   { route: 'competitors', label: 'Competitors', icon: <Swords size={17} /> },
   { route: 'stocks', label: 'Stock Market', icon: <ChartCandlestick size={17} /> },
@@ -47,7 +54,11 @@ function NavList({ onPick }: { onPick?: () => void }) {
   const route = useGameStore((s) => s.route);
   const navigate = useGameStore((s) => s.navigate);
   const active = ROUTE_GROUP[route.name] ?? route.name;
-  const devCount = Object.values(w.games).filter((g) => g.companyId === w.player.companyId && g.status === 'development').length;
+  const mine = Object.values(w.games).filter((g) => g.companyId === w.player.companyId);
+  const devCount = mine.filter((g) => g.status === 'development').length + w.player.contracts.length;
+  const infra = w.player.infra;
+  const serverAlert = (infra.load > 1 || w.day < infra.outageUntil) && mine.some((g) => g.status === 'released' && isOnline(g));
+  const perkPoints = w.player.progression.perkPoints;
   return (
     <nav className="flex flex-col gap-0.5">
       {NAV.map((n) => (
@@ -65,6 +76,8 @@ function NavList({ onPick }: { onPick?: () => void }) {
           <span className={active === n.route ? 'text-accent' : ''}>{n.icon}</span>
           <span className="flex-1 text-left">{n.label}</span>
           {n.route === 'projects' && devCount > 0 && <span className="rounded bg-accent-soft px-1.5 text-[10px] font-semibold text-accent">{devCount}</span>}
+          {n.route === 'servers' && serverAlert && <span className="h-2 w-2 rounded-full bg-bad" title="Servers need attention" />}
+          {n.route === 'goals' && perkPoints > 0 && <span className="rounded bg-good-soft px-1.5 text-[10px] font-semibold text-good" title="Unspent perk points">{perkPoints}</span>}
         </button>
       ))}
     </nav>
@@ -93,7 +106,7 @@ function SpeedControls() {
   const setSpeed = useGameStore((s) => s.setSpeed);
   const togglePause = useGameStore((s) => s.togglePause);
   const w = useWorld();
-  const blocked = w.pendingEvents.length > 0 || !!w.player.gameOver;
+  const blocked = !!w.player.gameOver;
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -130,11 +143,30 @@ function SpeedControls() {
   );
 }
 
+function LevelPill() {
+  const w = useWorld();
+  const navigate = useGameStore((s) => s.navigate);
+  const pr = w.player.progression;
+  const need = xpForLevel(pr.level);
+  return (
+    <button onClick={() => navigate({ name: 'goals' })} className="hidden items-center gap-2 rounded-lg border border-line bg-surface-2 px-2.5 py-1 sm:flex" title={`${Math.round(pr.xp)} / ${need} XP to level ${pr.level + 1}`}>
+      <span className="text-xs font-semibold text-accent">Lv {pr.level}</span>
+      <span className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-3">
+        <span className="block h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${Math.min(100, (pr.xp / need) * 100)}%` }} />
+      </span>
+      {pr.perkPoints > 0 && <span className="rounded bg-good-soft px-1 text-[10px] font-semibold text-good">+{pr.perkPoints}</span>}
+    </button>
+  );
+}
+
 function TopBar({ onMenu }: { onMenu: () => void }) {
   const w = useWorld();
   const c = playerCompany(w);
   const navigate = useGameStore((s) => s.navigate);
   const paused = useGameStore((s) => s.paused);
+  const openDrawer = useGameStore((s) => s.openDrawer);
+  const unread = unreadCount(w.notices);
+  const inbox = w.pendingEvents.length;
   const prevCash = c.cashHistory.length > 1 ? c.cashHistory[c.cashHistory.length - 2][1] : c.cash;
   const delta = c.cash - prevCash;
   return (
@@ -151,6 +183,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
           </div>
         </div>
         <SpeedControls />
+        <LevelPill />
         <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1">
           <TopStat label="Cash" value={money(c.cash)} tone={c.cash < 0 ? 'text-bad' : 'text-ink'} sub={delta !== 0 ? `${delta > 0 ? '+' : ''}${money(delta)}/day` : undefined} subTone={delta >= 0 ? 'text-good' : 'text-bad'} />
           <TopStat label="Valuation" value={money(c.isPublic ? c.price * c.shares : c.valuation)} />
@@ -164,10 +197,16 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
               <span className="ml-1 text-xs tabular text-sub">{Math.round(c.reputation)}</span>
             </div>
           </div>
-          <button onClick={() => navigate({ name: 'news' })} className="relative rounded-md p-1.5 text-sub hover:bg-surface-2 hover:text-ink" aria-label="News">
-            <Bell size={17} />
-            {w.pendingEvents.length > 0 && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-bad" />}
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => openDrawer('inbox')} className="relative rounded-md p-1.5 text-sub hover:bg-surface-2 hover:text-ink" aria-label={`Inbox (${inbox})`} title="Inbox: offers and decisions">
+              <Inbox size={17} />
+              {inbox > 0 && <span key={inbox} className="pop absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[9px] font-bold text-bg">{inbox}</span>}
+            </button>
+            <button onClick={() => openDrawer('all')} className="relative rounded-md p-1.5 text-sub hover:bg-surface-2 hover:text-ink" aria-label={`Notifications (${unread} unread)`} title="Notification history">
+              <Bell size={17} />
+              {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white">{unread > 99 ? '99+' : unread}</span>}
+            </button>
+          </div>
         </div>
       </div>
       {c.cash < 0 && !w.player.gameOver && (

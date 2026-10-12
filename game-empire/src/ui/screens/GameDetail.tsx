@@ -38,13 +38,14 @@ import {
 } from '../../engine/actions';
 import { bugDensity, hasResearch, playerDailyWork, qualityEstimate } from '../../engine/development';
 import { ratingOf } from '../../engine/market';
-import { updateCost, updateWork } from '../../engine/updates';
-import { playerCompany } from '../../engine/util';
+import { updateCost, updateFatigue, updateWork } from '../../engine/updates';
+import { infraEffects, isOnline } from '../../engine/infra';
+import { playerCompany, reviewLabel } from '../../engine/util';
 import type { Employee, Game, MonetizationId, PlatformId, UpdateTypeId } from '../../engine/types';
 import { date, days, money, num, pct } from '../lib/format';
 import { statusLabel } from '../lib/selectors';
 import { TimeChart } from '../components/charts';
-import { Badge, Button, Card, Empty, Kv, LiveNumber, Modal, Progress, ScoreBadge, SectionTitle, Stat, Tabs, cx, inputClass } from '../components/ui';
+import { Badge, Button, Card, ConfirmButton, Empty, Kv, LiveNumber, Modal, Progress, ScoreBadge, SectionTitle, Stat, Tabs, cx, inputClass } from '../components/ui';
 import { projectCoverage, rebalanceFocus } from './CreateGame';
 
 export function GameDetail({ id }: { id: string }) {
@@ -200,7 +201,6 @@ function DevView({ g }: { g: Game }) {
   const density = bugDensity(g);
   const { cov } = useMemo(() => projectCoverage(w, g, team), [w, g, team]);
   const analytics = hasResearch(w, 'analytics');
-  const [confirmCancel, setConfirmCancel] = useState(false);
 
   return (
     <div>
@@ -208,9 +208,17 @@ function DevView({ g }: { g: Game }) {
         g={g}
         actions={
           <>
-            <Button variant="danger" onClick={() => setConfirmCancel(true)}>
+            <ConfirmButton
+              size="md"
+              confirmLabel={`Lose ${money(g.budgetSpent + g.staffCost)}? Click again`}
+              title="Money already spent is lost; the team becomes free"
+              onConfirm={() => {
+                act((world) => cancelGame(world, g.id));
+                navigate({ name: 'projects' });
+              }}
+            >
               Cancel project
-            </Button>
+            </ConfirmButton>
             <Button variant="primary" disabled={progress < 0.75} onClick={() => act((world) => releasePlayerGame(world, g.id))} title={progress < 0.75 ? 'Needs 75% progress' : undefined}>
               <Rocket size={15} /> Release{progress < 1 ? ' early' : ''}
             </Button>
@@ -297,30 +305,6 @@ function DevView({ g }: { g: Game }) {
           <Marketing g={g} />
         </div>
       </div>
-      <Modal
-        open={confirmCancel}
-        onClose={() => setConfirmCancel(false)}
-        title="Cancel this project?"
-        footer={
-          <>
-            <Button onClick={() => setConfirmCancel(false)}>Keep it</Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                act((world) => cancelGame(world, g.id));
-                setConfirmCancel(false);
-                navigate({ name: 'projects' });
-              }}
-            >
-              Cancel project
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-sub">
-          {money(g.budgetSpent + g.staffCost)} already spent on {g.title} will be lost. The team becomes available for other work.
-        </p>
-      </Modal>
     </div>
   );
 }
@@ -334,7 +318,6 @@ function LiveView({ g }: { g: Game }) {
   const act = useGameStore((s) => s.act);
   const navigate = useGameStore((s) => s.navigate);
   const [metric, setMetric] = useState<Metric>('ccu');
-  const [confirmShutdown, setConfirmShutdown] = useState(false);
   const live = g.status === 'released';
   const devCost = g.budgetSpent + g.staffCost + g.marketingSpent;
   const profit = g.revenueTotal - g.costTotal - devCost;
@@ -361,9 +344,9 @@ function LiveView({ g }: { g: Game }) {
               <Copy size={14} /> Make sequel
             </Button>
             {live && (
-              <Button variant="danger" onClick={() => setConfirmShutdown(true)}>
+              <ConfirmButton size="md" confirmLabel="Stop earning from it? Click again" onConfirm={() => act((world) => shutdownServers(world, g.id))}>
                 <Power size={14} /> {online ? 'Shut down servers' : 'End support'}
-              </Button>
+              </ConfirmButton>
             )}
           </>
         }
@@ -410,6 +393,7 @@ function LiveView({ g }: { g: Game }) {
               <ScoreBadge score={g.userScore} />
               <div className="mt-1 text-[11px] text-muted">Players</div>
             </div>
+            <div className="hidden text-xs font-medium text-sub sm:block">{reviewLabel(g.userScore, g.owners)}</div>
             <div className="flex-1 text-xs text-muted">
               Player score is heading toward <span className="font-semibold text-sub">{Math.round(g.userScoreTarget)}</span>
               {g.userScoreTarget < g.userScore - 2 ? ' (bugs and monetization are hurting it)' : g.userScoreTarget > g.userScore + 2 ? ' (updates are winning players over)' : ''}.
@@ -434,6 +418,8 @@ function LiveView({ g }: { g: Game }) {
           </div>
         </Card>
       </div>
+
+      {live && <HealthStrip g={g} />}
 
       {live && (
         <div className="mt-4 grid gap-4 xl:grid-cols-3">
@@ -474,29 +460,64 @@ function LiveView({ g }: { g: Game }) {
         </Card>
       )}
 
-      <Modal
-        open={confirmShutdown}
-        onClose={() => setConfirmShutdown(false)}
-        title={online ? 'Shut down the servers?' : 'End support?'}
-        footer={
-          <>
-            <Button onClick={() => setConfirmShutdown(false)}>Keep running</Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                act((world) => shutdownServers(world, g.id));
-                setConfirmShutdown(false);
-              }}
-            >
-              Shut down
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-sub">
-          {g.title} will stop earning money{online ? ' and stop costing server fees' : ''}. Its {num(g.active)} active players will be disappointed. This cannot be undone.
-        </p>
-      </Modal>
+    </div>
+  );
+}
+
+/** At-a-glance health of a live game: retention, update cadence, servers and mood. */
+function HealthStrip({ g }: { g: Game }) {
+  const w = useWorld();
+  const navigate = useGameStore((s) => s.navigate);
+  const sinceUpdate = w.day - g.lastUpdateDay;
+  const retention30 = Math.pow(1 - Math.min(0.5, g.lastChurn || 0), 30);
+  const online = isOnline(g);
+  const fx = online ? infraEffects(w) : null;
+  const neglectAfter = !MONETIZATIONS[g.monetization].upfront || online ? 100 : 160;
+  const backlash = w.day < g.backlashUntil;
+  const down = w.day < g.meltdownUntil;
+  const items: { label: string; value: string; tone: 'good' | 'warn' | 'bad' | 'neutral'; hint: string; onClick?: () => void }[] = [
+    {
+      label: '30-day retention',
+      value: pct(retention30),
+      tone: retention30 >= 0.6 ? 'good' : retention30 >= 0.35 ? 'warn' : 'bad',
+      hint: `${pct(g.lastChurn || 0, 2)} of active players leave each day`,
+    },
+    {
+      label: 'Last update',
+      value: sinceUpdate <= 0 ? 'today' : `${sinceUpdate} days ago`,
+      tone: g.active < 2000 ? 'neutral' : sinceUpdate > neglectAfter ? 'bad' : sinceUpdate > neglectAfter * 0.7 ? 'warn' : 'good',
+      hint: g.active < 2000 ? 'Small games are not expected to update often' : sinceUpdate > neglectAfter ? 'Players feel abandoned: reviews are slipping' : `Players expect an update every ~${neglectAfter} days`,
+    },
+    {
+      label: 'Community mood',
+      value: backlash ? 'Backlash' : g.goodwill > 4 ? 'Loving it' : g.goodwill < -3 ? 'Frustrated' : 'Steady',
+      tone: backlash || g.goodwill < -3 ? 'bad' : g.goodwill > 4 ? 'good' : 'neutral',
+      hint: backlash ? `Churn is up for ${g.backlashUntil - w.day} more days after a poorly received update` : 'Good updates and fixes build goodwill',
+    },
+  ];
+  if (online && fx) {
+    items.push({
+      label: 'Servers',
+      value: down ? 'Outage' : fx.overloaded ? 'Overloaded' : 'Healthy',
+      tone: down || fx.overloaded ? 'bad' : 'good',
+      hint: down ? 'Players cannot connect' : fx.overloaded ? 'New players are turned away. Add capacity.' : `${pct(w.player.infra.load)} load across your fleet`,
+      onClick: () => navigate({ name: 'servers' }),
+    });
+  }
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {items.map((it) => (
+        <button
+          key={it.label}
+          onClick={it.onClick}
+          disabled={!it.onClick}
+          className={cx('rounded-xl border bg-surface px-4 py-3 text-left disabled:cursor-default', it.tone === 'bad' ? 'border-bad/40' : it.tone === 'warn' ? 'border-warn/40' : 'border-line', it.onClick && 'card-hover')}
+        >
+          <div className="text-xs text-muted">{it.label}</div>
+          <div className={cx('mt-0.5 text-lg font-semibold', it.tone === 'good' ? 'text-good' : it.tone === 'warn' ? 'text-warn' : it.tone === 'bad' ? 'text-bad' : 'text-ink')}>{it.value}</div>
+          <div className="mt-0.5 text-[11px] leading-snug text-muted">{it.hint}</div>
+        </button>
+      ))}
     </div>
   );
 }
@@ -586,10 +607,17 @@ function UpdatePanel({ g }: { g: Game }) {
       <div className="mt-1.5 grid grid-cols-2 gap-1.5">
         {UPDATE_IDS.map((t) => {
           const on = basket.includes(t);
+          const tired = updateFatigue(w, g, t);
           return (
-            <button key={t} onClick={() => toggle(t)} className={cx('flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left', on ? 'border-accent bg-accent-soft/50' : 'border-line bg-surface-2 hover:border-sub')}>
+            <button
+              key={t}
+              onClick={() => toggle(t)}
+              title={tired > 0 ? `Players are tired of these: -${tired} reception` : UPDATES[t].blurb}
+              className={cx('flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left', on ? 'border-accent bg-accent-soft/50' : 'border-line bg-surface-2 hover:border-sub')}
+            >
               <span className={cx('flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px]', on ? 'border-accent bg-accent text-white' : 'border-line')}>{on ? basket.indexOf(t) + 1 : ''}</span>
-              <span className="text-xs font-semibold">{UPDATES[t].name}</span>
+              <span className="flex-1 text-xs font-semibold">{UPDATES[t].name}</span>
+              {tired > 0 && <span className="text-[10px] font-medium text-warn">−{tired}</span>}
             </button>
           );
         })}

@@ -1,10 +1,17 @@
-import { CircleCheck, Gamepad2, Plus, Rocket, TriangleAlert, Users, Wallet, X } from 'lucide-react';
+import { CalendarDays, CircleCheck, Gamepad2, Inbox, Plus, Rocket, Server, Sparkles, Swords, Tag, Target, TriangleAlert, Users, Wallet, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { playerCompany } from '../../engine/util';
 import { monthlyBurn, revenueTTM } from '../../engine/finance';
 import { dismissTutorial } from '../../engine/actions';
 import { founderStake } from '../../engine/stocks';
-import { GENRES, OFFICES } from '../../engine/constants';
+import { GENRES, MONETIZATIONS, OFFICES } from '../../engine/constants';
+import { infraEffects, isOnline } from '../../engine/infra';
+import { joinSale } from '../../engine/business';
+import { saleActive, saleEndDay, upcomingEvents } from '../../engine/calendar';
+import { marketCap } from '../../engine/stocks';
+import { GoalCard } from './Goals';
+import { DecisionCard } from '../components/Overlays';
+import { LoadGauge } from './Servers';
 import { aggregateHistory, companyActive, companyCcu, companyRev30, devGamesOf, liveGamesOf, runwayMonths } from '../lib/selectors';
 import { date, money, num, pct } from '../lib/format';
 import { TimeChart } from '../components/charts';
@@ -67,6 +74,10 @@ function Alerts() {
   for (const g of unstaffed) alerts.push({ tone: 'warn', text: `${g.title} has no team assigned — development is stalled.`, go: () => navigate({ name: 'game', id: g.id }) });
   if (founderStake(c) < 0.5 && c.boardConfidence < 40) alerts.push({ tone: 'bad', text: `Board confidence is ${Math.round(c.boardConfidence)}%. Below 15% you may be fired.`, go: () => navigate({ name: 'finance' }) });
   if (w.player.employees.length > OFFICES[w.player.officeLevel].capacity) alerts.push({ tone: 'bad', text: 'Your office is overcrowded — morale is suffering.', go: () => navigate({ name: 'office' }) });
+  const onlineLive = liveGamesOf(w, c.id).filter(isOnline);
+  if (onlineLive.length && w.day < w.player.infra.outageUntil) alerts.push({ tone: 'bad', text: 'Your servers are down. Every online game is offline until they recover.', go: () => navigate({ name: 'servers' }) });
+  else if (onlineLive.length && infraEffects(w).overloaded) alerts.push({ tone: 'bad', text: `Servers at ${pct(w.player.infra.load)} of capacity: new players are being turned away.`, go: () => navigate({ name: 'servers' }) });
+  if (w.player.progression.perkPoints > 0) alerts.push({ tone: 'good', text: `You have ${w.player.progression.perkPoints} unspent perk point${w.player.progression.perkPoints > 1 ? 's' : ''}.`, go: () => navigate({ name: 'goals' }) });
   const bleeding = liveGamesOf(w, c.id).filter((g) => g.cost30 > g.rev30 * 1.2 && g.cost30 > 300 && w.day - (g.releaseDay ?? 0) > 60);
   for (const g of bleeding) alerts.push({ tone: 'warn', text: `${g.title}'s servers cost more than it earns.`, go: () => navigate({ name: 'game', id: g.id }) });
   if (alerts.length === 0) return null;
@@ -114,6 +125,12 @@ export function Dashboard() {
         <Stat label="Costs (monthly)" value={money(burn)} sub={`Net ${money(rev30 - burn)}/mo`} tone={rev30 - burn < 0 ? 'warn' : undefined} />
         <Stat label="Valuation" value={money(c.isPublic ? c.price * c.shares : c.valuation)} sub={`You own ${pct(founderStake(c), founderStake(c) < 1 ? 1 : 0)}`} />
         <Stat label="Employees" icon={<Users size={13} />} value={w.player.employees.length} sub={`${OFFICES[w.player.officeLevel].name} · cap ${OFFICES[w.player.officeLevel].capacity}`} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <GoalsCard />
+        <RivalCard />
+        <AgendaCard />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
@@ -201,5 +218,164 @@ export function Dashboard() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function GoalsCard() {
+  const w = useWorld();
+  const navigate = useGameStore((s) => s.navigate);
+  return (
+    <Card
+      title={
+        <span className="flex items-center gap-1.5">
+          <Target size={14} className="text-accent" /> Goals
+        </span>
+      }
+      subtitle={`Studio level ${w.player.progression.level} · ${w.player.objectivesCompleted} completed`}
+      actions={
+        <Button size="sm" variant="ghost" onClick={() => navigate({ name: 'goals' })}>
+          Perks
+        </Button>
+      }
+    >
+      <div className="space-y-2">
+        {w.player.objectives.map((o) => (
+          <GoalCard key={o.id} o={o} compact />
+        ))}
+        {w.player.objectives.length === 0 && <div className="text-sm text-muted">New goals arrive tomorrow.</div>}
+      </div>
+    </Card>
+  );
+}
+
+function RivalCard() {
+  const w = useWorld();
+  const navigate = useGameStore((s) => s.navigate);
+  const me = playerCompany(w);
+  const rival = w.player.rivalId ? w.companies[w.player.rivalId] : null;
+  if (!rival || rival.status !== 'active') {
+    return (
+      <Card title="Rival" subtitle="A studio close to your size">
+        <Empty icon={<Swords size={22} />} title="Your rival will be picked at the start of next month" />
+      </Card>
+    );
+  }
+  const rows: { label: string; mine: number; theirs: number; fmt: (n: number) => string }[] = [
+    { label: 'Value', mine: marketCap(me), theirs: marketCap(rival), fmt: (n) => money(n) },
+    { label: 'Revenue (30d)', mine: companyRev30(w, me.id), theirs: companyRev30(w, rival.id), fmt: (n) => money(n) },
+    { label: 'Players online', mine: companyCcu(w, me.id), theirs: companyCcu(w, rival.id), fmt: (n) => num(n) },
+    { label: 'Reputation', mine: me.reputation, theirs: rival.reputation, fmt: (n) => String(Math.round(n)) },
+  ];
+  const wins = rows.filter((r) => r.mine > r.theirs).length;
+  return (
+    <Card
+      title={
+        <span className="flex items-center gap-1.5">
+          <Swords size={14} className="text-s2" /> Rival: {rival.name}
+        </span>
+      }
+      subtitle={wins >= 3 ? 'You are pulling ahead.' : wins <= 1 ? 'They are ahead. Time to catch up.' : 'Neck and neck.'}
+      actions={
+        <Button size="sm" variant="ghost" onClick={() => navigate({ name: 'company', id: rival.id })}>
+          View
+        </Button>
+      }
+    >
+      <div className="space-y-2.5">
+        {rows.map((r) => {
+          const total = Math.max(1e-9, Math.max(0, r.mine) + Math.max(0, r.theirs));
+          const share = Math.max(0, r.mine) / total;
+          return (
+            <div key={r.label}>
+              <div className="flex justify-between text-xs">
+                <span className={cx('tabular', r.mine >= r.theirs ? 'font-semibold text-ink' : 'text-sub')}>{r.fmt(r.mine)}</span>
+                <span className="text-muted">{r.label}</span>
+                <span className={cx('tabular', r.theirs > r.mine ? 'font-semibold text-ink' : 'text-sub')}>{r.fmt(r.theirs)}</span>
+              </div>
+              <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-surface-3">
+                <div className="h-full bg-accent transition-[width] duration-500" style={{ width: `${share * 100}%` }} />
+                <div className="h-full flex-1" style={{ background: rival.color }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function AgendaCard() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const openDrawer = useGameStore((s) => s.openDrawer);
+  const navigate = useGameStore((s) => s.navigate);
+  const c = playerCompany(w);
+  const sale = saleActive(w.day);
+  const premium = liveGamesOf(w, c.id).filter((g) => MONETIZATIONS[g.monetization].upfront);
+  const undiscounted = premium.filter((g) => g.discountUntil <= w.day);
+  const online = liveGamesOf(w, c.id).filter(isOnline);
+  const events = upcomingEvents(w.day, 3);
+  const pending = w.pendingEvents;
+  return (
+    <Card
+      title={
+        <span className="flex items-center gap-1.5">
+          <CalendarDays size={14} className="text-accent" /> Agenda
+        </span>
+      }
+      subtitle="Decisions, events and your servers"
+    >
+      <div className="space-y-3">
+        {pending.length > 0 ? (
+          <div>
+            <DecisionCard ev={pending[0]} compact />
+            {pending.length > 1 && (
+              <button onClick={() => openDrawer('inbox')} className="mt-1.5 flex items-center gap-1 text-xs text-accent hover:underline">
+                <Inbox size={12} /> {pending.length - 1} more in your inbox
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <Inbox size={13} /> Inbox is clear.
+          </div>
+        )}
+        {sale && undiscounted.length > 0 && (
+          <div className="rounded-lg border border-warn/30 bg-warn-soft/40 p-2.5">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-warn">
+              <Tag size={13} /> The {sale === 'summer' ? 'Summer' : 'Holiday'} Sale is on
+            </div>
+            <div className="mt-0.5 text-xs text-sub">Discounted games sell far more until {date(saleEndDay(w.day))}.</div>
+            <div className="mt-2 flex gap-1.5">
+              {[0.25, 0.5].map((p) => (
+                <Button key={p} size="sm" onClick={() => act((world) => joinSale(world, p), `${undiscounted.length} game${undiscounted.length > 1 ? 's' : ''} on sale`)}>
+                  {pct(p)} off all
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+        {online.length > 0 && (
+          <button onClick={() => navigate({ name: 'servers' })} className="block w-full rounded-lg border border-line bg-surface-2 p-2.5 text-left hover:border-accent">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 text-sub">
+                <Server size={12} /> Server load
+              </span>
+              <span className={cx('tabular font-semibold', w.player.infra.load > 1 ? 'text-bad' : w.player.infra.load > 0.85 ? 'text-warn' : 'text-good')}>{pct(w.player.infra.load)}</span>
+            </div>
+            <LoadGauge load={w.player.infra.load} className="mt-1.5" />
+          </button>
+        )}
+        <div className="space-y-1.5">
+          {events.map((e) => (
+            <div key={`${e.name}-${e.day}`} className="flex items-center gap-2 text-xs">
+              <Sparkles size={11} className="shrink-0 text-muted" />
+              <span className="flex-1 truncate text-sub">{e.name}</span>
+              <span className="tabular text-muted">{e.day - w.day <= 0 ? 'now' : `in ${e.day - w.day}d`}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
   );
 }
