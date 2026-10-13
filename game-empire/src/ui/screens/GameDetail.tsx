@@ -40,7 +40,7 @@ import { ratingOf } from '../../engine/market';
 import { updateCost, updateFatigue, updateWork } from '../../engine/updates';
 import { infraEffects, isOnline } from '../../engine/infra';
 import { certificationName, remasterBlocker, startRemaster } from '../../engine/fun';
-import { playerReviews, topicLabel } from '../../engine/reviews';
+import { criticReviews, playerReviews, topicLabel } from '../../engine/reviews';
 import { engineDisplayName } from '../../engine/studioEngine';
 import { playerCompany, reviewLabel } from '../../engine/util';
 import type { Employee, Game, MonetizationId, PlatformId, UpdateTypeId } from '../../engine/types';
@@ -80,6 +80,16 @@ function Header({ g, actions }: { g: Game; actions?: React.ReactNode }) {
           </Badge>
         )}
         {g.remasterOf && <Badge tone="accent">Remaster</Badge>}
+        {(() => {
+          const s = w.awardSeason;
+          if (!s || s.done) return null;
+          const n = s.categories.filter((c) => c.id !== 'glitch' && c.nominees.some((x) => x.id === g.id)).length;
+          return n > 0 ? (
+            <Badge tone="warn">
+              <Trophy size={11} /> {n} Game Awards nomination{n > 1 ? 's' : ''}
+            </Badge>
+          ) : null;
+        })()}
         <Badge>{AUDIENCES[g.audience].name}</Badge>
         <Badge>{MULTIPLAYER[g.multiplayer].name}</Badge>
         <Badge>{MONETIZATIONS[g.monetization].short}{g.price > 0 ? ` $${g.price.toFixed(2)}` : ''}</Badge>
@@ -448,6 +458,7 @@ function LiveView({ g }: { g: Game }) {
       </div>
 
       {live && <HealthStrip g={g} />}
+      <CriticsCard g={g} />
       <PlayerReviews g={g} />
 
       {live && (
@@ -548,6 +559,26 @@ function HealthStrip({ g }: { g: Game }) {
         </button>
       ))}
     </div>
+  );
+}
+
+function CriticsCard({ g }: { g: Game }) {
+  const reviews = criticReviews(g, 5);
+  if (reviews.length === 0) return null;
+  return (
+    <Card className="mt-4" title="What the critics say" subtitle={`Metascore ${g.criticScore}`}>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        {reviews.map((r) => (
+          <div key={r.outlet} className="flex flex-col rounded-lg border border-line bg-surface-2 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-xs font-semibold text-sub">{r.outlet}</span>
+              <ScoreBadge score={r.score} />
+            </div>
+            <p className="mt-2 flex-1 text-sm leading-snug">"{r.quote}"</p>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 

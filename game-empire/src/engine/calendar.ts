@@ -26,6 +26,7 @@ export const SUMMER_SALE: { start: [number, number]; end: [number, number] } = {
 export const HOLIDAY_SALE: { start: [number, number]; end: [number, number] } = { start: [11, 18], end: [0, 2] };
 export const EXPO_DATE: [number, number] = [5, 10];
 export const AWARDS_DATE: [number, number] = [11, 12];
+export const NOMINATIONS_DAY: [number, number] = [10, 18];
 
 export function saleActive(day: number): 'summer' | 'holiday' | null {
   const p = parts(day);
@@ -76,7 +77,9 @@ export function upcomingEvents(day: number, count = 4): CalendarEvent[] {
     { name: 'Summer Sale', day: nextOccurrence(day, SUMMER_SALE.start), kind: 'sale', detail: 'Discounted games sell far more for two weeks.' },
     { name: 'Holiday season', day: nextOccurrence(day, [10, 20]), kind: 'season', detail: 'Players buy 25% more games until early January.' },
     { name: 'Holiday Sale', day: nextOccurrence(day, HOLIDAY_SALE.start), kind: 'sale', detail: 'The biggest sale of the year.' },
-    { name: 'The Game Awards', day: nextOccurrence(day, AWARDS_DATE), kind: 'awards', detail: 'Winners get a big boost in players and reputation.' },
+    { name: 'Global Game Jam', day: nextOccurrence(day, [6, 20]), kind: 'season', detail: 'One weekend, one theme, one tiny game. Great for your combo book.' },
+    { name: 'Game Awards nominations', day: nextOccurrence(day, NOMINATIONS_DAY), kind: 'awards', detail: 'Games released in the last year compete in 14 categories.' },
+    { name: 'The Game Awards', day: nextOccurrence(day, AWARDS_DATE), kind: 'awards', detail: 'The biggest night in games. Winners get a huge boost in players and reputation.' },
   ];
   const now = saleActive(day);
   if (now) events.push({ name: now === 'summer' ? 'Summer Sale (on now)' : 'Holiday Sale (on now)', day, kind: 'sale', detail: 'Put your premium games on sale to cash in.' });

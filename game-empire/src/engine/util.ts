@@ -167,6 +167,13 @@ export function notify(w: World, n: NotifyInput): void {
   }
 }
 
+/** Queue a celebration (confetti) for a big moment. */
+export function celebrate(w: World, title: string, big = false): void {
+  if (!w.celebrations) w.celebrations = [];
+  w.celebrations.push({ id: newId(w, 'cb'), title, big });
+  if (w.celebrations.length > 5) w.celebrations.splice(0, w.celebrations.length - 5);
+}
+
 export function toast(w: World, title: string, tone: NewsItem['tone'] = 'neutral', extra: Omit<NotifyInput, 'title' | 'tone'> = {}): void {
   notify(w, { title, tone, ...extra });
 }

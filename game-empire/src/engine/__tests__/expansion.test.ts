@@ -128,7 +128,7 @@ describe('progression', () => {
     const w = createWorld(opts);
     expect(w.player.objectives.length).toBe(3);
     const o = w.player.objectives[0];
-    o.target = Math.min(o.target, objectiveProgress(w, o));
+    o.target = Math.min(o.target, objectiveProgress(w, o)) - 1e9; // met no matter how it moves overnight
     const cash = playerCompany(w).cash;
     advanceDay(w);
     expect(w.player.objectivesCompleted).toBe(1);

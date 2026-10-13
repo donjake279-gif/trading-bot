@@ -5,7 +5,7 @@
 import { COMBO_BAD, COMBO_GREAT, COMBO_QUALITY, GENRES, LEGENDARY_COMBOS, TOPICS, TOPIC_IDS } from './constants';
 import { chance, weightedPick } from './rng';
 import type { ComboGrade, Game, GenreId, TopicId, World } from './types';
-import { hashString, pushNews, toast } from './util';
+import { celebrate, hashString, pushNews, toast } from './util';
 
 export function comboKey(genre: GenreId, topic: TopicId): string {
   return `${genre}:${topic}`;
@@ -75,6 +75,7 @@ export function comboOnRelease(w: World, g: Game, isPlayer: boolean): void {
       g.viralMult = Math.max(g.viralMult, 1.6);
       g.viralUntil = Math.max(g.viralUntil, w.day + 30);
       g.hype = Math.min(1400, g.hype + 120);
+      celebrate(w, 'Legendary combo!', true);
       pushNews(w, { kind: 'player', title: `${legend.pitch}? ${g.title} is the surprise hit nobody saw coming`, body: 'Players and critics cannot stop talking about it.', gameId: g.id, companyId: g.companyId, tone: 'major' });
       toast(w, isNew ? `Legendary combo discovered: ${GENRES[g.genre].name} × ${TOPICS[g.topic].name}!` : `${g.title} rides a legendary combo`, 'good', {
         category: 'game',

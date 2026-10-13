@@ -4,7 +4,8 @@ import { checkAchievements } from './achievements';
 import { playerAutomation } from './automation';
 import { aiDaily, aiDecide, aiSolvency, maybeSpawnStudio } from './ai';
 import { playerDevDay } from './development';
-import { annualAwards, boardMonthly, expireDecisions, hitFeedback, macroDay, playerSolvency, randomEvents, resolveAuctions } from './events';
+import { awardsDaily } from './awards';
+import { boardMonthly, expireDecisions, hitFeedback, macroDay, playerSolvency, randomEvents, resolveAuctions } from './events';
 import { computeValuation, dailyCosts, monthlyBurn, monthlyClose, recordCash, updateIpFans } from './finance';
 import { marketDay, playerGameAlerts, totalActivePlayers } from './market';
 import { expoDaily, investmentsDaily, licensesMonthly, policiesDaily, profitSharingMonthly, publishingDaily, salesDaily, updateRival } from './business';
@@ -15,6 +16,7 @@ import { refreshCandidates, researchDaily, staffDaily, staffMonthly } from './st
 import { engineDaily, engineWarsMonthly } from './studioEngine';
 import { certificationsWeekly, conventionDaily, facilitiesDaily, legendsDaily, legendsMonthly, storeDaily } from './fun';
 import { memesDaily } from './memes';
+import { jamDaily } from './jam';
 import { marketDay as stockMarketDay, quarterlyEarnings, stockDay, sweepSubsidiaries } from './stocks';
 import { updateDaily } from './updates';
 import type { World } from './types';
@@ -152,9 +154,10 @@ export function advanceDay(w: World): void {
     if (m % 3 === 0) quarterlyEarnings(w);
   }
 
-  if (date.getUTCMonth() === 11 && date.getUTCDate() === 12) annualAwards(w);
+  awardsDaily(w);
   if (hasPlayer) {
     memesDaily(w);
+    jamDaily(w);
     objectivesDaily(w);
     if (w.day % 7 === 0) {
       certificationsWeekly(w);

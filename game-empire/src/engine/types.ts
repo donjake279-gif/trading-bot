@@ -780,6 +780,60 @@ export interface World {
   /** Toast queue for the UI (drained by the store). */
   toasts: { id: string; title: string; body?: string; tone: NewsItem['tone']; category?: NoticeCategory; link?: NoticeLink }[];
   awardsHistory: { year: number; category: string; gameId: string; title: string; companyId: string }[];
+  /** The current (or most recent) Game Awards season. */
+  awardSeason: AwardSeason | null;
+  /** Past seasons, oldest first. */
+  awardArchive: AwardSeason[];
+  /** Big moments for the UI to celebrate (confetti); drained by the store. */
+  celebrations: { id: string; title: string; big?: boolean }[];
+}
+
+export type AwardCategoryId =
+  | 'goty'
+  | 'narrative'
+  | 'art'
+  | 'audio'
+  | 'multiplayer'
+  | 'ongoing'
+  | 'indie'
+  | 'debut'
+  | 'mobile'
+  | 'innovation'
+  | 'family'
+  | 'players'
+  | 'glitch'
+  | 'studio';
+
+export interface AwardNominee {
+  /** Game id, or company id for Studio of the Year. */
+  id: string;
+  title: string;
+  companyId: string;
+  score: number;
+}
+
+export interface AwardCategory {
+  id: AwardCategoryId;
+  nominees: AwardNominee[];
+  winnerId: string | null;
+}
+
+export interface AwardSeason {
+  year: number;
+  nominationsDay: number;
+  ceremonyDay: number;
+  categories: AwardCategory[];
+  /** Your "For Your Consideration" campaign strength per game id. */
+  campaigns: Record<string, number>;
+  /** Your Game of the Year pick. */
+  prediction: string | null;
+  presenter: boolean;
+  /** Your upcoming game revealed on stage. */
+  premiere: string | null;
+  done: boolean;
+  /** Has the player watched the ceremony replay. */
+  watched: boolean;
+  highlights: string[];
 }
 
 export interface ActionResult {

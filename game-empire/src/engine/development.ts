@@ -35,7 +35,7 @@ import type {
   TopicId,
   World,
 } from './types';
-import { clamp, gamesOf, newId, pushNews, toast } from './util';
+import { celebrate, clamp, gamesOf, newId, pushNews, toast } from './util';
 import { addXp, perkRank, releaseXp } from './progression';
 import { enginePortDiscount, engineHitFeedback, engineQualityBonus, studioEngineStats } from './studioEngine';
 import { comboOnRelease, comboQuality, defaultTopic } from './topics';
@@ -520,6 +520,7 @@ export function releaseGame(w: World, g: Game): void {
     tone: c.isPlayer ? (g.criticScore >= 70 ? 'good' : g.criticScore < 50 ? 'bad' : 'neutral') : isMajor ? 'major' : 'neutral',
   });
   if (c.isPlayer) {
+    if (g.criticScore >= 90) celebrate(w, `${g.criticScore}/100!`, g.criticScore >= 95);
     toast(w, `${g.title} launched! Critics: ${g.criticScore}/100`, g.criticScore >= 70 ? 'good' : g.criticScore < 50 ? 'bad' : 'neutral', {
       category: 'game',
       link: { route: 'game', id: g.id },

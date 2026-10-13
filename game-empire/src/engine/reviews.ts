@@ -108,3 +108,60 @@ export function playerReviews(w: World, g: Game, count = 4): PlayerReview[] {
 export function topicLabel(g: Game): string {
   return g.topic ? `${TOPICS[g.topic].emoji} ${TOPICS[g.topic].name}` : '';
 }
+
+// ------------------------------------------------------------ critics
+
+export interface CriticReview {
+  outlet: string;
+  score: number;
+  quote: string;
+}
+
+const OUTLETS = ['Pixel Gazette', 'Respawn Weekly', 'Save Point Magazine', 'CritHit', 'Boss Fight Daily', 'Frame Rate Review', 'The Loot Box', 'Continue? Quarterly'];
+
+const CRITIC_RAVE = [
+  'An instant classic. Clear your calendar.',
+  'The kind of game that reminds you why you love games.',
+  '{genre} will be chasing this one for years.',
+  'Bold, polished and endlessly surprising.',
+  'We kept playing long after the review was finished.',
+];
+const CRITIC_GOOD = [
+  'A confident, well-made {genre} with a few rough edges.',
+  'Easy to recommend, hard to put down.',
+  'Not perfect, but it nails the things that matter.',
+  'Smart design wrapped in a lovely package.',
+];
+const CRITIC_MIXED = [
+  'Moments of brilliance buried under some odd decisions.',
+  'Fans of {genre} will find plenty here. Everyone else, wait for a sale.',
+  'Ambitious, uneven, occasionally great.',
+  'Fun in short bursts, tiring in long ones.',
+];
+const CRITIC_BAD = [
+  'A rough launch that needed another year in the oven.',
+  'There is a good game somewhere in here. We could not find it.',
+  'Frustrating, buggy and strangely empty.',
+  'We wanted to like it. It did not want to be liked.',
+];
+const CRITIC_BUGS = ['Bugs everywhere, but some of them are hilarious.', 'Crashed four times during our review. Twice on purpose, we think.'];
+
+/** Outlet reviews for a released game, clustered around its critic score. */
+export function criticReviews(g: Game, count = 5): CriticReview[] {
+  if (g.releaseDay === null) return [];
+  const out: CriticReview[] = [];
+  const used = new Set<string>();
+  const outlets = [...OUTLETS].sort((a, b) => (hashString(`${g.id}${a}`) >>> 0) - (hashString(`${g.id}${b}`) >>> 0)).slice(0, count);
+  for (const outlet of outlets) {
+    const h = hashString(`${g.id}:${outlet}`) >>> 0;
+    const score = Math.max(1, Math.min(100, Math.round(g.criticScore + ((h % 13) - 6))));
+    const pool = bugDensity(g) > 4 && (h & 7) === 0 ? CRITIC_BUGS : score >= 85 ? CRITIC_RAVE : score >= 70 ? CRITIC_GOOD : score >= 50 ? CRITIC_MIXED : CRITIC_BAD;
+    // every outlet gets its own line
+    let k = (h >>> 4) % pool.length;
+    for (let tries = 0; tries < pool.length && used.has(pool[k]); tries++) k = (k + 1) % pool.length;
+    const pick = used.has(pool[k]) ? [...CRITIC_RAVE, ...CRITIC_GOOD, ...CRITIC_MIXED].find((q) => !used.has(q)) ?? pool[k] : pool[k];
+    used.add(pick);
+    out.push({ outlet, score, quote: fill(pick, g) });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}

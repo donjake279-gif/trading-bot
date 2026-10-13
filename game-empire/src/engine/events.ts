@@ -1,15 +1,15 @@
 // Macro-economy, random world events, player decisions, awards and auctions.
-import { DIFFICULTIES, GENRES, GENRE_IDS, MAX_LIFELINES, PLATFORMS, PLATFORM_IDS, PLAYER_GRACE_DAYS, ROLES, SCOPE_IDS } from './constants';
+import { DIFFICULTIES, GENRES, GENRE_IDS, MAX_LIFELINES, PLATFORMS, PLATFORM_IDS, PLAYER_GRACE_DAYS, ROLES } from './constants';
 import { amortizedPayment, debtOf, monthlyBurn, profitTTM, revenueTTM, takeLoan } from './finance';
 import { ratingOf } from './market';
 import { personName } from './names';
 import { opportunitiesDaily, resolveOpportunity } from './opportunities';
 import { resolveMeme } from './memes';
-import { addXp } from './progression';
+import { resolveJam } from './jam';
 import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
 import { acquireCompany, founderStake, marketCap } from './stocks';
 import type { DecisionEvent, Game, GenreId, World } from './types';
-import { activeCompanies, clamp, dayToDate, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast, yearOf } from './util';
+import { activeCompanies, clamp, dayToDate, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast } from './util';
 
 const fmt = (n: number) => {
   const a = Math.abs(n);
@@ -439,7 +439,7 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
       break;
     }
     default:
-      if (!resolveOpportunity(w, ev, optionId)) resolveMeme(w, ev, optionId);
+      if (!resolveOpportunity(w, ev, optionId) && !resolveMeme(w, ev, optionId)) resolveJam(w, ev, optionId);
   }
 }
 
@@ -552,47 +552,6 @@ export function boardMonthly(w: World): void {
     };
     pushNews(w, { kind: 'player', title: `${p.name} ousts founder ${w.player.founderName}`, companyId: p.id, tone: 'major' });
   }
-}
-
-// ------------------------------------------------------------ awards
-
-export function annualAwards(w: World): void {
-  const year = yearOf(w.day);
-  const eligible = Object.values(w.games).filter((g) => g.releaseDay !== null && yearOf(g.releaseDay) === year && g.status !== 'cancelled');
-  if (eligible.length < 3) return;
-  const byScore = (a: Game, b: Game) => b.criticScore - a.criticScore || b.peakCcu - a.peakCcu;
-  // big categories weigh ambition and reach, not just the score
-  const prestige = (g: Game) => g.criticScore + SCOPE_IDS.indexOf(g.scope) * 2 + Math.log10(10 + g.peakActive) * 1.5;
-  const byPrestige = (a: Game, b: Game) => prestige(b) - prestige(a);
-  const major = eligible.filter((g) => SCOPE_IDS.indexOf(g.scope) >= 2);
-  const categories: [string, Game[]][] = [
-    ['Game of the Year', (major.length ? major : eligible).sort(byPrestige)],
-    ['Best Indie Game', eligible.filter((g) => ['tiny', 'small', 'medium'].includes(g.scope) && w.companies[g.companyId].headcount < 60).sort(byScore)],
-    ['Best Multiplayer', major.filter((g) => g.multiplayer === 'online' || g.multiplayer === 'massive').sort(byPrestige)],
-    ['Players\' Choice', [...eligible].sort((a, b) => b.userScore * Math.log10(10 + b.peakActive) - a.userScore * Math.log10(10 + a.peakActive))],
-  ];
-  const lines: string[] = [];
-  for (const [cat, list] of categories) {
-    const winner = list[0];
-    if (!winner) continue;
-    winner.awards.push(`${cat} ${year}`);
-    winner.hype = Math.min(1400, winner.hype + 150);
-    winner.viralMult = Math.max(winner.viralMult, 1.5);
-    winner.viralUntil = Math.max(winner.viralUntil, w.day + 30);
-    const c = w.companies[winner.companyId];
-    c.reputation = Math.min(100, c.reputation + 5);
-    w.awardsHistory.push({ year, category: cat, gameId: winner.id, title: winner.title, companyId: c.id });
-    lines.push(`${cat}: ${winner.title} (${c.name})`);
-    if (c.isPlayer) {
-      toast(w, `${winner.title} wins ${cat}!`, 'good', { category: 'game', link: { route: 'game', id: winner.id } });
-      addXp(w, 150);
-    }
-    for (const nominee of list.slice(1, 5)) {
-      const nc = w.companies[nominee.companyId];
-      nc.reputation = Math.min(100, nc.reputation + 1.5);
-    }
-  }
-  pushNews(w, { kind: 'awards', title: `The ${year} Game Awards: ${categories[0][1][0]?.title ?? ''} wins Game of the Year`, body: lines.join(' · '), tone: 'major', gameId: categories[0][1][0]?.id });
 }
 
 // ------------------------------------------------------------ IP auctions

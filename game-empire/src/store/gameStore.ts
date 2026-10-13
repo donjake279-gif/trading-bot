@@ -24,9 +24,10 @@ export type Route =
   | { name: 'servers' }
   | { name: 'goals' }
   | { name: 'engine' }
+  | { name: 'awards' }
   | { name: 'settings' };
 
-const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'engine', 'settings'] as const;
+const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'engine', 'awards', 'settings'] as const;
 
 export const SPEEDS = [
   { label: '1×', dps: 1 },
@@ -74,6 +75,8 @@ interface GameStore {
   autosave: boolean;
   drawer: DrawerTab | null;
   toastLevel: ToastLevel;
+  celebrations: { id: string; title: string; big?: boolean }[];
+  clearCelebration: (id: string) => void;
   lastAutosaveDay: number;
   lastSavedAt: number | null;
   error: string | null;
@@ -116,6 +119,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   autosave: true,
   drawer: null,
   toastLevel: readToastLevel(),
+  celebrations: [],
+  clearCelebration: (id) => set({ celebrations: get().celebrations.filter((c) => c.id !== id) }),
   lastAutosaveDay: 0,
   lastSavedAt: null,
   error: null,
@@ -264,6 +269,11 @@ function limitToasts(list: UiToast[]): UiToast[] {
 function drainWorldToasts() {
   const s = useGameStore.getState();
   const w = s.world;
+  if (w && w.celebrations?.length) {
+    // only the latest few, so a fast-forward doesn't bury the screen in confetti
+    useGameStore.setState({ celebrations: [...s.celebrations, ...w.celebrations].slice(-2) });
+    w.celebrations = [];
+  }
   if (!w || w.toasts.length === 0) return;
   const level = s.toastLevel;
   const incoming = level === 'off' ? [] : level === 'important' ? w.toasts.filter((t) => t.tone === 'bad' || t.tone === 'major' || t.category === 'offer') : w.toasts;

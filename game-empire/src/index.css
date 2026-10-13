@@ -147,3 +147,66 @@ input[type='range'] {
 @media (prefers-reduced-motion: reduce) {
   .toast-in, .toast-out, .drawer-in, .drawer-fade, .page-in, .pop, .toast-timer, .live-dot, .shimmer { animation: none !important; }
 }
+
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -20px, 0) rotate(0deg); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translate3d(var(--drift), 105vh, 0) rotate(var(--spin)); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  top: -12px;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.4, 1);
+  animation-fill-mode: forwards;
+  opacity: 0;
+}
+@keyframes banner-pop {
+  0% { transform: translate(-50%, -10px) scale(0.85); opacity: 0; }
+  12% { transform: translate(-50%, 0) scale(1.04); opacity: 1; }
+  20% { transform: translate(-50%, 0) scale(1); }
+  80% { opacity: 1; }
+  100% { transform: translate(-50%, -6px); opacity: 0; }
+}
+.celebration-banner {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  padding: 10px 22px;
+  border-radius: 9999px;
+  background: rgba(19, 26, 36, 0.92);
+  border: 1px solid rgba(224, 165, 38, 0.5);
+  color: #f5d27a;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  animation: banner-pop 3s ease-out forwards;
+}
+.celebration-banner-big {
+  font-size: 26px;
+  padding: 14px 30px;
+  animation-duration: 4s;
+}
+@keyframes envelope-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+.envelope-shake { animation: envelope-shake 0.35s ease-in-out infinite; }
+@keyframes winner-glow {
+  0% { box-shadow: 0 0 0 0 rgba(224, 165, 38, 0.6); }
+  100% { box-shadow: 0 0 0 14px rgba(224, 165, 38, 0); }
+}
+.winner-glow { animation: winner-glow 1.2s ease-out 2; }
+.gold-text {
+  background: linear-gradient(180deg, #fbe7a1 0%, #e0a526 55%, #b07a12 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { display: none; }
+  .envelope-shake, .winner-glow { animation: none !important; }
+}

@@ -62,6 +62,16 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   internet happens to your hits: speedrunners, meme NPCs, celebrity fans, modders and rival CEOs who talk too much.
 - **Open your own store.** Late in the game, launch a PC game store, take a 30% cut of PC sales flowing
   through it, and run free-game giveaways to grow your share.
+- **The Game Awards.** The industry's big night. Nominations land on November 18 across 14 categories (Game of
+  the Year, Narrative, Art Direction, Score & Audio, Multiplayer, Ongoing Game, Indie, Debut, Mobile, Most
+  Innovative, Family, Players' Voice, Studio of the Year, and the dreaded Golden Glitch for the buggiest hit).
+  For four weeks you can run "For Your Consideration" campaigns for your nominees, predict Game of the Year,
+  book a world-premiere slot for an upcoming game and maybe get invited to present. On December 12 the ceremony
+  reveals each winner live ("and the award goes to…"), with confetti when it's you. Winners get a huge boost
+  in players and reputation; trophies go in your cabinet and every year is kept in the archive.
+- **More game-feel.** Confetti for big moments (level-ups, 90+ reviews, Platinum sales, legendary combos, new
+  engine versions, awards), reviews from critics at eight outlets on every game, and an annual Global Game
+  Jam where your team makes a 99-cent game in a weekend that can turn into a surprise hit.
 - **Legacy (New Game+).** Every finished run banks legacy points in your browser (retire, sell or go bust).
   Spend them on head starts for the next studio: savings, reputation, a garage, perk points or engine blueprints.
 - **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (six tiers,
@@ -123,6 +133,7 @@ actions.
 | `studioEngine.ts` | Your own engine: modules, versions, licensing, adoption by rivals, engine wars |
 | `topics.ts`, `reviews.ts`, `memes.ts` | Topics and the combo book, generated player reviews, viral moments |
 | `fun.ts`, `legacy.ts` | Facilities, certifications, remasters, conventions, your store, legends; New Game+ |
+| `awards.ts`, `jam.ts` | The Game Awards season (nominations, campaigns, predictions, ceremony); the annual game jam |
 | `updates.ts`, `staff.ts`, `achievements.ts`, `actions.ts`, `save.ts` | Live ops, people and research, achievements, the player action API, persistence |
 
 **Player market.** Each genre has an audience drawn from platform user bases, genre interest, target audience

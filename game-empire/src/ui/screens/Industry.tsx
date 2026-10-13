@@ -195,7 +195,7 @@ export function Industry() {
           <StoreCard />
           <Publishing />
           <Auctions />
-          <Card title="Game Awards" subtitle="Recent winners" pad={false}>
+          <Card title="Game Awards" subtitle="Recent winners" pad={false} actions={<Button size="sm" variant="ghost" onClick={() => navigate({ name: 'awards' })}>Ceremony</Button>}>
             <div className="divide-y divide-line-soft">
               {[...w.awardsHistory].reverse().slice(0, 8).map((a, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-2 text-sm">

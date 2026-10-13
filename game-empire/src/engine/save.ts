@@ -119,7 +119,7 @@ function writeIndex(list: SlotMeta[]): void {
 }
 
 export function serializeWorld(w: World): string {
-  return JSON.stringify({ ...w, toasts: [] });
+  return JSON.stringify({ ...w, toasts: [], celebrations: [] });
 }
 
 export function deserializeWorld(json: string): World {
@@ -167,6 +167,9 @@ function migrate(w: World): void {
   w.player.infra.dataCenters ??= [];
   w.player.infra.capacityHistory ??= [];
   w.notices ??= [];
+  w.awardSeason ??= null;
+  w.awardArchive ??= [];
+  w.celebrations = [];
   w.pauseReason = null;
   w.version = SAVE_VERSION;
 }

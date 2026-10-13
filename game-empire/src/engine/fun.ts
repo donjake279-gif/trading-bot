@@ -17,7 +17,7 @@ import { createGameRecord, playerDailyWork, recommendedBudget } from './developm
 import { addXp } from './progression';
 import { chance, pick, randInt } from './rng';
 import type { ActionResult, Candidate, FacilityId, Game, RoleId, World } from './types';
-import { addGame, earn, gamesOf, newId, playerCompany, pushNews, spend, toast } from './util';
+import { addGame, celebrate, earn, gamesOf, newId, playerCompany, pushNews, spend, toast } from './util';
 
 // ------------------------------------------------------------ facilities
 
@@ -101,7 +101,10 @@ export function certificationsWeekly(w: World): void {
       p.reputation = Math.min(100, p.reputation + c.rep);
       const what = MONETIZATIONS[g.monetization].upfront ? 'copies sold' : 'players';
       toast(w, `${g.title} went ${c.name}!`, 'good', { category: 'game', link: { route: 'game', id: g.id }, body: `${c.owners.toLocaleString()} ${what}. It's going on the Hall of Fame wall.` });
-      if (g.certified >= 3) pushNews(w, { kind: 'player', title: `${g.title} is certified ${c.name}`, companyId: p.id, gameId: g.id, tone: 'good' });
+      if (g.certified >= 3) {
+        pushNews(w, { kind: 'player', title: `${g.title} is certified ${c.name}`, companyId: p.id, gameId: g.id, tone: 'good' });
+        celebrate(w, `${c.name}!`, g.certified >= 4);
+      }
     }
   }
 }

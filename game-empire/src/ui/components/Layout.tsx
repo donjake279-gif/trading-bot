@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
+  Award,
   Bell,
   Cpu,
   Inbox,
@@ -29,6 +30,7 @@ import { formatDate } from '../../engine/util';
 import { PLAYER_GRACE_DAYS, xpForLevel } from '../../engine/constants';
 import { fleetDown, isOnline } from '../../engine/infra';
 import { readyForVersion } from '../../engine/studioEngine';
+import { playerNominations } from '../../engine/awards';
 import { money, pct } from '../lib/format';
 import { unreadCount } from './Overlays';
 import { cx } from './ui';
@@ -46,6 +48,7 @@ const NAV: { route: Route['name']; label: string; icon: ReactNode }[] = [
   { route: 'stocks', label: 'Stock Market', icon: <ChartCandlestick size={17} /> },
   { route: 'finance', label: 'Finance', icon: <Landmark size={17} /> },
   { route: 'news', label: 'News', icon: <Newspaper size={17} /> },
+  { route: 'awards', label: 'Game Awards', icon: <Award size={17} /> },
   { route: 'achievements', label: 'Trophy Room', icon: <Trophy size={17} /> },
   { route: 'settings', label: 'Game & Saves', icon: <Settings size={17} /> },
 ];
@@ -62,6 +65,8 @@ function NavList({ onPick }: { onPick?: () => void }) {
   const infra = w.player.infra;
   const serverAlert = (infra.load > 1 || fleetDown(w) || infra.dataCenters.some((d) => w.day >= d.readyDay && w.day < d.offlineUntil)) && mine.some((g) => g.status === 'released' && isOnline(g));
   const perkPoints = w.player.progression.perkPoints;
+  const season = w.awardSeason;
+  const awardBadge = season && !season.done && w.day < season.ceremonyDay ? (playerNominations(w).filter((n) => n.category !== 'glitch').length || 'live') : season?.done && !season.watched ? 'new' : null;
   const engineAlert = w.player.engine ? readyForVersion(w.player.engine) : w.player.research.completed.includes('engine1');
   return (
     <nav className="flex flex-col gap-0.5">
@@ -82,6 +87,7 @@ function NavList({ onPick }: { onPick?: () => void }) {
           {n.route === 'projects' && devCount > 0 && <span className="rounded bg-accent-soft px-1.5 text-[10px] font-semibold text-accent">{devCount}</span>}
           {n.route === 'servers' && serverAlert && <span className="h-2 w-2 rounded-full bg-bad" title="Servers need attention" />}
           {n.route === 'engine' && engineAlert && <span className="h-2 w-2 rounded-full bg-good" title={w.player.engine ? 'Ready to ship a new version' : 'Ready to found your engine'} />}
+          {n.route === 'awards' && awardBadge && <span className="rounded bg-warn-soft px-1.5 text-[10px] font-semibold text-warn">{awardBadge}</span>}
           {n.route === 'goals' && perkPoints > 0 && <span className="rounded bg-good-soft px-1.5 text-[10px] font-semibold text-good" title="Unspent perk points">{perkPoints}</span>}
         </button>
       ))}

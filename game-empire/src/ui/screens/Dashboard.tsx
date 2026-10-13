@@ -1,4 +1,4 @@
-import { CalendarDays, CircleCheck, Gamepad2, Inbox, Plus, Rocket, Server, Sparkles, Swords, Tag, Target, TriangleAlert, Users, Wallet, X } from 'lucide-react';
+import { CalendarDays, CircleCheck, Trophy, Gamepad2, Inbox, Plus, Rocket, Server, Sparkles, Swords, Tag, Target, TriangleAlert, Users, Wallet, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { playerCompany } from '../../engine/util';
 import { monthlyBurn, revenueTTM } from '../../engine/finance';
@@ -8,6 +8,7 @@ import { GENRES, MONETIZATIONS, OFFICES } from '../../engine/constants';
 import { fleetDown, infraEffects, isOnline } from '../../engine/infra';
 import { joinSale } from '../../engine/business';
 import { readyForVersion } from '../../engine/studioEngine';
+import { playerNominations } from '../../engine/awards';
 import { saleActive, saleEndDay, upcomingEvents } from '../../engine/calendar';
 import { marketCap } from '../../engine/stocks';
 import { GoalCard } from './Goals';
@@ -345,6 +346,7 @@ function AgendaCard() {
             <Inbox size={13} /> Inbox is clear.
           </div>
         )}
+        <AwardsAgenda />
         {sale && undiscounted.length > 0 && (
           <div className="rounded-lg border border-warn/30 bg-warn-soft/40 p-2.5">
             <div className="flex items-center gap-1.5 text-sm font-medium text-warn">
@@ -382,5 +384,24 @@ function AgendaCard() {
         </div>
       </div>
     </Card>
+  );
+}
+
+function AwardsAgenda() {
+  const w = useWorld();
+  const navigate = useGameStore((s) => s.navigate);
+  const s = w.awardSeason;
+  if (!s) return null;
+  const open = !s.done && w.day < s.ceremonyDay;
+  if (!open && s.watched) return null;
+  const mine = playerNominations(w).filter((n) => n.category !== 'glitch').length;
+  return (
+    <button onClick={() => navigate({ name: 'awards' })} className="flex w-full items-center gap-2.5 rounded-lg border border-warn/40 bg-warn-soft/30 p-2.5 text-left hover:border-warn">
+      <Trophy size={16} className="shrink-0 text-warn" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-warn">{open ? `The ${s.year} Game Awards: ${mine ? `${mine} nomination${mine > 1 ? 's' : ''}!` : 'nominees announced'}` : `The ${s.year} Game Awards are over`}</span>
+        <span className="block text-xs text-sub">{open ? `Ceremony in ${s.ceremonyDay - w.day} days. Campaign, predict and book a premiere.` : 'Watch the ceremony and see who won.'}</span>
+      </span>
+    </button>
   );
 }

@@ -1,6 +1,8 @@
 import { useGameStore } from './store/gameStore';
 import { Layout } from './ui/components/Layout';
 import { GameOverModal, NotificationDrawer, Toasts } from './ui/components/Overlays';
+import { Confetti } from './ui/components/Confetti';
+import { Awards } from './ui/screens/Awards';
 import { StartScreen, GeneratingScreen } from './ui/screens/StartScreen';
 import { Dashboard } from './ui/screens/Dashboard';
 import { Projects } from './ui/screens/Projects';
@@ -54,6 +56,8 @@ function Screen() {
       return <Goals />;
     case 'engine':
       return <EngineScreen />;
+    case 'awards':
+      return <Awards />;
     case 'settings':
       return <Settings />;
   }
@@ -78,6 +82,7 @@ export default function App() {
       <NotificationDrawer />
       <GameOverModal />
       <Toasts />
+      <Confetti />
     </>
   );
 }

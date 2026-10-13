@@ -153,6 +153,9 @@ export function createIndustry(seed: string, difficulty: Difficulty, rivals: num
     toasts: [],
     notices: [],
     awardsHistory: [],
+    awardSeason: null,
+    awardArchive: [],
+    celebrations: [],
   };
   w.market = initialMarket(w);
 

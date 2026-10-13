@@ -6,7 +6,7 @@ import { ENGINES, ENGINE_MAX_LEVEL, ENGINE_MODULES, ENGINE_MODULE_IDS, ROLES, SC
 import { addXp } from './progression';
 import { chance } from './rng';
 import type { ActionResult, Company, EngineId, EngineModuleId, Game, ScopeId, StudioEngine, World } from './types';
-import { clamp, earn, playerCompany, pushNews, spend, toast } from './util';
+import { celebrate, clamp, earn, playerCompany, pushNews, spend, toast } from './util';
 
 export const DEFAULT_ROYALTY = 0.05;
 
@@ -215,6 +215,7 @@ export function releaseEngineVersion(w: World, showcase: boolean): ActionResult 
     companyId: p.id,
     tone: 'major',
   });
+  celebrate(w, `${e.name} ${next}.0`, next >= 5);
   toast(w, `${e.name} ${next}.0 is out!`, 'good', { category: 'studio', link: { route: 'engine' }, body: e.licensing ? 'Rival studios are taking a fresh look at licensing it.' : 'Open licensing to earn from rival studios.' });
   return { ok: true };
 }

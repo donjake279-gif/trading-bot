@@ -3,7 +3,7 @@ import { MAX_LEVEL, PERKS, SERVER_TIERS, xpForLevel } from './constants';
 import { shuffle } from './rng';
 import { ownedCapacity } from './datacenters';
 import type { ActionResult, Objective, ObjectiveKind, PerkId, World } from './types';
-import { clamp, gamesOf, ledgerRevenue, newId, playerCompany, toast } from './util';
+import { celebrate, clamp, gamesOf, ledgerRevenue, newId, playerCompany, toast } from './util';
 
 export function perkRank(w: World, id: PerkId): number {
   return w.player.progression?.perks[id] ?? 0;
@@ -19,6 +19,7 @@ export function addXp(w: World, amount: number): void {
     pr.level += 1;
     pr.perkPoints += 1;
     toast(w, `Studio level ${pr.level}! +1 perk point`, 'good', { category: 'goal', link: { route: 'goals' }, body: 'Spend it on a perk in Goals & Perks.' });
+    celebrate(w, `Level ${pr.level}`);
   }
   if (pr.level >= MAX_LEVEL) pr.xp = Math.min(pr.xp, xpForLevel(MAX_LEVEL));
 }
