@@ -27,7 +27,7 @@ import { playerCompany } from '../../engine/util';
 import { founderStake } from '../../engine/stocks';
 import { formatDate } from '../../engine/util';
 import { PLAYER_GRACE_DAYS, xpForLevel } from '../../engine/constants';
-import { isOnline } from '../../engine/infra';
+import { fleetDown, isOnline } from '../../engine/infra';
 import { readyForVersion } from '../../engine/studioEngine';
 import { money, pct } from '../lib/format';
 import { unreadCount } from './Overlays';
@@ -60,7 +60,7 @@ function NavList({ onPick }: { onPick?: () => void }) {
   const mine = Object.values(w.games).filter((g) => g.companyId === w.player.companyId);
   const devCount = mine.filter((g) => g.status === 'development').length + w.player.contracts.length;
   const infra = w.player.infra;
-  const serverAlert = (infra.load > 1 || w.day < infra.outageUntil) && mine.some((g) => g.status === 'released' && isOnline(g));
+  const serverAlert = (infra.load > 1 || fleetDown(w) || infra.dataCenters.some((d) => w.day >= d.readyDay && w.day < d.offlineUntil)) && mine.some((g) => g.status === 'released' && isOnline(g));
   const perkPoints = w.player.progression.perkPoints;
   const engineAlert = w.player.engine ? readyForVersion(w.player.engine) : w.player.research.completed.includes('engine1');
   return (

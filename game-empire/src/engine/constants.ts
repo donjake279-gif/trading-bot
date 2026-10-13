@@ -5,6 +5,7 @@ import type {
   AudienceId,
   CampaignId,
   ComboGrade,
+  DcUpgradeId,
   EngineId,
   FacilityId,
   Focus,
@@ -14,9 +15,11 @@ import type {
   MonetizationId,
   MultiplayerId,
   PlatformId,
+  RegionId,
   ResearchId,
   RoleId,
   ScopeId,
+  ServerModelId,
   StrategyId,
   TopicId,
   TraitId,
@@ -1171,3 +1174,90 @@ export const LEGACY_BONUSES: Record<LegacyId, { name: string; blurb: string; cos
   garage: { name: 'Own a garage', blurb: 'Start in the Garage instead of a bedroom.', cost: 4, max: 1 },
   engine: { name: 'Engine blueprints', blurb: 'Start with your own engine already founded.', cost: 25, max: 1 },
 };
+
+// ---------------------------------------------------------------- data centers
+
+export const REGION_IDS: RegionId[] = ['na', 'eu', 'asia', 'sa', 'oce'];
+
+export const REGIONS: Record<RegionId, { name: string; cities: string[] }> = {
+  na: { name: 'North America', cities: ['Austin', 'Ashburn', 'Portland', 'Montreal', 'Phoenix'] },
+  eu: { name: 'Europe', cities: ['Frankfurt', 'Dublin', 'Amsterdam', 'Stockholm', 'Madrid'] },
+  asia: { name: 'Asia', cities: ['Tokyo', 'Singapore', 'Seoul', 'Mumbai', 'Osaka'] },
+  sa: { name: 'South America', cities: ['São Paulo', 'Santiago', 'Bogotá'] },
+  oce: { name: 'Oceania', cities: ['Sydney', 'Auckland', 'Melbourne'] },
+};
+
+export interface DcBuildingDef {
+  name: string;
+  /** Rack slots before floor-space upgrades. */
+  slots: number;
+  /** Power capacity in kW before power upgrades. */
+  power: number;
+  cost: number;
+  /** Monthly rent, property tax and staff. */
+  rent: number;
+  /** Days to build or expand into. */
+  build: number;
+  minRep: number;
+}
+
+export const DC_BUILDINGS: DcBuildingDef[] = [
+  { name: 'Server Closet', slots: 4, power: 3, cost: 5000, rent: 200, build: 3, minRep: 0 },
+  { name: 'Small Warehouse', slots: 20, power: 25, cost: 120000, rent: 2500, build: 20, minRep: 5 },
+  { name: 'Warehouse', slots: 60, power: 90, cost: 400000, rent: 9000, build: 40, minRep: 15 },
+  { name: 'Large Warehouse', slots: 150, power: 250, cost: 2000000, rent: 30000, build: 60, minRep: 25 },
+  { name: 'Data Hall', slots: 400, power: 800, cost: 12000000, rent: 120000, build: 90, minRep: 40 },
+  { name: 'Hyperscale Campus', slots: 1200, power: 3000, cost: 90000000, rent: 600000, build: 150, minRep: 60 },
+];
+
+export const DC_UPGRADE_IDS: DcUpgradeId[] = ['space', 'power', 'cooling', 'network', 'backup', 'security'];
+
+export const DC_UPGRADES: Record<DcUpgradeId, { name: string; blurb: string }> = {
+  space: { name: 'Floor Space', blurb: '+25% rack slots per level.' },
+  power: { name: 'Power Supply', blurb: '+25% power capacity per level.' },
+  cooling: { name: 'Cooling', blurb: 'Hardware fails less and wears out slower.' },
+  network: { name: 'Network Uplink', blurb: 'Smoother play for your players and cheaper bandwidth.' },
+  backup: { name: 'Backup Generators', blurb: 'Outages are 15% less likely per level, and shorter.' },
+  security: { name: 'Security', blurb: 'Fewer DDoS attacks and break-ins.' },
+};
+
+export const DC_MAX_UPGRADE = 5;
+
+/** Cost of taking a data center upgrade from `level` to `level + 1`. */
+export function dcUpgradeCost(building: number, level: number): number {
+  const base = DC_BUILDINGS[building].cost;
+  return Math.max(2000, Math.round((base * 0.22 * (level + 1)) / 1000) * 1000);
+}
+
+export interface ServerModelDef {
+  name: string;
+  blurb: string;
+  /** Rack slots it takes. */
+  slots: number;
+  /** Concurrent players it can host. */
+  capacity: number;
+  cost: number;
+  /** Monthly maintenance and licences. */
+  upkeep: number;
+  /** kW drawn. */
+  power: number;
+  /** How smooth games feel on it, 0..1. */
+  perf: number;
+  minRep: number;
+  research?: ResearchId;
+}
+
+export const SERVER_MODEL_IDS: ServerModelId[] = ['budget', 'rack', 'blade', 'pod', 'supercluster'];
+
+export const SERVER_MODELS: Record<ServerModelId, ServerModelDef> = {
+  budget: { name: 'Budget Server', blurb: 'A refurbished tower. It works. Mostly.', slots: 1, capacity: 500, cost: 2500, upkeep: 40, power: 0.5, perf: 0.1, minRep: 0 },
+  rack: { name: 'Rack Server', blurb: 'The reliable workhorse of every data center.', slots: 1, capacity: 2500, cost: 10000, upkeep: 160, power: 1.2, perf: 0.35, minRep: 3 },
+  blade: { name: 'Blade Chassis', blurb: 'Dense, fast and hungry for power.', slots: 2, capacity: 12000, cost: 45000, upkeep: 700, power: 4, perf: 0.55, minRep: 10 },
+  pod: { name: 'High-Density Pod', blurb: 'A whole rack of tuned game servers.', slots: 4, capacity: 60000, cost: 200000, upkeep: 3000, power: 14, perf: 0.75, minRep: 20, research: 'netcode' },
+  supercluster: { name: 'Edge Supercluster', blurb: 'Custom silicon. Your players will feel the difference.', slots: 8, capacity: 400000, cost: 1200000, upkeep: 16000, power: 70, perf: 0.95, minRep: 40, research: 'cloudInfra' },
+};
+
+/** Electricity per kW per month. */
+export const ELECTRICITY_PER_KW = 110;
+/** Bandwidth per concurrent player per day on your own network (before uplink upgrades). */
+export const OWNED_BANDWIDTH = 0.0042;

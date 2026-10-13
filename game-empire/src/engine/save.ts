@@ -164,6 +164,7 @@ function migrate(w: World): void {
   for (const [k, v] of Object.entries(extras)) if (pl[k] === undefined) pl[k] = v;
   if ((w.version ?? 0) < 4) migrateEngine(w);
   w.player.infra.demandHistory ??= [];
+  w.player.infra.dataCenters ??= [];
   w.player.infra.capacityHistory ??= [];
   w.notices ??= [];
   w.pauseReason = null;

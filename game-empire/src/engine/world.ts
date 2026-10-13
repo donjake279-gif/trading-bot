@@ -84,7 +84,7 @@ export function playerExtras(): Pick<
   | 'legacyBanked'
 > {
   return {
-    infra: { tier: 0, nodes: 1, autoscale: true, incidents: [], lowLoadDays: 0, demand: 0, load: 0, outageUntil: 0, overloadDays: 0, downtime: [], demandHistory: [], capacityHistory: [] },
+    infra: { tier: 0, nodes: 1, autoscale: true, incidents: [], lowLoadDays: 0, demand: 0, load: 0, outageUntil: 0, overloadDays: 0, downtime: [], demandHistory: [], capacityHistory: [], dataCenters: [] },
     progression: { xp: 0, level: 1, perkPoints: 0, perks: {} },
     objectives: [],
     objectivesCompleted: 0,

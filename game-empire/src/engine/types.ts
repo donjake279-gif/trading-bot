@@ -602,6 +602,34 @@ export interface ServerIncident {
   day: number;
   days: number;
   cause: string;
+  /** Where it happened: 'cloud' for rented hosting, or a data center name. */
+  where?: string;
+  /** True when every online game went down, not just part of the fleet. */
+  full?: boolean;
+}
+
+export type RegionId = 'na' | 'eu' | 'asia' | 'sa' | 'oce';
+export type DcUpgradeId = 'space' | 'power' | 'cooling' | 'network' | 'backup' | 'security';
+export type ServerModelId = 'budget' | 'rack' | 'blade' | 'pod' | 'supercluster';
+
+/** A building you own and fill with your own servers. */
+export interface DataCenter {
+  id: string;
+  name: string;
+  region: RegionId;
+  /** Building tier (index into DC_BUILDINGS). */
+  building: number;
+  upgrades: Record<DcUpgradeId, number>;
+  servers: Record<ServerModelId, number>;
+  /** Construction finishes on this day; the building does nothing before. */
+  readyDay: number;
+  /** A bigger building being built around the old one (finishes on expandDay). */
+  expandTo: number | null;
+  expandDay: number;
+  offlineUntil: number;
+  /** Hardware wear, 0 (new) .. 1 (worn out). */
+  wear: number;
+  boughtDay: number;
 }
 
 export interface InfraState {
@@ -621,6 +649,8 @@ export interface InfraState {
   /** Online concurrent players and fleet capacity over time (for charts). */
   demandHistory: Point[];
   capacityHistory: Point[];
+  /** Buildings you own, filled with your own servers. */
+  dataCenters: DataCenter[];
 }
 
 export type PerkId =
@@ -657,6 +687,7 @@ export type ObjectiveKind =
   | 'cash'
   | 'contracts'
   | 'serverTier'
+  | 'dataCenter'
   | 'releases';
 
 export interface Objective {

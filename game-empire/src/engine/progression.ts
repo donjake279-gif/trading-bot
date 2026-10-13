@@ -1,6 +1,7 @@
 // Studio progression: XP and levels, the perk tree, and rotating goals.
 import { MAX_LEVEL, PERKS, SERVER_TIERS, xpForLevel } from './constants';
 import { shuffle } from './rng';
+import { ownedCapacity } from './datacenters';
 import type { ActionResult, Objective, ObjectiveKind, PerkId, World } from './types';
 import { clamp, gamesOf, ledgerRevenue, newId, playerCompany, toast } from './util';
 
@@ -86,6 +87,8 @@ export function objectiveProgress(w: World, o: Objective): number {
       return w.player.contractsCompleted - o.baseline;
     case 'serverTier':
       return w.player.infra.tier;
+    case 'dataCenter':
+      return ownedCapacity(w, false);
     case 'releases':
       return w.player.stats.gamesReleased - o.baseline;
   }
@@ -159,6 +162,13 @@ function makeObjective(w: World, kind: ObjectiveKind): Objective | null {
       target = w.player.infra.tier + 1;
       title = `Upgrade your servers to ${SERVER_TIERS[target].name}`;
       break;
+    case 'dataCenter': {
+      if (!live.some((g) => g.multiplayer === 'online' || g.multiplayer === 'massive')) return null;
+      const owned = ownedCapacity(w, false);
+      target = nice(Math.max(2000, owned * 2, w.player.infra.demand * 0.5));
+      title = owned > 0 ? `Own servers for ${cnt(target)} players in your data centers` : `Host ${cnt(target)} players on servers you own`;
+      break;
+    }
     case 'releases':
       baseline = s.gamesReleased;
       target = 2;
@@ -183,7 +193,7 @@ function makeObjective(w: World, kind: ObjectiveKind): Objective | null {
   return o;
 }
 
-const KINDS: ObjectiveKind[] = ['ccu', 'critic', 'monthRevenue', 'employees', 'updates', 'reputation', 'valuation', 'liveGames', 'owners', 'cash', 'contracts', 'serverTier', 'releases'];
+const KINDS: ObjectiveKind[] = ['ccu', 'critic', 'monthRevenue', 'employees', 'updates', 'reputation', 'valuation', 'liveGames', 'owners', 'cash', 'contracts', 'serverTier', 'dataCenter', 'releases'];
 
 export function refillObjectives(w: World): void {
   const have = new Set(w.player.objectives.map((o) => o.kind));

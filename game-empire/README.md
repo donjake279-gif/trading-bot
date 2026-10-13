@@ -64,10 +64,15 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   through it, and run free-game giveaways to grow your share.
 - **Legacy (New Game+).** Every finished run banks legacy points in your browser (retire, sell or go bust).
   Spend them on head starts for the next studio: savings, reputation, a garage, perk points or engine blueprints.
-- **Run servers.** Every online and MMO game you ship runs on your own server fleet. Buy nodes, move up six tiers
-  (Shared Hosting → Hyperscale Edge, gated by reputation and research) and watch load, uptime and the monthly
-  bill. Overloaded servers turn new players away, raise churn and hurt reviews; outages take every online game
-  down at once. Autoscaling adds nodes at 85% load and moves up a tier when it can.
+- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (six tiers,
+  Shared Hosting → Hyperscale Edge) plus **data centers you own**. Buy a building (Server Closet → Small Warehouse
+  → Warehouse → Large Warehouse → Data Hall → Hyperscale Campus) in any of five regions, wait for construction,
+  grow it into the next size, and upgrade six systems: floor space, power, cooling, network uplink, backup
+  generators and security. Fill the racks with five server models, each with its own capacity, slots, power draw
+  and smoothness. Owning costs more up front but much less per month than renting; hardware wears out and can be
+  refreshed; covering more regions helps growth and reviews. Overloaded servers turn new players away, raise
+  churn and hurt reviews. A cloud or building outage only removes its share of capacity; if nothing is left
+  running, every online game goes down. Autoscaling fills your own buildings first, then rents cloud nodes.
 - **Level up.** Studio XP comes from releases, updates, contracts, player milestones, awards and goals. Each level
   gives a perk point for 12 permanent perks (faster development, fewer bugs, cheaper servers, better deals...).
   Three rotating goals always give you something to chase, with cash, XP and perk-point rewards.
@@ -111,7 +116,7 @@ actions.
 | `finance.ts` | Running costs, loans, valuation, monthly close and taxes, reputation drift |
 | `stocks.ts` | Index, prices, earnings, IPOs, trading, splits, acquisitions, subsidiary cash sweeps |
 | `events.ts` | Macro economy, random world events, player decisions, board, solvency, awards, auctions |
-| `infra.ts` | The player's server fleet: capacity, load, costs, outages, autoscaling |
+| `infra.ts`, `datacenters.ts` | The player's server fleet: rented cloud and owned buildings, capacity, load, costs, outages, wear, autoscaling |
 | `progression.ts` | Studio XP and levels, perks, rotating goals |
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales, rival |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |

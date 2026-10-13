@@ -1,5 +1,6 @@
 import { founderStake } from './stocks';
 import { addXp } from './progression';
+import { ownedCapacity } from './datacenters';
 import type { World } from './types';
 import { activeCompanies, playerCompany, pushNews, toast } from './util';
 
@@ -40,6 +41,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'legend_hire', name: 'Star Power', desc: 'Hire an industry legend.', check: (w) => w.player.employees.some((e) => e.traits.includes('legend')) },
   { id: 'convention', name: 'Fan Service', desc: 'Host your own fan convention.', check: (w) => w.player.conventionsHeld >= 1 },
   { id: 'facilities_5', name: 'Dream Office', desc: 'Build 5 office facilities.', check: (w) => w.player.facilities.length >= 5 },
+  { id: 'dc_first', name: 'Metal Under Your Feet', desc: 'Open a data center of your own.', check: (w) => w.player.infra.dataCenters.some((d) => w.day >= d.readyDay) },
+  { id: 'dc_regions', name: 'Around the World', desc: 'Run data centers on 3 continents.', check: (w) => new Set(w.player.infra.dataCenters.filter((d) => w.day >= d.readyDay).map((d) => d.region)).size >= 3 },
+  { id: 'dc_campus', name: 'Hyperscaler', desc: 'Own a Hyperscale Campus.', check: (w) => w.player.infra.dataCenters.some((d) => d.building >= 5 && w.day >= d.readyDay) },
+  { id: 'dc_million', name: 'A Million Seats', desc: 'Own servers for 1,000,000 players.', check: (w) => ownedCapacity(w, false) >= 1e6 },
   { id: 'store', name: 'Storefront', desc: 'Launch your own game store.', check: (w) => !!w.player.store },
   { id: 'hq', name: 'Corner Office', desc: 'Move into Headquarters.', check: (w) => w.player.officeLevel >= 4 },
   { id: 'ccu_1m', name: 'Phenomenon', desc: 'Reach 1,000,000 concurrent players on one game.', check: (w) => w.player.stats.peakCcu >= 1e6 },
