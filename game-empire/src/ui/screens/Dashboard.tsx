@@ -7,6 +7,7 @@ import { founderStake } from '../../engine/stocks';
 import { GENRES, MONETIZATIONS, OFFICES } from '../../engine/constants';
 import { infraEffects, isOnline } from '../../engine/infra';
 import { joinSale } from '../../engine/business';
+import { readyForVersion } from '../../engine/studioEngine';
 import { saleActive, saleEndDay, upcomingEvents } from '../../engine/calendar';
 import { marketCap } from '../../engine/stocks';
 import { GoalCard } from './Goals';
@@ -77,6 +78,8 @@ function Alerts() {
   const onlineLive = liveGamesOf(w, c.id).filter(isOnline);
   if (onlineLive.length && w.day < w.player.infra.outageUntil) alerts.push({ tone: 'bad', text: 'Your servers are down. Every online game is offline until they recover.', go: () => navigate({ name: 'servers' }) });
   else if (onlineLive.length && infraEffects(w).overloaded) alerts.push({ tone: 'bad', text: `Servers at ${pct(w.player.infra.load)} of capacity: new players are being turned away.`, go: () => navigate({ name: 'servers' }) });
+  if (!w.player.engine && w.player.research.completed.includes('engine1')) alerts.push({ tone: 'good', text: 'Your engine research is done. Give your engine a name and found it.', go: () => navigate({ name: 'engine' }) });
+  if (w.player.engine && readyForVersion(w.player.engine)) alerts.push({ tone: 'good', text: `${w.player.engine.name} ${w.player.engine.version + 1}.0 is ready to ship.`, go: () => navigate({ name: 'engine' }) });
   if (w.player.progression.perkPoints > 0) alerts.push({ tone: 'good', text: `You have ${w.player.progression.perkPoints} unspent perk point${w.player.progression.perkPoints > 1 ? 's' : ''}.`, go: () => navigate({ name: 'goals' }) });
   const bleeding = liveGamesOf(w, c.id).filter((g) => g.cost30 > g.rev30 * 1.2 && g.cost30 > 300 && w.day - (g.releaseDay ?? 0) > 60);
   for (const g of bleeding) alerts.push({ tone: 'warn', text: `${g.title}'s servers cost more than it earns.`, go: () => navigate({ name: 'game', id: g.id }) });

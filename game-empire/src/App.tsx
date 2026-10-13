@@ -17,6 +17,7 @@ import { Achievements } from './ui/screens/Achievements';
 import { Settings } from './ui/screens/Settings';
 import { Servers } from './ui/screens/Servers';
 import { Goals } from './ui/screens/Goals';
+import { EngineScreen } from './ui/screens/Engine';
 
 function Screen() {
   const route = useGameStore((s) => s.route);
@@ -51,6 +52,8 @@ function Screen() {
       return <Servers />;
     case 'goals':
       return <Goals />;
+    case 'engine':
+      return <EngineScreen />;
     case 'settings':
       return <Settings />;
   }

@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { ClipboardPaste, Code, Gamepad2, Palette, PenTool, Play, Trash, Upload } from 'lucide-react';
+import { ClipboardPaste, Code, Crown, Gamepad2, Palette, PenTool, Play, Trash, Upload } from 'lucide-react';
 import { PasteSaveModal } from './Settings';
 import { useGameStore } from '../../store/gameStore';
 import { deleteSlot, listSlots, type SlotMeta } from '../../engine/save';
-import { DIFFICULTIES } from '../../engine/constants';
-import type { Difficulty } from '../../engine/types';
+import { DIFFICULTIES, LEGACY_BONUSES } from '../../engine/constants';
+import { legacyCost, loadLegacy, spendLegacy } from '../../engine/legacy';
+import type { Difficulty, LegacyId } from '../../engine/types';
 import { date, money } from '../lib/format';
 import { Button, Field, cx, inputClass } from '../components/ui';
 
@@ -33,11 +34,16 @@ export function StartScreen() {
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const [seed, setSeed] = useState(randomSeed);
   const [rivals, setRivals] = useState(24);
+  const [legacy, setLegacy] = useState<Partial<Record<LegacyId, number>>>({});
+  const bank = useMemo(() => loadLegacy(), []);
+  const legacySpend = legacyCost(legacy);
   const fileRef = useRef<HTMLInputElement>(null);
   const latest = useMemo(() => slots.find((s) => !s.gameOver), [slots]);
 
-  const start = () =>
-    newGame({ seed, companyName: companyName.trim() || 'Pixel Garage Games', founderName: founderName.trim() || 'You', specialty, difficulty, rivals });
+  const start = () => {
+    const picks = legacySpend > 0 && spendLegacy(legacy) ? legacy : undefined;
+    newGame({ seed, companyName: companyName.trim() || 'Pixel Garage Games', founderName: founderName.trim() || 'You', specialty, difficulty, rivals, legacy: picks });
+  };
 
   return (
     <div className="min-h-full bg-[radial-gradient(ellipse_at_top,_#14243a_0%,_#0b1017_60%)]">
@@ -61,6 +67,7 @@ export function StartScreen() {
               '15–30 autonomous rival studios that grow, merge, IPO and go bankrupt',
               'Live player counts, reviews, churn, updates and expansions',
               'Loans, venture capital, IPOs, stock trading and hostile takeovers',
+              'Build your own engine, discover secret genre combos, host conventions, open your own store',
               'Seeded, deterministic simulation with pause, speed-up and saves',
             ].map((t) => (
               <li key={t} className="flex gap-2">
@@ -222,6 +229,43 @@ export function StartScreen() {
               <input type="range" min={15} max={30} value={rivals} onChange={(e) => setRivals(Number(e.target.value))} className="mt-2 w-full" />
             </Field>
           </div>
+          {bank.points > 0 && (
+            <div className="mt-4 rounded-xl border border-warn/30 bg-warn-soft/20 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5 font-semibold">
+                  <Crown size={15} className="text-warn" /> Legacy head starts
+                </span>
+                <span className="tabular text-sub">
+                  {bank.points - legacySpend} / {bank.points} points left
+                </span>
+              </div>
+              <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                {(Object.keys(LEGACY_BONUSES) as LegacyId[]).map((id) => {
+                  const def = LEGACY_BONUSES[id];
+                  const n = legacy[id] ?? 0;
+                  const canAdd = n < def.max && legacySpend + def.cost <= bank.points;
+                  return (
+                    <div key={id} className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold">
+                          {def.name} {n > 0 && <span className="text-warn">×{n}</span>}
+                        </div>
+                        <div className="text-[10px] text-muted">
+                          {def.blurb} {def.cost} pts
+                        </div>
+                      </div>
+                      <button disabled={n <= 0} onClick={() => setLegacy({ ...legacy, [id]: n - 1 })} className="h-6 w-6 rounded border border-line text-sm disabled:opacity-30" aria-label={`Less ${def.name}`}>
+                        −
+                      </button>
+                      <button disabled={!canAdd} onClick={() => setLegacy({ ...legacy, [id]: n + 1 })} className="h-6 w-6 rounded border border-line text-sm disabled:opacity-30" aria-label={`More ${def.name}`}>
+                        +
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <Button variant="primary" size="lg" className="mt-6 w-full" onClick={start}>
             <Play size={18} /> Start your empire
           </Button>

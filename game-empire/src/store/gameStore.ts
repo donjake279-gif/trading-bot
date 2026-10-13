@@ -23,9 +23,10 @@ export type Route =
   | { name: 'achievements' }
   | { name: 'servers' }
   | { name: 'goals' }
+  | { name: 'engine' }
   | { name: 'settings' };
 
-const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'settings'] as const;
+const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'engine', 'settings'] as const;
 
 export const SPEEDS = [
   { label: '1×', dps: 1 },

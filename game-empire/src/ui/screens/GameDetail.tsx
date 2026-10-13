@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Bug, Copy, Flame, Megaphone, Power, Rocket, Tag, Trophy, Users, Wrench, X } from 'lucide-react';
+import { Bug, Copy, Disc3, Flame, Megaphone, Power, Rocket, Sparkles, Tag, ThumbsDown, ThumbsUp, Trophy, Users, Wrench, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import {
   AUDIENCES,
   CAMPAIGNS,
   CAMPAIGN_IDS,
-  ENGINES,
   FOCUS_IDS,
   FOCUS_LABELS,
   GENRES,
@@ -40,6 +39,9 @@ import { bugDensity, hasResearch, playerDailyWork, qualityEstimate } from '../..
 import { ratingOf } from '../../engine/market';
 import { updateCost, updateFatigue, updateWork } from '../../engine/updates';
 import { infraEffects, isOnline } from '../../engine/infra';
+import { certificationName, remasterBlocker, startRemaster } from '../../engine/fun';
+import { playerReviews, topicLabel } from '../../engine/reviews';
+import { engineDisplayName } from '../../engine/studioEngine';
 import { playerCompany, reviewLabel } from '../../engine/util';
 import type { Employee, Game, MonetizationId, PlatformId, UpdateTypeId } from '../../engine/types';
 import { date, days, money, num, pct } from '../lib/format';
@@ -57,6 +59,8 @@ export function GameDetail({ id }: { id: string }) {
 }
 
 function Header({ g, actions }: { g: Game; actions?: React.ReactNode }) {
+  const w = useWorld();
+  const known = g.topic ? w.player.combos[`${g.genre}:${g.topic}`] : undefined;
   return (
     <div className="mb-4">
       <SectionTitle actions={actions}>{g.title}</SectionTitle>
@@ -64,10 +68,22 @@ function Header({ g, actions }: { g: Game; actions?: React.ReactNode }) {
         <Badge tone={g.status === 'released' ? 'good' : g.status === 'development' ? 'accent' : 'neutral'}>{statusLabel(g)}</Badge>
         <Badge>{SCOPES[g.scope].name}</Badge>
         <Badge>{GENRES[g.genre].name}</Badge>
+        {g.topic && (
+          <Badge tone={known === 'legendary' ? 'warn' : known === 'great' ? 'good' : known === 'bad' ? 'bad' : 'neutral'} title={known ? `${known} combo` : 'Combo not tested yet'}>
+            {topicLabel(g)}
+            {known ? ` · ${known}` : ''}
+          </Badge>
+        )}
+        {g.certified > 0 && (
+          <Badge tone="warn">
+            <Disc3 size={11} /> {certificationName(g.certified)}
+          </Badge>
+        )}
+        {g.remasterOf && <Badge tone="accent">Remaster</Badge>}
         <Badge>{AUDIENCES[g.audience].name}</Badge>
         <Badge>{MULTIPLAYER[g.multiplayer].name}</Badge>
         <Badge>{MONETIZATIONS[g.monetization].short}{g.price > 0 ? ` $${g.price.toFixed(2)}` : ''}</Badge>
-        <Badge>{ENGINES[g.engine].name}</Badge>
+        <Badge>{engineDisplayName(w, g.engine)}</Badge>
         {g.platforms.map((p) => (
           <Badge key={p}>{PLATFORMS[p].name}</Badge>
         ))}
@@ -343,6 +359,18 @@ function LiveView({ g }: { g: Game }) {
             <Button disabled={ipBusy} onClick={() => navigate({ name: 'create', ipId: g.ipId })}>
               <Copy size={14} /> Make sequel
             </Button>
+            {!g.remasterOf && !g.remastered && (
+              <Button
+                disabled={!!remasterBlocker(w, g)}
+                title={remasterBlocker(w, g) ?? 'Rebuild this classic with modern tech: 40% of the work, nostalgia hype included'}
+                onClick={() => {
+                  const r = act((world) => startRemaster(world, g.id), 'Remaster announced');
+                  if (r.ok && r.id) navigate({ name: 'game', id: r.id });
+                }}
+              >
+                <Sparkles size={14} /> Remaster
+              </Button>
+            )}
             {live && (
               <ConfirmButton size="md" confirmLabel="Stop earning from it? Click again" onConfirm={() => act((world) => shutdownServers(world, g.id))}>
                 <Power size={14} /> {online ? 'Shut down servers' : 'End support'}
@@ -420,6 +448,7 @@ function LiveView({ g }: { g: Game }) {
       </div>
 
       {live && <HealthStrip g={g} />}
+      <PlayerReviews g={g} />
 
       {live && (
         <div className="mt-4 grid gap-4 xl:grid-cols-3">
@@ -519,6 +548,30 @@ function HealthStrip({ g }: { g: Game }) {
         </button>
       ))}
     </div>
+  );
+}
+
+function PlayerReviews({ g }: { g: Game }) {
+  const w = useWorld();
+  const reviews = playerReviews(w, g, 4);
+  if (reviews.length === 0) return null;
+  const label = reviewLabel(g.userScore, g.owners);
+  return (
+    <Card className="mt-4" title="What players are saying" subtitle={`${label} · ${num(g.owners)} ${MONETIZATIONS[g.monetization].upfront ? 'owners' : 'players'}`}>
+      <div className="grid gap-2 md:grid-cols-2">
+        {reviews.map((r) => (
+          <div key={r.text} className="rounded-lg border border-line bg-surface-2 p-3">
+            <div className={cx('flex items-center gap-1.5 text-xs font-semibold', r.recommended ? 'text-good' : 'text-bad')}>
+              {r.recommended ? <ThumbsUp size={13} /> : <ThumbsDown size={13} />}
+              {r.recommended ? 'Recommended' : 'Not recommended'}
+              <span className="ml-auto font-normal text-muted">{r.hours} h played</span>
+            </div>
+            <p className="mt-1.5 text-sm leading-snug text-ink">"{r.text}"</p>
+            <div className="mt-1.5 text-[11px] text-muted">{r.helpful} people found this helpful</div>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 

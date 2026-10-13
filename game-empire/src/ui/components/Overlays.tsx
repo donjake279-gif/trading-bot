@@ -24,6 +24,7 @@ import {
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { decisionOptionEnabled, resolveDecision } from '../../engine/events';
 import { playerCompany } from '../../engine/util';
+import { bankLegacy, legacyPointsFor } from '../../engine/legacy';
 import type { DecisionEvent, NewsItem, Notice, NoticeCategory } from '../../engine/types';
 import { date, money } from '../lib/format';
 import { Button, Kv, Modal, cx } from './ui';
@@ -343,9 +344,13 @@ export function GameOverModal() {
   const w = useWorld();
   const quit = useGameStore((s) => s.quitToMenu);
   const go = w.player.gameOver;
+  const [banked, setBanked] = useState(0);
+  useEffect(() => {
+    if (go && !w.player.legacyBanked) setBanked(bankLegacy(w));
+  }, [go, w]);
   if (!go) return null;
   const c = playerCompany(w);
-  const win = go.reason === 'sold';
+  const win = go.reason === 'sold' || go.reason === 'retired';
   const s = w.player.stats;
   const yearsPlayed = (go.day - c.founded) / 365;
   return (
@@ -369,6 +374,12 @@ export function GameOverModal() {
         <Kv k="Goals completed" v={w.player.objectivesCompleted} />
         <Kv k="Achievements" v={`${Object.keys(w.player.achievements).length}`} />
       </div>
+      <div className="mt-3 flex items-center gap-2 rounded-lg border border-warn/30 bg-warn-soft/30 px-4 py-2.5 text-sm">
+        <Crown size={16} className="text-warn" />
+        <span className="flex-1">Legacy points earned this run</span>
+        <span className="font-semibold tabular text-warn">+{banked || legacyPointsFor(w)}</span>
+      </div>
+      <p className="mt-1.5 text-center text-xs text-muted">Spend them on head starts when you found your next studio.</p>
       <div className="mt-5 flex justify-center">
         <Button variant="primary" onClick={quit}>
           Back to main menu

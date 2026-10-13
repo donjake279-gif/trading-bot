@@ -1,6 +1,7 @@
 // Player staff: candidates, morale, growth, research progress.
 import { BENEFITS, HIREABLE_ROLES, HOURS, OFFICES, RESEARCH, ROLES, TRAITS, salaryFor } from './constants';
 import { perkRank } from './progression';
+import { facilityEffects } from './fun';
 import { chance, pick, randInt, randNormal, randRange } from './rng';
 import type { Candidate, Employee, RoleId, TraitId, World } from './types';
 import { clamp, newId, playerCompany, pushNews, toast } from './util';
@@ -31,7 +32,7 @@ export function refreshCandidates(w: World): void {
   const p = playerCompany(w);
   const surge = w.day < w.market.talentSurgeUntil;
   const count = 6 + Math.min(10, Math.floor(p.reputation / 8)) + (surge ? 4 : 0);
-  const center = 26 + p.reputation * 0.45 + (surge ? 8 : 0) + 4 * perkRank(w, 'talent') + BENEFITS[w.player.policies.benefits].candidateSkill;
+  const center = 26 + p.reputation * 0.45 + (surge ? 8 : 0) + 4 * perkRank(w, 'talent') + BENEFITS[w.player.policies.benefits].candidateSkill + facilityEffects(w).candidateSkill;
   const fallen = surge
     ? Object.values(w.companies)
         .filter((c) => c.status === 'bankrupt' && c.endDay !== null && w.day - c.endDay < 90)
@@ -66,6 +67,7 @@ export function makeEmployee(w: World, c: Candidate): Employee {
     hiredDay: w.day,
     assignment: null,
     isFounder: false,
+    bio: c.bio,
   };
 }
 
@@ -80,6 +82,7 @@ export function staffDaily(w: World): void {
 }
 
 export function staffMonthly(w: World): void {
+  const fx = facilityEffects(w);
   const p = playerCompany(w);
   const office = OFFICES[w.player.officeLevel];
   const headcount = w.player.employees.length;
@@ -96,11 +99,11 @@ export function staffMonthly(w: World): void {
     if (crowded) target -= 15;
     if (toxic > 0 && !e.traits.includes('toxic')) target -= Math.min(18, (toxic / Math.max(1, headcount)) * 120);
     const crunching = e.assignment && w.games[e.assignment]?.crunch;
-    if (crunching && !e.traits.includes('crunchProof')) target -= 18 * (1 - 0.3 * perkRank(w, 'crunch'));
-    target += BENEFITS[w.player.policies.benefits].morale + HOURS[w.player.policies.hours].morale;
+    if (crunching && !e.traits.includes('crunchProof')) target -= 18 * (1 - 0.3 * perkRank(w, 'crunch')) * fx.crunchMult;
+    target += BENEFITS[w.player.policies.benefits].morale + HOURS[w.player.policies.hours].morale + fx.morale;
     if (p.cash < 0) target -= 10;
     e.morale = clamp(e.morale + (target - e.morale) * 0.4 + randNormal(w, 0, 3), 0, 100);
-    const quitChance = (e.traits.includes('loyal') ? 0.01 : e.morale < 25 ? 0.25 : e.morale < 40 ? 0.08 : 0.005) * BENEFITS[w.player.policies.benefits].quit;
+    const quitChance = (e.traits.includes('loyal') ? 0.01 : e.morale < 25 ? 0.25 : e.morale < 40 ? 0.08 : 0.005) * BENEFITS[w.player.policies.benefits].quit * fx.quitMult;
     if (chance(w, quitChance)) quitters.push(e);
   }
   for (const q of quitters) {
@@ -119,25 +122,8 @@ export function researchDaily(w: World): void {
     w.player.research.active = null;
     const def = RESEARCH[r.id];
     pushNews(w, { kind: 'player', title: `R&D complete: ${def.name}`, body: def.blurb, companyId: w.player.companyId, tone: 'good' });
-    toast(w, `Research complete: ${def.name}`, 'good');
+    if (r.id === 'engine1') toast(w, 'Research complete: name and found your engine', 'good', { category: 'studio', link: { route: 'engine' }, body: 'Open the Engine screen to give it a name.' });
+    else toast(w, `Research complete: ${def.name}`, 'good', { category: 'studio', link: { route: 'office' } });
   }
 }
 
-/** Monthly licensing income once the player's engine v3 is licensable. */
-export function engineLicensing(w: World): void {
-  if (!w.player.research.completed.includes('engine3')) return;
-  const p = playerCompany(w);
-  let pool = 0;
-  for (const id in w.games) {
-    const g = w.games[id];
-    if (g.status === 'released' && !w.companies[g.companyId].isPlayer && g.engine !== 'titan') pool += g.rev30;
-  }
-  const share = clamp(p.reputation / 100, 0.1, 0.9) * 0.15;
-  const income = pool * share * 0.03;
-  if (income > 0) {
-    p.cash += income;
-    p.ledger.licensing += income;
-    p.revenueTotal += income;
-    p.quarterRevenue += income;
-  }
-}

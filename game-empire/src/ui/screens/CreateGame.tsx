@@ -17,6 +17,8 @@ import {
   MULTIPLAYER,
   MULTIPLAYER_IDS,
   SERVER_TIERS,
+  TOPICS,
+  TOPIC_IDS,
   PLATFORMS,
   PLATFORM_IDS,
   RESEARCH,
@@ -40,6 +42,7 @@ import { createGame, validateGameParams } from '../../engine/actions';
 import { audiencePool, genreTrend } from '../../engine/market';
 import { gameTitle, sequelTitle } from '../../engine/names';
 import { infraCapacity } from '../../engine/infra';
+import { TOTAL_COMBOS, comboHint } from '../../engine/topics';
 import { playerCompany } from '../../engine/util';
 import type { Employee, Focus, FocusId, Game } from '../../engine/types';
 import { days, money, num, pct } from '../lib/format';
@@ -94,7 +97,9 @@ function defaultParams(w: ReturnType<typeof useWorld>, ipId?: string): GameParam
     scope,
     budget: 0,
     focus: mkFocus(1, 1, 1, 1, 1, 1),
+    topic: TOPIC_IDS[(w.day * 13 + w.nextId) % TOPIC_IDS.length],
   };
+  if (w.player.engine && c.reputation >= 0) base.engine = 'inhouse';
   if (ipId && w.ips[ipId]) {
     const ip = w.ips[ipId];
     const last = ip.games.map((id) => w.games[id]).filter(Boolean).sort((a, b) => b.createdDay - a.createdDay)[0];
@@ -103,7 +108,8 @@ function defaultParams(w: ReturnType<typeof useWorld>, ipId?: string): GameParam
         genre: last.genre,
         platforms: last.platforms.filter((p) => c.reputation >= PLATFORMS[p].minRep),
         audience: last.audience,
-        engine: last.engine,
+        topic: last.topic,
+        engine: last.engine === 'inhouse' && !w.player.engine ? 'titan' : last.engine,
         monetization: last.monetization,
         price: last.price || SCOPES[last.scope].price,
         artStyle: last.artStyle,
@@ -258,6 +264,7 @@ export function CreateGame({ ipId }: { ipId?: string }) {
                   })}
                 </div>
               </Card>
+              <TopicPicker p={p} set={set} />
               <Card title="Target audience">
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {AUDIENCE_IDS.map((a) => {
@@ -314,22 +321,24 @@ export function CreateGame({ ipId }: { ipId?: string }) {
                   {ENGINE_IDS.map((e) => {
                     const def = ENGINES[e];
                     const stats = engineStats(w, e, true);
-                    const lockedRes = def.research && !hasResearch(w, def.research);
+                    const own = e === 'inhouse';
+                    const lockedRes = own ? !w.player.engine : def.research && !hasResearch(w, def.research);
                     const lockedRep = c.reputation < def.minRep;
                     return (
-                      <Choice key={e} active={p.engine === e} disabled={!!lockedRes || lockedRep} onClick={() => set({ engine: e })}>
+                      <Choice key={e} active={p.engine === e} disabled={!!lockedRes || lockedRep} onClick={() => set({ engine: e })} className={own && w.player.engine ? 'ring-1 ring-accent/30' : undefined}>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold">{def.name}</span>
+                          <span className="text-sm font-semibold">{own && w.player.engine ? `${w.player.engine.name} ${w.player.engine.version}.0` : def.name}</span>
                           {(lockedRes || lockedRep) && <Lock size={12} className="text-warn" />}
+                          {own && w.player.engine && <Badge tone="accent">Yours</Badge>}
                         </div>
-                        <div className="mt-1 text-[11px] text-muted">{def.blurb}</div>
+                        <div className="mt-1 text-[11px] text-muted">{own ? (w.player.engine ? 'Your own engine. No fees, no royalties, and it gets better every upgrade.' : hasResearch(w, 'engine1') ? 'Researched! Name and found it on the Engine screen.' : 'Research "Found Your Own Engine" to build one.') : def.blurb}</div>
                         <div className="mt-1.5 flex flex-wrap gap-x-3 text-[11px] text-sub">
                           <span>quality cap {stats.cap}</span>
                           <span>speed ×{(1 / stats.workMult).toFixed(2)}</span>
                           {stats.licenseCost > 0 && <span>{money(stats.licenseCost)}</span>}
                           {stats.royalty > 0 && <span>{pct(stats.royalty)} royalty</span>}
                         </div>
-                        {lockedRes && <div className="mt-1 text-[11px] text-warn">Requires {RESEARCH[def.research!].name}</div>}
+                        {lockedRes && !own && <div className="mt-1 text-[11px] text-warn">Requires {RESEARCH[def.research!].name}</div>}
                         {lockedRep && <div className="mt-1 text-[11px] text-warn">Requires reputation {def.minRep}</div>}
                       </Choice>
                     );
@@ -548,7 +557,14 @@ export function CreateGame({ ipId }: { ipId?: string }) {
             <Kv k="Est. total cost" v={money(totalCost)} tone={totalCost > c.cash ? 'warn' : undefined} />
             <Kv k="Your cash" v={money(c.cash)} />
             <Kv k="Addressable players" v={num(pool)} />
-            <Kv k="Quality ceiling" v={eng.cap} />
+            <Kv k="Quality ceiling" v={Math.round(eng.cap)} />
+            <Kv
+              k="Topic combo"
+              v={(() => {
+                const h = p.topic ? comboHint(w, p.genre, p.topic) : null;
+                return h ? GRADE_STYLE[h].label : 'untested';
+              })()}
+            />
             <div className="mt-3 flex flex-wrap gap-1.5">
               <span className="text-[11px] text-muted">Audience</span> <FitBadge f={fits.audience} />
               <span className="text-[11px] text-muted">Art</span> <FitBadge f={fits.art} />
@@ -573,5 +589,43 @@ export function CreateGame({ ipId }: { ipId?: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const GRADE_STYLE: Record<string, { label: string; tone: 'good' | 'warn' | 'bad' | 'neutral' | 'accent' }> = {
+  legendary: { label: 'Legendary!', tone: 'warn' },
+  great: { label: 'Great', tone: 'good' },
+  good: { label: 'Good', tone: 'accent' },
+  okay: { label: 'Okay', tone: 'neutral' },
+  bad: { label: 'Bad', tone: 'bad' },
+  promising: { label: 'Promising?', tone: 'accent' },
+  risky: { label: 'Risky?', tone: 'warn' },
+};
+
+function TopicPicker({ p, set }: { p: GameParams; set: (patch: Partial<GameParams>) => void }) {
+  const w = useWorld();
+  const known = Object.keys(w.player.combos).length;
+  return (
+    <Card
+      title="Topic"
+      subtitle={`What is your game about? Some genre and topic combos critics love, some they hate, and a few secret ones go viral. Combo book: ${known}/${TOTAL_COMBOS} discovered.`}
+    >
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+        {TOPIC_IDS.map((t) => {
+          const hint = comboHint(w, p.genre, t);
+          const style = hint ? GRADE_STYLE[hint] : null;
+          return (
+            <Choice key={t} active={p.topic === t} onClick={() => set({ topic: t })} className="px-2.5 py-2">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <span aria-hidden>{TOPICS[t].emoji}</span>
+                <span className="truncate">{TOPICS[t].name}</span>
+              </div>
+              <div className="mt-1">{style ? <Badge tone={style.tone}>{style.label}</Badge> : <span className="text-[11px] text-muted">untested</span>}</div>
+            </Choice>
+          );
+        })}
+      </div>
+      <div className="mt-2 text-[11px] text-muted">Grades appear after you ship a combo (or see a rival hit with it). Player Analytics research hints at untested ones.</div>
+    </Card>
   );
 }

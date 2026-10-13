@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   Bell,
+  Cpu,
   Inbox,
   Server,
   Target,
@@ -27,6 +28,7 @@ import { founderStake } from '../../engine/stocks';
 import { formatDate } from '../../engine/util';
 import { PLAYER_GRACE_DAYS, xpForLevel } from '../../engine/constants';
 import { isOnline } from '../../engine/infra';
+import { readyForVersion } from '../../engine/studioEngine';
 import { money, pct } from '../lib/format';
 import { unreadCount } from './Overlays';
 import { cx } from './ui';
@@ -36,6 +38,7 @@ const NAV: { route: Route['name']; label: string; icon: ReactNode }[] = [
   { route: 'projects', label: 'Studio', icon: <Gamepad2 size={17} /> },
   { route: 'team', label: 'Team', icon: <Users size={17} /> },
   { route: 'office', label: 'Office & R&D', icon: <FlaskConical size={17} /> },
+  { route: 'engine', label: 'Engine', icon: <Cpu size={17} /> },
   { route: 'servers', label: 'Servers', icon: <Server size={17} /> },
   { route: 'goals', label: 'Goals & Perks', icon: <Target size={17} /> },
   { route: 'industry', label: 'Industry', icon: <Globe size={17} /> },
@@ -43,7 +46,7 @@ const NAV: { route: Route['name']; label: string; icon: ReactNode }[] = [
   { route: 'stocks', label: 'Stock Market', icon: <ChartCandlestick size={17} /> },
   { route: 'finance', label: 'Finance', icon: <Landmark size={17} /> },
   { route: 'news', label: 'News', icon: <Newspaper size={17} /> },
-  { route: 'achievements', label: 'Achievements', icon: <Trophy size={17} /> },
+  { route: 'achievements', label: 'Trophy Room', icon: <Trophy size={17} /> },
   { route: 'settings', label: 'Game & Saves', icon: <Settings size={17} /> },
 ];
 
@@ -59,6 +62,7 @@ function NavList({ onPick }: { onPick?: () => void }) {
   const infra = w.player.infra;
   const serverAlert = (infra.load > 1 || w.day < infra.outageUntil) && mine.some((g) => g.status === 'released' && isOnline(g));
   const perkPoints = w.player.progression.perkPoints;
+  const engineAlert = w.player.engine ? readyForVersion(w.player.engine) : w.player.research.completed.includes('engine1');
   return (
     <nav className="flex flex-col gap-0.5">
       {NAV.map((n) => (
@@ -77,6 +81,7 @@ function NavList({ onPick }: { onPick?: () => void }) {
           <span className="flex-1 text-left">{n.label}</span>
           {n.route === 'projects' && devCount > 0 && <span className="rounded bg-accent-soft px-1.5 text-[10px] font-semibold text-accent">{devCount}</span>}
           {n.route === 'servers' && serverAlert && <span className="h-2 w-2 rounded-full bg-bad" title="Servers need attention" />}
+          {n.route === 'engine' && engineAlert && <span className="h-2 w-2 rounded-full bg-good" title={w.player.engine ? 'Ready to ship a new version' : 'Ready to found your engine'} />}
           {n.route === 'goals' && perkPoints > 0 && <span className="rounded bg-good-soft px-1.5 text-[10px] font-semibold text-good" title="Unspent perk points">{perkPoints}</span>}
         </button>
       ))}

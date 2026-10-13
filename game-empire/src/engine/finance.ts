@@ -1,5 +1,6 @@
 // Company finances: running costs, monthly close, loans, valuation, insolvency.
-import { MONETIZATIONS, OFFICES, TAX_RATE } from './constants';
+import { MONETIZATIONS, OFFICES, STORE_MONTHLY_COST, TAX_RATE } from './constants';
+import { facilityUpkeep } from './fun';
 import { bankName } from './names';
 import { randRange } from './rng';
 import { investmentValue, policyMonthlyCost } from './business';
@@ -44,7 +45,7 @@ export function playerPayroll(w: World): number {
 
 export function monthlyBurn(w: World, c: Company): number {
   let burn: number;
-  if (c.isPlayer) burn = playerPayroll(w) + playerRent(w) + policyMonthlyCost(w) + infraMonthlyCost(w);
+  if (c.isPlayer) burn = playerPayroll(w) + playerRent(w) + policyMonthlyCost(w) + infraMonthlyCost(w) + facilityUpkeep(w) + (w.player.store ? STORE_MONTHLY_COST : 0);
   else burn = c.headcount * (c.avgSalary + AI_OVERHEAD_PER_HEAD * aiSizeFactor(c.headcount));
   for (const l of c.loans) burn += l.monthlyPayment;
   if (!c.isPlayer) burn += servers30(w, c);

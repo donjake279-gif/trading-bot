@@ -32,10 +32,14 @@ import type {
   PlatformId,
   ResearchId,
   ScopeId,
+  TopicId,
   World,
 } from './types';
 import { clamp, gamesOf, newId, pushNews, toast } from './util';
 import { addXp, perkRank, releaseXp } from './progression';
+import { enginePortDiscount, engineHitFeedback, engineQualityBonus, studioEngineStats } from './studioEngine';
+import { comboOnRelease, comboQuality, defaultTopic } from './topics';
+import { facilityEffects, remasterHype } from './fun';
 
 export interface GameParams {
   title: string;
@@ -51,19 +55,18 @@ export interface GameParams {
   budget: number;
   focus: Focus;
   ipId?: string;
+  topic?: TopicId;
+  remasterOf?: string | null;
 }
 
 export function hasResearch(w: World, id: ResearchId): boolean {
   return w.player.research.completed.includes(id);
 }
 
-/** Engine stats with the player's in-house engine level applied. */
-export function engineStats(w: World, engine: EngineId, isPlayer: boolean) {
+/** Engine stats; `inhouse` is the player's own engine (licensed to rivals or free for subsidiaries). */
+export function engineStats(w: World, engine: EngineId, isPlayer: boolean, company?: Company | null) {
   const def = ENGINES[engine];
-  if (engine === 'inhouse' && isPlayer) {
-    if (hasResearch(w, 'engine3')) return { ...def, cap: 100, workMult: 0.72, bugMult: 0.8 };
-    if (hasResearch(w, 'engine2')) return { ...def, cap: 95, workMult: 0.78, bugMult: 0.85 };
-  }
+  if (engine === 'inhouse') return studioEngineStats(w, isPlayer ? null : (company ?? null));
   if (engine === 'titan') return { ...def, royalty: w.market.titanRoyalty };
   return def;
 }
@@ -84,7 +87,7 @@ export function estimateWork(w: World, p: Pick<GameParams, 'scope' | 'genre' | '
     ART_STYLES[p.artStyle].workMult *
     MULTIPLAYER[p.multiplayer].workMult *
     eng.workMult *
-    platformWorkFactor(p.platforms, isPlayer && hasResearch(w, 'crossplay'))
+    (1 + (platformWorkFactor(p.platforms, isPlayer && hasResearch(w, 'crossplay')) - 1) * (1 - enginePortDiscount(w, p.engine)))
   );
 }
 
@@ -115,9 +118,11 @@ export function createGameRecord(w: World, company: Company, p: GameParams, isPl
     ipId = newId(w, 'ip');
     w.ips[ipId] = { id: ipId, name: p.title.split(':')[0].trim(), companyId: company.id, games: [id], fans: 0, createdDay: w.day };
   }
-  const workRequired = estimateWork(w, p, isPlayer);
+  const orig = p.remasterOf ? w.games[p.remasterOf] : undefined;
+  const workRequired = estimateWork(w, p, isPlayer) * (orig ? 0.4 : 1);
   const ip = w.ips[ipId];
-  const startHype = sequelNo > 1 ? Math.min(400, Math.log10(1 + ip.fans) * 25) : 0; // capped well below the 1400 hype ceiling
+  let startHype = sequelNo > 1 ? Math.min(400, Math.log10(1 + ip.fans) * 25) : 0; // capped well below the 1400 hype ceiling
+  if (orig) startHype = Math.max(startHype, remasterHype(w, orig));
   return {
     id,
     title: p.title,
@@ -193,6 +198,10 @@ export function createGameRecord(w: World, company: Company, p: GameParams, isPl
     updates: [],
     lastUpdateDay: w.day,
     awards: [],
+    topic: p.topic ?? defaultTopic(`${id}:${p.title}`),
+    remasterOf: orig ? orig.id : null,
+    remastered: false,
+    certified: 0,
     shutdownDay: null,
     history: [],
   };
@@ -213,7 +222,7 @@ export function playerSpeedMods(w: World): number {
   if (hasResearch(w, 'aiTools')) m *= 1.2;
   const pol = w.player.policies;
   if (pol) m *= HOURS[pol.hours].speed * QA_POLICIES[pol.qa].speed;
-  return m * (1 + 0.05 * perkRank(w, 'prototyping'));
+  return m * (1 + 0.05 * perkRank(w, 'prototyping')) * facilityEffects(w).speedMult;
 }
 
 export function memberOutput(w: World, e: Employee, f: Focus, crunch: boolean, teamEff: number, producerBoost: number): MemberOutput {
@@ -227,6 +236,7 @@ export function memberOutput(w: World, e: Employee, f: Focus, crunch: boolean, t
   let quality = Math.pow(e.skill / 50, 0.6);
   if (e.traits.includes('perfectionist')) quality *= 1.15;
   if (e.traits.includes('genius')) quality *= 1.3;
+  if (e.traits.includes('legend')) quality *= 1.45;
 
   const alloc = blankFocus();
   let total = 0;
@@ -269,7 +279,7 @@ export function playerBugRate(w: World, g: Game, e: Employee): number {
   if (e.traits.includes('speedster')) r *= 1.25;
   if (e.traits.includes('perfectionist')) r *= 0.7;
   if (w.player.policies) r *= QA_POLICIES[w.player.policies.qa].bugs;
-  return r * (1 - 0.12 * perkRank(w, 'polish'));
+  return r * (1 - 0.12 * perkRank(w, 'polish')) * facilityEffects(w).bugMult;
 }
 
 /** Estimated work per day the current team produces on a game. */
@@ -377,7 +387,7 @@ export function fitBonus(g: Pick<Game, 'genre' | 'audience' | 'artStyle' | 'mult
 }
 
 export function qualityCap(w: World, g: Game, isPlayer: boolean): number {
-  let cap = engineStats(w, g.engine, isPlayer).cap;
+  let cap = engineStats(w, g.engine, isPlayer, w.companies[g.companyId]).cap;
   if (g.engine === 'pixelforge') {
     const art = ART_STYLES[g.artStyle];
     if (art.pixelforgeCap) cap = Math.min(cap, art.pixelforgeCap);
@@ -411,6 +421,16 @@ export function baseQuality(w: World, g: Game, c: Company): number {
     if (last && last.releaseDay !== null && w.day - last.releaseDay < 400) q -= 5;
   }
   q -= genreRepetitionPenalty(w, g);
+  q += comboQuality(g);
+  q += engineQualityBonus(w, g);
+  if (isPlayer) {
+    const fx = facilityEffects(w);
+    q += fx.quality + (g.artStyle === 'realistic' || g.artStyle === 'photoreal' ? fx.realismQuality : 0);
+  }
+  if (g.remasterOf) {
+    const orig = w.games[g.remasterOf];
+    if (orig) q += Math.max(0, Math.min(6, (orig.criticScore - 60) * 0.2));
+  }
   const cap = qualityCap(w, g, isPlayer);
   if (q > cap) q = cap + (q - cap) * 0.2;
   return q;
@@ -473,6 +493,8 @@ export function releaseGame(w: World, g: Game): void {
   }
 
   c.genreXp[g.genre] = (c.genreXp[g.genre] ?? 0) + q / 70;
+  comboOnRelease(w, g, c.isPlayer);
+  engineHitFeedback(w, g);
 
   if (c.isPlayer || c.parentId === w.player.companyId) {
     for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;

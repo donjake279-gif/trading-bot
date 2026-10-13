@@ -48,6 +48,22 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
 - **Capital markets.** A simulated stock market with bull and bear regimes, crashes and quarterly earnings
   surprises. You can trade rivals' shares, acquire studios (they become AI-run subsidiaries you steer), and bid
   on bankrupt studios' IP at sealed-bid auctions.
+- **Build your own engine.** Research it, name it, then upgrade six modules (Rendering, Physics, Tools,
+  Networking, Platforms, AI & Scripting) and ship major versions from 1.0 to 5.0, with an optional tech-demo
+  launch. Your games get a higher quality ceiling and build faster. Open it for licensing, set the royalty and
+  upfront fee, and rival studios choose it over Titan and Apex when it's good and fairly priced. Your
+  subsidiaries use it for free, and if it takes off, Titan cuts its royalties to fight back.
+- **Pick topics and discover combos.** Every game has a topic (Zombies, Space, Cats, Pirates...). Each genre and
+  topic pairing has a hidden grade, and a few secret legendary combos (dinosaur racing, anyone?) go viral.
+  The combo book in the Trophy Room fills in as you ship games and watch rivals' hits.
+- **Studio life.** Build office facilities (espresso bar, arcade room, nap pods, mo-cap stage, render farm...),
+  hire rare industry legends, host your own fan convention, remaster your old classics, and earn Silver to
+  Legendary sales certifications for your Hall of Fame. Players leave funny reviews of every game, and the
+  internet happens to your hits: speedrunners, meme NPCs, celebrity fans, modders and rival CEOs who talk too much.
+- **Open your own store.** Late in the game, launch a PC game store, take a 30% cut of PC sales flowing
+  through it, and run free-game giveaways to grow your share.
+- **Legacy (New Game+).** Every finished run banks legacy points in your browser (retire, sell or go bust).
+  Spend them on head starts for the next studio: savings, reputation, a garage, perk points or engine blueprints.
 - **Run servers.** Every online and MMO game you ship runs on your own server fleet. Buy nodes, move up six tiers
   (Shared Hosting → Hyperscale Edge, gated by reputation and research) and watch load, uptime and the monthly
   bill. Overloaded servers turn new players away, raise churn and hurt reviews; outages take every online game
@@ -99,6 +115,9 @@ actions.
 | `progression.ts` | Studio XP and levels, perks, rotating goals |
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales, rival |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |
+| `studioEngine.ts` | Your own engine: modules, versions, licensing, adoption by rivals, engine wars |
+| `topics.ts`, `reviews.ts`, `memes.ts` | Topics and the combo book, generated player reviews, viral moments |
+| `fun.ts`, `legacy.ts` | Facilities, certifications, remasters, conventions, your store, legends; New Game+ |
 | `updates.ts`, `staff.ts`, `achievements.ts`, `actions.ts`, `save.ts` | Live ops, people and research, achievements, the player action API, persistence |
 
 **Player market.** Each genre has an audience drawn from platform user bases, genre interest, target audience

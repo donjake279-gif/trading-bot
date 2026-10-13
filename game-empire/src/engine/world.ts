@@ -1,6 +1,7 @@
 // World generation: a seeded industry of rival studios with a back-catalogue,
 // warmed up for a year and a half before the player's company is founded.
 import { refreshContractOffers } from './contracts';
+import { applyLegacy } from './legacy';
 import { refillObjectives } from './progression';
 import { updateRival } from './business';
 import { DIFFICULTIES, GENRE_IDS, PLATFORMS, PLATFORM_IDS, WARMUP_DAYS } from './constants';
@@ -9,10 +10,10 @@ import { computeValuation } from './finance';
 import { hashSeed, randInt, randRange, shuffle } from './rng';
 import { refreshCandidates } from './staff';
 import { advanceDay } from './tick';
-import type { Company, Difficulty, Employee, GenreState, MarketState, PlatformState, PlayerState, World } from './types';
+import type { Company, Difficulty, Employee, GenreState, LegacyId, MarketState, PlatformState, PlayerState, World } from './types';
 import { emptyLedger, newId, pushNews } from './util';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface NewGameOptions {
   seed: string;
@@ -21,6 +22,8 @@ export interface NewGameOptions {
   specialty: 'programmer' | 'artist' | 'designer';
   difficulty: Difficulty;
   rivals: number;
+  /** Legacy head starts bought with points from earlier runs. */
+  legacy?: Partial<Record<LegacyId, number>>;
 }
 
 function initialMarket(w: World): MarketState {
@@ -71,6 +74,14 @@ export function playerExtras(): Pick<
   | 'expoBooking'
   | 'flags'
   | 'rivalId'
+  | 'engine'
+  | 'combos'
+  | 'facilities'
+  | 'convention'
+  | 'conventionsHeld'
+  | 'store'
+  | 'legacy'
+  | 'legacyBanked'
 > {
   return {
     infra: { tier: 0, nodes: 1, autoscale: true, incidents: [], lowLoadDays: 0, demand: 0, load: 0, outageUntil: 0, overloadDays: 0, downtime: [], demandHistory: [], capacityHistory: [] },
@@ -89,6 +100,14 @@ export function playerExtras(): Pick<
     expoBooking: null,
     flags: {},
     rivalId: null,
+    engine: null,
+    combos: {},
+    facilities: [],
+    convention: null,
+    conventionsHeld: 0,
+    store: null,
+    legacy: {},
+    legacyBanked: false,
   };
 }
 
@@ -242,6 +261,7 @@ export function createPlayer(w: World, opts: NewGameOptions): void {
   };
   w.player.employees = [founder];
   refreshCandidates(w);
+  if (opts.legacy) applyLegacy(w, opts.legacy);
   refreshContractOffers(w);
   refillObjectives(w);
   updateRival(w);

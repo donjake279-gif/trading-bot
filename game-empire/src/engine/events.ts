@@ -4,6 +4,7 @@ import { amortizedPayment, debtOf, monthlyBurn, profitTTM, revenueTTM, takeLoan 
 import { ratingOf } from './market';
 import { personName } from './names';
 import { opportunitiesDaily, resolveOpportunity } from './opportunities';
+import { resolveMeme } from './memes';
 import { addXp } from './progression';
 import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
 import { acquireCompany, founderStake, marketCap } from './stocks';
@@ -438,7 +439,7 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
       break;
     }
     default:
-      resolveOpportunity(w, ev, optionId);
+      if (!resolveOpportunity(w, ev, optionId)) resolveMeme(w, ev, optionId);
   }
 }
 

@@ -4,6 +4,9 @@
 import type { World } from './types';
 import { normalizeLedger, playerCompany } from './util';
 import { SAVE_VERSION, playerExtras } from './world';
+import { CERTIFICATIONS } from './constants';
+import { migrateEngine } from './studioEngine';
+import { defaultTopic } from './topics';
 
 export interface SlotMeta {
   id: string;
@@ -139,6 +142,15 @@ function migrate(w: World): void {
     g.neglectWarned ??= false;
     g.ccuMilestone ??= 0;
     g.lastChurn ??= 0;
+    g.topic ??= defaultTopic(g.id);
+    g.remasterOf ??= null;
+    g.remastered ??= false;
+    if (g.certified === undefined) {
+      // award old certifications quietly
+      let lvl = 0;
+      while (lvl < CERTIFICATIONS.length && g.owners >= CERTIFICATIONS[lvl].owners) lvl++;
+      g.certified = lvl;
+    }
   }
   for (const id in w.companies) {
     const c = w.companies[id];
@@ -150,6 +162,7 @@ function migrate(w: World): void {
   const extras = playerExtras();
   const pl = w.player as unknown as Record<string, unknown>;
   for (const [k, v] of Object.entries(extras)) if (pl[k] === undefined) pl[k] = v;
+  if ((w.version ?? 0) < 4) migrateEngine(w);
   w.player.infra.demandHistory ??= [];
   w.player.infra.capacityHistory ??= [];
   w.notices ??= [];

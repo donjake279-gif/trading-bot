@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { ClipboardPaste, Copy, Download, LogOut, Save, Upload } from 'lucide-react';
+import { ClipboardPaste, Copy, Crown, Download, LogOut, Save, Upload } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { exportFile, listSlots, serializeWorld } from '../../engine/save';
 import { date, money } from '../lib/format';
 import { IS_ARTIFACT } from '../lib/env';
-import { Button, Card, Kv, Modal, SectionTitle, Tabs, inputClass } from '../components/ui';
+import { Button, Card, ConfirmButton, Kv, Modal, SectionTitle, Tabs, inputClass } from '../components/ui';
+import { retire } from '../../engine/legacy';
 
 /** Paste a save code (the JSON a "Copy save code" produced) to load it. */
 export function PasteSaveModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -48,6 +49,7 @@ export function Settings() {
   const toastLevel = useGameStore((s) => s.toastLevel);
   const setToastLevel = useGameStore((s) => s.setToastLevel);
   const quit = useGameStore((s) => s.quitToMenu);
+  const act = useGameStore((s) => s.act);
   const importSave = useGameStore((s) => s.importSave);
   const pushToast = useGameStore((s) => s.pushToast);
   const [name, setName] = useState('');
@@ -173,9 +175,15 @@ export function Settings() {
             <Kv k="Simulation day" v={`${w.day} (${date(w.day)})`} />
           </div>
           <div className="mt-3 text-xs text-muted">Keyboard: Space pauses/resumes, 1–4 set the speed.</div>
-          <Button variant="danger" className="mt-4" onClick={quit}>
-            <LogOut size={14} /> Save &amp; quit to menu
-          </Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="danger" onClick={quit}>
+              <LogOut size={14} /> Save &amp; quit to menu
+            </Button>
+            <ConfirmButton size="md" variant="secondary" confirmLabel="End this run and bank legacy?" onConfirm={() => act((world) => retire(world))} disabled={!!w.player.gameOver}>
+              <Crown size={14} /> Retire &amp; bank legacy
+            </ConfirmButton>
+          </div>
+          <div className="mt-1.5 text-xs text-muted">Retiring ends this run on your terms and banks legacy points for your next studio.</div>
         </Card>
       </div>
     </div>

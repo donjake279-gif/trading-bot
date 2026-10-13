@@ -59,6 +59,7 @@ export function emptyLedger(): Ledger {
     ads: 0,
     dlc: 0,
     licensing: 0,
+    store: 0,
     contracts: 0,
     investments: 0,
     publishing: 0,
@@ -84,7 +85,7 @@ export function normalizeLedger(l: Partial<Ledger> | undefined): Ledger {
   return out;
 }
 
-export const REVENUE_KEYS = ['sales', 'microtransactions', 'subscriptions', 'ads', 'dlc', 'licensing', 'contracts', 'investments', 'publishing', 'other'] as const;
+export const REVENUE_KEYS = ['sales', 'microtransactions', 'subscriptions', 'ads', 'dlc', 'licensing', 'store', 'contracts', 'investments', 'publishing', 'other'] as const;
 export const EXPENSE_KEYS = [
   'salaries',
   'rent',

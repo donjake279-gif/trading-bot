@@ -3,6 +3,7 @@
 import {
   CAMPAIGNS,
   ENGINES,
+  TOPIC_IDS,
   GENRES,
   MONETIZATIONS,
   OFFICES,
@@ -53,8 +54,10 @@ export function validateGameParams(w: World, p: GameParams): string | null {
   }
   const eng = ENGINES[p.engine];
   if (c.reputation < eng.minRep) return `${eng.name} requires reputation ${eng.minRep}.`;
-  if (eng.research && !hasResearch(w, eng.research)) return `${eng.name} requires ${RESEARCH[eng.research].name} research.`;
+  if (eng.research && !hasResearch(w, eng.research) && p.engine !== 'inhouse') return `${eng.name} requires ${RESEARCH[eng.research].name} research.`;
   if (MONETIZATIONS[p.monetization].upfront && !(p.price > 0)) return 'Set a price.';
+  if (p.engine === 'inhouse' && !w.player.engine) return 'Found your engine first (Engine screen).';
+  if (p.topic && !TOPIC_IDS.includes(p.topic)) return 'Pick a topic.';
   const upfront = upfrontCosts(w, p, true);
   if (upfront > c.cash) return `Licenses and dev kits cost $${upfront.toLocaleString()} up front.`;
   return null;

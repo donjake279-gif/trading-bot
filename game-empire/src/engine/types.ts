@@ -20,6 +20,28 @@ export type GenreId =
 export type PlatformId = 'pc' | 'console' | 'mobile' | 'handheld' | 'vr' | 'cloud';
 export type AudienceId = 'everyone' | 'kids' | 'teens' | 'youngAdults' | 'adults' | 'hardcore' | 'casual';
 export type EngineId = 'scratch' | 'pixelforge' | 'nimbus' | 'titan' | 'apex' | 'inhouse';
+export type TopicId =
+  | 'zombies'
+  | 'space'
+  | 'fantasy'
+  | 'cyberpunk'
+  | 'pirates'
+  | 'ninjas'
+  | 'dinosaurs'
+  | 'cats'
+  | 'mythology'
+  | 'postApoc'
+  | 'wildWest'
+  | 'medieval'
+  | 'military'
+  | 'superheroes'
+  | 'cooking'
+  | 'farming'
+  | 'spies'
+  | 'robots'
+  | 'vampires'
+  | 'underwater';
+export type ComboGrade = 'legendary' | 'great' | 'good' | 'okay' | 'bad';
 export type MonetizationId = 'premium' | 'premiumMtx' | 'f2pCosmetic' | 'f2pAggressive' | 'subscription' | 'ads';
 export type ArtStyleId = 'pixel' | 'lowPoly' | 'stylized' | 'anime' | 'handDrawn' | 'realistic' | 'photoreal';
 export type MultiplayerId = 'single' | 'localCoop' | 'online' | 'massive';
@@ -49,6 +71,7 @@ export type TraitId =
   | 'perfectionist'
   | 'speedster'
   | 'crunchProof'
+  | 'legend'
   | 'toxic'
   | 'genius'
   | 'loyal'
@@ -94,6 +117,7 @@ export interface Employee {
   /** Game id the employee is assigned to (development or live-ops update), or null. */
   assignment: string | null;
   isFounder: boolean;
+  bio?: string;
 }
 
 export interface Candidate {
@@ -105,6 +129,8 @@ export interface Candidate {
   traits: TraitId[];
   /** Former employer, if they came out of a studio collapse. */
   formerStudio?: string;
+  /** Industry legends come with a story. */
+  bio?: string;
 }
 
 export interface ActiveUpdate {
@@ -224,6 +250,14 @@ export interface Game {
   updates: UpdateRecord[];
   lastUpdateDay: number;
   awards: string[];
+  /** Setting of the game; with the genre it forms a combo that critics love or hate. */
+  topic: TopicId;
+  /** Id of the original game when this is a remaster. */
+  remasterOf: string | null;
+  /** The original already has a remaster. */
+  remastered: boolean;
+  /** Sales certification level reached (0 none .. 5 legendary). */
+  certified: number;
   shutdownDay: number | null;
   /** [day, active, ccu, dailyRevenue] */
   history: [number, number, number, number][];
@@ -256,6 +290,7 @@ export interface Ledger {
   ads: number;
   dlc: number;
   licensing: number;
+  store: number;
   contracts: number;
   investments: number;
   publishing: number;
@@ -440,7 +475,7 @@ export interface PlayerStats {
 }
 
 export interface GameOverState {
-  reason: 'bankrupt' | 'ousted' | 'takeover' | 'sold';
+  reason: 'bankrupt' | 'ousted' | 'takeover' | 'sold' | 'retired';
   day: number;
   title: string;
   body: string;
@@ -485,7 +520,53 @@ export interface PlayerState {
   /** One-off notices already sent (keyed), so they don't repeat. */
   flags: Record<string, number>;
   rivalId: string | null;
+  /** Your own game engine, once founded. */
+  engine: StudioEngine | null;
+  /** Genre x topic combos you have discovered ("genre:topic" -> grade). */
+  combos: Record<string, ComboGrade>;
+  facilities: FacilityId[];
+  convention: { day: number; tier: number } | null;
+  conventionsHeld: number;
+  store: StoreState | null;
+  /** Legacy bonuses this run started with (for display). */
+  legacy: Partial<Record<LegacyId, number>>;
+  legacyBanked: boolean;
 }
+
+export type EngineModuleId = 'rendering' | 'physics' | 'tools' | 'networking' | 'platforms' | 'scripting';
+
+export interface StudioEngine {
+  name: string;
+  foundedDay: number;
+  /** Major version shipped (1..5). */
+  version: number;
+  modules: Record<EngineModuleId, number>;
+  upgrade: { module: EngineModuleId; daysLeft: number; days: number } | null;
+  licensing: boolean;
+  /** Share of licensees' net revenue. */
+  royalty: number;
+  /** Upfront fee per project. */
+  fee: number;
+  /** Developer buzz around the engine, 0..100. */
+  hype: number;
+  royaltiesTotal: number;
+  feesTotal: number;
+  /** Rival projects ever started on your engine. */
+  gamesBuilt: number;
+}
+
+export type FacilityId = 'coffee' | 'arcade' | 'napPods' | 'gym' | 'testLab' | 'soundStage' | 'rooftop' | 'daycare' | 'mocap' | 'arena' | 'renderFarm';
+
+export interface StoreState {
+  name: string;
+  foundedDay: number;
+  /** Share of PC digital sales flowing through your store, 0..1. */
+  share: number;
+  promoUntil: number;
+  revenueTotal: number;
+}
+
+export type LegacyId = 'cash' | 'reputation' | 'skill' | 'engine' | 'perk' | 'garage';
 
 export interface FundingOffer {
   id: string;

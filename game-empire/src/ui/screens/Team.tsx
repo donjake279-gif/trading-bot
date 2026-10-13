@@ -111,7 +111,7 @@ export function Team() {
                 return (
                   <tr key={e.id} className="hover:bg-surface-2/50">
                     <Td>
-                      <div className="font-medium">{e.name}</div>
+                      <div className="font-medium" title={e.bio}>{e.name}{e.traits.includes('legend') && <span className="ml-1 text-warn">★</span>}</div>
                       <div className="text-[11px] text-muted">since {date(e.hiredDay)}</div>
                     </Td>
                     <Td className="text-sub">{e.isFounder ? `Founder · ${e.specialty}` : ROLES[e.role].name}</Td>
@@ -186,7 +186,7 @@ export function Team() {
         {full && <div className="mb-3 rounded-lg border border-warn/30 bg-warn-soft/60 px-3 py-2 text-sm text-warn">Your {office.name} is full. Move to a bigger office to hire more.</div>}
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {w.player.candidates.map((k) => (
-            <div key={k.id} className="rounded-lg border border-line bg-surface-2 p-3">
+            <div key={k.id} className={cx('rounded-lg border p-3', k.traits.includes('legend') ? 'border-warn/50 bg-warn-soft/20 shadow-[0_0_0_1px_rgba(224,165,38,0.15)]' : 'border-line bg-surface-2')}>
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="text-sm font-semibold">{k.name}</div>
@@ -200,7 +200,7 @@ export function Team() {
                   <div className="text-[10px] uppercase text-muted">skill</div>
                 </div>
               </div>
-              <div className="mt-1 text-[11px] text-muted">{ROLES[k.role].blurb}</div>
+              <div className="mt-1 text-[11px] text-muted">{k.bio ? <span className="italic text-sub">"{k.bio}"</span> : ROLES[k.role].blurb}</div>
               <div className="mt-2">
                 <Traits traits={k.traits} />
               </div>

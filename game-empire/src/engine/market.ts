@@ -21,6 +21,8 @@ import {
 import { engineStats, hasResearch, bugDensity } from './development';
 import { ccuMult, saleActive, shopperMult } from './calendar';
 import { infraEffects } from './infra';
+import { collectRoyalty } from './studioEngine';
+import { facilityEffects } from './fun';
 import { addXp, perkRank } from './progression';
 import { rand } from './rng';
 import type { Company, Game, GenreId, World } from './types';
@@ -137,6 +139,7 @@ function churnMods(w: World, g: Game, c: Company): number {
       const load = Math.max(1, g.active / 250000);
       m *= 1 - Math.min(0.15, (0.05 * cm) / load);
       m *= 1 - 0.04 * perkRank(w, 'community');
+      if (GENRES[g.genre].competitive) m *= facilityEffects(w).competitiveChurn;
     }
   } else if (c.reputation > 60) {
     m *= 0.95;
@@ -263,7 +266,7 @@ export function marketDay(w: World): void {
     if (g.monetization === 'f2pAggressive') arpdau *= regulation;
     const recurringGross = g.active * arpdau;
     const net = (salesGross + recurringGross) * (1 - mix.storeCut);
-    const eng = engineStats(w, g.engine, c.isPlayer);
+    const eng = engineStats(w, g.engine, c.isPlayer, c);
     const royalty = net * eng.royalty;
     const pubCut = net * g.publisherCut;
 
@@ -272,7 +275,10 @@ export function marketDay(w: World): void {
       const key = g.monetization === 'subscription' ? 'subscriptions' : g.monetization === 'ads' ? 'ads' : 'microtransactions';
       earn(c, key, recurringGross * (1 - mix.storeCut));
     }
-    if (royalty > 0) spend(c, 'royalties', royalty);
+    if (royalty > 0) {
+      spend(c, 'royalties', royalty);
+      if (g.engine === 'inhouse' && hasPlayer) collectRoyalty(w, royalty);
+    }
     if (pubCut > 0) {
       spend(c, 'royalties', pubCut);
       const deal = deals.get(g.id);

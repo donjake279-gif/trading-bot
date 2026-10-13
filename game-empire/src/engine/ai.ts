@@ -21,6 +21,8 @@ import {
   STRATEGY_IDS,
   INSOLVENCY_GRACE_DAYS,
 } from './constants';
+import { adoptionChance, chargeLicenseFee } from './studioEngine';
+import { aiPickTopic } from './topics';
 import { aiDevDay, createGameRecord, estimateWork, recommendedBudget, releaseGame, upfrontCosts, type GameParams } from './development';
 import { aiAvgSalary, aiSizeFactor, borrowingLimit, debtOf, monthlyBurn, recentRevenue, revenueTTM, takeLoan, creditRisk, computeValuation } from './finance';
 import { compactDeadHistory, genreTrend } from './market';
@@ -189,11 +191,14 @@ export function chooseConcept(w: World, c: Company, scope: ScopeId): GameParams 
   });
   const monetization = weightedPick(w, monOpts, monWeights);
 
-  // engine
+  // engine: your subsidiaries use your engine for free; rivals may license it
   let engine: EngineId;
   if (sIdx >= 4) engine = c.reputation >= 35 && chance(w, 0.65) ? 'apex' : 'titan';
   else if (sIdx >= 2) engine = chance(w, 0.6) ? 'titan' : 'nimbus';
   else engine = artStyle === 'pixel' && multiplayer !== 'massive' ? 'pixelforge' : chance(w, 0.5) ? 'nimbus' : 'titan';
+  if (w.player.engine && c.parentId === w.player.companyId) engine = 'inhouse';
+  else if (w.player.engine?.licensing && chance(w, adoptionChance(w, c, scope))) engine = 'inhouse';
+  const topic = aiPickTopic(w, genre);
 
   const price = MONETIZATIONS[monetization].upfront ? priceFor(scope, w) : 0;
   const rec = recommendedBudget(scope, artStyle, platforms);
@@ -221,6 +226,7 @@ export function chooseConcept(w: World, c: Company, scope: ScopeId): GameParams 
     budget,
     focus: aiFocus(w, genre, c.talent),
     ipId,
+    topic,
   };
 }
 
@@ -276,7 +282,9 @@ function startProject(w: World, c: Company, idle: number): boolean {
   }
   const upfront = upfrontCosts(w, params, false);
   if (upfront > c.cash * 0.5) params.engine = 'titan';
+  if (params.engine === 'inhouse' && c.parentId !== w.player.companyId && (w.player.engine?.fee ?? 0) > c.cash * 0.3) params.engine = 'titan';
   const g = createGameRecord(w, c, params, false);
+  if (g.engine === 'inhouse') chargeLicenseFee(w, c, g);
   g.aiTeam = team;
   g.aiTalent = c.talent;
   g.plannedDays = g.workRequired / Math.max(0.5, team * speed);

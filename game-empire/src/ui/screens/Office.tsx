@@ -1,10 +1,11 @@
-import { Building, Check, FlaskConical, Lock } from 'lucide-react';
+import { Building, Check, Coffee, FlaskConical, Lock } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
-import { OFFICES, RESEARCH, RESEARCH_IDS } from '../../engine/constants';
+import { FACILITIES, FACILITY_IDS, OFFICES, RESEARCH, RESEARCH_IDS } from '../../engine/constants';
+import { buildFacility, closeFacility, facilityUpkeep, hasFacility } from '../../engine/fun';
 import { moveOffice, startResearch } from '../../engine/actions';
 import { playerCompany } from '../../engine/util';
 import { money } from '../lib/format';
-import { Badge, Button, Card, Progress, SectionTitle, cx } from '../components/ui';
+import { Badge, Button, Card, ConfirmButton, Progress, SectionTitle, cx } from '../components/ui';
 
 export function Office() {
   const w = useWorld();
@@ -52,6 +53,8 @@ export function Office() {
         </div>
       </Card>
 
+      <Facilities />
+
       <Card title="Research & development" subtitle="One project at a time. Research costs money upfront and takes time.">
         {r.active && (
           <div className="mb-4 rounded-lg border border-accent/40 bg-accent-soft/30 p-3">
@@ -96,5 +99,47 @@ export function Office() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function Facilities() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const c = playerCompany(w);
+  const built = w.player.facilities.length;
+  return (
+    <Card title="Facilities" subtitle={`Make the office somewhere people want to be. ${built} built · ${money(facilityUpkeep(w))}/mo upkeep. They move with you.`}>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {FACILITY_IDS.map((id) => {
+          const def = FACILITIES[id];
+          const have = hasFacility(w, id);
+          const officeLocked = w.player.officeLevel < def.minOffice;
+          return (
+            <div key={id} className={cx('flex flex-col rounded-lg border p-3', have ? 'border-good/30 bg-good-soft/20' : 'border-line bg-surface-2')}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Coffee size={13} className={have ? 'text-good' : 'text-muted'} />
+                  {def.name}
+                </span>
+                {have ? <Check size={14} className="text-good" /> : officeLocked ? <Lock size={13} className="text-muted" /> : null}
+              </div>
+              <p className="mt-1 flex-1 text-xs text-sub">{def.blurb}</p>
+              <div className="mt-1 text-[11px] text-muted">
+                {money(def.cost)} · {money(def.upkeep)}/mo
+              </div>
+              {have ? (
+                <ConfirmButton className="mt-2 w-full" variant="ghost" confirmLabel="Close it? Morale drops" onConfirm={() => act((world) => closeFacility(world, id))}>
+                  Close
+                </ConfirmButton>
+              ) : (
+                <Button size="sm" className="mt-2 w-full" variant="primary" disabled={officeLocked || c.cash < def.cost} onClick={() => act((world) => buildFacility(world, id), `${def.name} is open`)}>
+                  {officeLocked ? `Needs ${OFFICES[def.minOffice].name}` : 'Build'}
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }

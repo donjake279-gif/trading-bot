@@ -4,10 +4,13 @@ import type {
   ArtStyleId,
   AudienceId,
   CampaignId,
+  ComboGrade,
   EngineId,
+  FacilityId,
   Focus,
   FocusId,
   GenreId,
+  LegacyId,
   MonetizationId,
   MultiplayerId,
   PlatformId,
@@ -15,6 +18,7 @@ import type {
   RoleId,
   ScopeId,
   StrategyId,
+  TopicId,
   TraitId,
   UpdateTypeId,
 } from './types';
@@ -711,6 +715,7 @@ export const TRAITS: Record<TraitId, { name: string; blurb: string; good: boolea
   genius: { name: 'Genius', blurb: '+30% quality output.', good: true },
   loyal: { name: 'Loyal', blurb: 'Rarely quits, even when morale dips.', good: true },
   mentor: { name: 'Mentor', blurb: 'Teammates learn faster.', good: true },
+  legend: { name: 'Industry Legend', blurb: '+45% quality output, and the press follows their every project (+hype).', good: true },
 };
 
 // ---------------------------------------------------------------- office
@@ -758,10 +763,8 @@ export const RESEARCH_IDS: ResearchId[] = [
   'antiCheat',
   'cloudInfra',
   'mocap',
-  'engine2',
   'esports',
   'aiTools',
-  'engine3',
 ];
 
 export const RESEARCH: Record<ResearchId, ResearchDef> = {
@@ -772,7 +775,7 @@ export const RESEARCH: Record<ResearchId, ResearchDef> = {
   qaAutomation: { name: 'Automated QA', cost: 40000, days: 45, requires: ['agile'], minRep: 5, blurb: '-35% bugs created during development.' },
   marketingData: { name: 'Marketing Data Science', cost: 110000, days: 40, requires: ['analytics'], minRep: 10, blurb: '+30% marketing efficiency.' },
   liveOps: { name: 'Live Ops Toolkit', cost: 60000, days: 45, requires: ['agile'], minRep: 10, blurb: 'Updates build 35% faster and land better.' },
-  engine1: { name: 'In-House Engine v1', cost: 250000, days: 120, requires: ['agile'], minRep: 15, blurb: 'Your own engine: no royalties, quality cap 86.' },
+  engine1: { name: 'Found Your Own Engine', cost: 250000, days: 120, requires: ['agile'], minRep: 15, blurb: 'Build your own game engine. Name it, upgrade it, ship new versions and license it to rivals.' },
   crossplay: { name: 'Cross-Platform Tech', cost: 350000, days: 60, requires: ['netcode'], minRep: 20, blurb: 'Porting work -50%; multiplatform online games share one network.' },
   antiCheat: { name: 'Anti-Cheat Systems', cost: 150000, days: 50, requires: ['netcode'], minRep: 20, blurb: '-12% churn on competitive genres.' },
   cloudInfra: { name: 'Cloud Infrastructure', cost: 300000, days: 60, requires: ['netcode'], minRep: 20, blurb: '-25% server costs, unlocks the global server tiers.' },
@@ -981,3 +984,190 @@ export const EXPO_BOOTHS = [
   { name: 'Show-floor booth', cost: 60000, hype: 90 },
   { name: 'Main-stage presentation', cost: 650000, hype: 260 },
 ];
+
+// ---------------------------------------------------------------- studio engine
+
+export const ENGINE_MODULE_IDS = ['rendering', 'physics', 'tools', 'networking', 'platforms', 'scripting'] as const;
+
+export const ENGINE_MODULES: Record<(typeof ENGINE_MODULE_IDS)[number], { name: string; blurb: string }> = {
+  rendering: { name: 'Rendering', blurb: 'Raises the quality ceiling. Realistic art benefits most.' },
+  physics: { name: 'Physics & Animation', blurb: 'Better game feel: a higher quality ceiling for every genre.' },
+  tools: { name: 'Editor & Tools', blurb: 'Games built on the engine take less work.' },
+  networking: { name: 'Networking', blurb: 'Online games feel smoother and your servers cost less.' },
+  platforms: { name: 'Platform Support', blurb: 'Cheaper ports and multi-platform builds.' },
+  scripting: { name: 'AI & Scripting', blurb: 'Fewer bugs and smarter NPCs.' },
+};
+
+export const ENGINE_MAX_LEVEL = 5;
+
+/** Cost and days to take a module from `level` to `level + 1`. */
+export function engineUpgradeCost(level: number): { cost: number; days: number } {
+  const table = [
+    { cost: 0, days: 0 },
+    { cost: 150000, days: 60 },
+    { cost: 1000000, days: 90 },
+    { cost: 6000000, days: 120 },
+    { cost: 30000000, days: 160 },
+  ];
+  return table[Math.max(0, Math.min(table.length - 1, level))];
+}
+
+/** Launch event cost for shipping a new major version with a tech-demo showcase. */
+export function engineShowcaseCost(version: number): number {
+  return 60000 * version * version;
+}
+
+// ---------------------------------------------------------------- topics & combos
+
+export const TOPIC_IDS: TopicId[] = [
+  'zombies',
+  'space',
+  'fantasy',
+  'cyberpunk',
+  'pirates',
+  'ninjas',
+  'dinosaurs',
+  'cats',
+  'mythology',
+  'postApoc',
+  'wildWest',
+  'medieval',
+  'military',
+  'superheroes',
+  'cooking',
+  'farming',
+  'spies',
+  'robots',
+  'vampires',
+  'underwater',
+];
+
+export const TOPICS: Record<TopicId, { name: string; emoji: string }> = {
+  zombies: { name: 'Zombies', emoji: '🧟' },
+  space: { name: 'Space', emoji: '🚀' },
+  fantasy: { name: 'High Fantasy', emoji: '🐉' },
+  cyberpunk: { name: 'Cyberpunk', emoji: '🌆' },
+  pirates: { name: 'Pirates', emoji: '🏴‍☠️' },
+  ninjas: { name: 'Ninjas', emoji: '🥷' },
+  dinosaurs: { name: 'Dinosaurs', emoji: '🦖' },
+  cats: { name: 'Cats', emoji: '🐱' },
+  mythology: { name: 'Mythology', emoji: '⚡' },
+  postApoc: { name: 'Post-Apocalypse', emoji: '☢️' },
+  wildWest: { name: 'Wild West', emoji: '🤠' },
+  medieval: { name: 'Medieval', emoji: '🏰' },
+  military: { name: 'Military', emoji: '🎖️' },
+  superheroes: { name: 'Superheroes', emoji: '🦸' },
+  cooking: { name: 'Cooking', emoji: '🍳' },
+  farming: { name: 'Farming', emoji: '🚜' },
+  spies: { name: 'Spies', emoji: '🕵️' },
+  robots: { name: 'Robots', emoji: '🤖' },
+  vampires: { name: 'Vampires', emoji: '🧛' },
+  underwater: { name: 'Underwater', emoji: '🐙' },
+};
+
+/** Curated pairings. Everything else is decided by a stable hash. */
+export const COMBO_GREAT: Record<GenreId, TopicId[]> = {
+  fps: ['military', 'cyberpunk', 'zombies', 'space'],
+  battleRoyale: ['military', 'superheroes', 'postApoc'],
+  survival: ['zombies', 'postApoc', 'dinosaurs', 'underwater'],
+  horror: ['zombies', 'vampires', 'underwater', 'space'],
+  rpg: ['fantasy', 'mythology', 'cyberpunk', 'medieval'],
+  mmorpg: ['fantasy', 'space', 'mythology'],
+  sandbox: ['space', 'farming', 'robots', 'dinosaurs'],
+  racing: ['cyberpunk', 'space', 'superheroes'],
+  strategy: ['medieval', 'military', 'space', 'mythology'],
+  simulation: ['farming', 'cooking', 'cats', 'space'],
+  sports: ['robots', 'superheroes'],
+  indie: ['cats', 'cooking', 'underwater', 'robots'],
+  openWorld: ['wildWest', 'fantasy', 'pirates', 'cyberpunk'],
+};
+
+export const COMBO_BAD: Record<GenreId, TopicId[]> = {
+  fps: ['cooking', 'farming', 'cats'],
+  battleRoyale: ['cooking', 'farming', 'underwater'],
+  survival: ['superheroes', 'spies'],
+  horror: ['superheroes', 'farming'],
+  rpg: ['military'],
+  mmorpg: ['spies', 'cooking'],
+  sandbox: ['spies', 'vampires'],
+  racing: ['medieval', 'mythology', 'vampires'],
+  strategy: ['ninjas', 'superheroes'],
+  simulation: ['ninjas', 'vampires'],
+  sports: ['vampires', 'mythology', 'postApoc'],
+  indie: ['military'],
+  openWorld: ['cooking', 'cats'],
+};
+
+/** Secret pairings nobody expects to work. Discovering one is a big moment. */
+export const LEGENDARY_COMBOS: { genre: GenreId; topic: TopicId; pitch: string }[] = [
+  { genre: 'racing', topic: 'dinosaurs', pitch: 'Dinosaurs in go-karts' },
+  { genre: 'simulation', topic: 'zombies', pitch: 'Running an office staffed entirely by zombies' },
+  { genre: 'horror', topic: 'cooking', pitch: 'Something is wrong in the kitchen' },
+  { genre: 'battleRoyale', topic: 'cats', pitch: 'A hundred cats enter, one cat leaves' },
+  { genre: 'sports', topic: 'ninjas', pitch: 'Ninja basketball' },
+  { genre: 'rpg', topic: 'cooking', pitch: 'An epic quest to cook the perfect omelette' },
+  { genre: 'strategy', topic: 'pirates', pitch: 'Grand strategy, but everyone is a pirate' },
+];
+
+export const COMBO_QUALITY: Record<ComboGrade, number> = { legendary: 8, great: 5, good: 2, okay: 0, bad: -5 };
+
+// ---------------------------------------------------------------- certifications
+
+export const CERTIFICATIONS = [
+  { name: 'Silver', owners: 100000, xp: 30, rep: 1 },
+  { name: 'Gold', owners: 500000, xp: 60, rep: 1 },
+  { name: 'Platinum', owners: 1000000, xp: 100, rep: 2 },
+  { name: 'Diamond', owners: 10000000, xp: 220, rep: 3 },
+  { name: 'Legendary', owners: 50000000, xp: 450, rep: 5 },
+];
+
+// ---------------------------------------------------------------- facilities
+
+export interface FacilityDef {
+  name: string;
+  blurb: string;
+  cost: number;
+  upkeep: number;
+  minOffice: number;
+}
+
+export const FACILITY_IDS: FacilityId[] = ['coffee', 'arcade', 'napPods', 'gym', 'testLab', 'soundStage', 'rooftop', 'daycare', 'mocap', 'arena', 'renderFarm'];
+
+export const FACILITIES: Record<FacilityId, FacilityDef> = {
+  coffee: { name: 'Espresso Bar', blurb: 'Fuel for developers. Morale +4.', cost: 8000, upkeep: 400, minOffice: 1 },
+  arcade: { name: 'Retro Arcade Room', blurb: 'Inspiration on tap. Morale +3, quality +1.', cost: 25000, upkeep: 600, minOffice: 2 },
+  napPods: { name: 'Nap Pods', blurb: 'Crunch hurts morale 40% less.', cost: 40000, upkeep: 500, minOffice: 2 },
+  gym: { name: 'Gym & Yoga Studio', blurb: 'Healthy people stay. Quitting -25%, morale +2.', cost: 120000, upkeep: 3000, minOffice: 3 },
+  testLab: { name: 'Device Test Lab', blurb: 'Every phone and console ever made. Bugs -10%.', cost: 250000, upkeep: 6000, minOffice: 3 },
+  soundStage: { name: 'Recording Studio', blurb: 'Orchestras and voice actors in-house. Quality +1.', cost: 400000, upkeep: 8000, minOffice: 3 },
+  rooftop: { name: 'Rooftop Garden', blurb: 'Lunch with a view. Morale +4.', cost: 600000, upkeep: 10000, minOffice: 4 },
+  daycare: { name: 'On-site Daycare', blurb: 'Parents love you. Quitting -30%, candidates +2 skill.', cost: 900000, upkeep: 20000, minOffice: 4 },
+  mocap: { name: 'Motion Capture Stage', blurb: 'Realistic and photoreal games get +3 quality.', cost: 1500000, upkeep: 25000, minOffice: 4 },
+  arena: { name: 'Esports Arena', blurb: 'Competitive games lose 6% fewer players.', cost: 5000000, upkeep: 60000, minOffice: 5 },
+  renderFarm: { name: 'Neural Render Farm', blurb: 'Development speed +6%.', cost: 15000000, upkeep: 200000, minOffice: 5 },
+};
+
+// ---------------------------------------------------------------- conventions
+
+export const CONVENTIONS = [
+  { name: 'Fan Meetup', cost: 15000, minRep: 10, scale: 1 },
+  { name: 'Fan Festival', cost: 250000, minRep: 30, scale: 3 },
+  { name: 'Mega Convention', cost: 3000000, minRep: 50, scale: 8 },
+];
+
+// ---------------------------------------------------------------- storefront
+
+export const STORE_COST = 40000000;
+export const STORE_MIN_REP = 50;
+export const STORE_MONTHLY_COST = 600000;
+
+// ---------------------------------------------------------------- legacy
+
+export const LEGACY_BONUSES: Record<LegacyId, { name: string; blurb: string; cost: number; max: number }> = {
+  cash: { name: 'Family savings', blurb: '+$25,000 starting cash per rank.', cost: 5, max: 4 },
+  reputation: { name: 'Known name', blurb: '+5 starting reputation per rank.', cost: 6, max: 3 },
+  skill: { name: 'Veteran founder', blurb: '+5 founder skill per rank.', cost: 6, max: 3 },
+  perk: { name: 'Head start', blurb: '+1 perk point per rank.', cost: 8, max: 3 },
+  garage: { name: 'Own a garage', blurb: 'Start in the Garage instead of a bedroom.', cost: 4, max: 1 },
+  engine: { name: 'Engine blueprints', blurb: 'Start with your own engine already founded.', cost: 25, max: 1 },
+};

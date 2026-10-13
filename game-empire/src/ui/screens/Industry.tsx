@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Gavel, Minus, Trophy } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Gavel, Gift, Minus, Store, Trophy } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
-import { GENRES, GENRE_IDS, MONETIZATIONS, PLATFORMS, PLATFORM_IDS, SCOPES } from '../../engine/constants';
+import { GENRES, GENRE_IDS, MONETIZATIONS, PLATFORMS, PLATFORM_IDS, SCOPES, STORE_COST, STORE_MONTHLY_COST } from '../../engine/constants';
+import { launchStore, runStorePromo, storeBlocker, storePromoCost, storeTargetShare } from '../../engine/fun';
 import { genreTrend, totalActivePlayers } from '../../engine/market';
 import { auctionEstimate, bidAuction } from '../../engine/actions';
 import { MAX_PUBLISHING_DEALS, fundPublishing, publishingOpportunities, publishingTerms } from '../../engine/business';
@@ -191,6 +192,7 @@ export function Industry() {
           </div>
         </Card>
         <div className="space-y-4">
+          <StoreCard />
           <Publishing />
           <Auctions />
           <Card title="Game Awards" subtitle="Recent winners" pad={false}>
@@ -296,6 +298,42 @@ function Publishing() {
         })}
         {opps.length === 0 && <div className="p-4 text-sm text-muted">No independent studios are looking for a publisher right now.</div>}
       </div>
+    </Card>
+  );
+}
+
+function StoreCard() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const s = w.player.store;
+  const [name, setName] = useState(() => `${playerCompany(w).name.split(' ')[0]} Store`);
+  if (!s) {
+    const blocker = storeBlocker(w);
+    return (
+      <Card title="Launch your own game store" subtitle="Take a 30% cut of PC game sales, like the big launchers. Your hits pull players onto it.">
+        <div className="flex flex-wrap gap-2">
+          <input className={cx(inputClass, 'h-8 max-w-xs text-sm')} value={name} onChange={(e) => setName(e.target.value)} maxLength={32} />
+          <Button size="sm" variant="primary" disabled={!!blocker} title={blocker ?? undefined} onClick={() => act((world) => launchStore(world, name))}>
+            <Store size={13} /> Launch · {money(STORE_COST)}
+          </Button>
+        </div>
+        {blocker && <div className="mt-2 text-xs text-warn">{blocker}</div>}
+        <div className="mt-2 text-[11px] text-muted">Running it costs {money(STORE_MONTHLY_COST)}/mo. Free-game giveaways grow your share faster.</div>
+      </Card>
+    );
+  }
+  const target = storeTargetShare(w);
+  const promo = w.day < s.promoUntil;
+  return (
+    <Card title={s.name} subtitle={`Your PC store · open since ${date(s.foundedDay)}`}>
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label="Market share" value={pct(s.share, 1)} sub={`heading to ${pct(target, 1)}`} className="px-3 py-2" />
+        <Stat label="Earned" value={money(s.revenueTotal)} tone="good" className="px-3 py-2" />
+        <Stat label="Running cost" value={`${money(STORE_MONTHLY_COST)}/mo`} className="px-3 py-2" />
+      </div>
+      <Button size="sm" className="mt-3" disabled={promo || playerCompany(w).cash < storePromoCost(w)} onClick={() => act((world) => runStorePromo(world))}>
+        <Gift size={13} /> {promo ? `Giveaway running (${s.promoUntil - w.day}d)` : `Free-game giveaway · ${money(storePromoCost(w))}`}
+      </Button>
     </Card>
   );
 }

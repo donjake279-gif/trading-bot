@@ -28,7 +28,8 @@ const REV_LABELS: Record<(typeof REVENUE_KEYS)[number], string> = {
   subscriptions: 'Subscriptions',
   ads: 'Advertising',
   dlc: 'DLC',
-  licensing: 'Licensing & merch',
+  licensing: 'Licensing & engine',
+  store: 'Your game store',
   contracts: 'Client contracts',
   investments: 'Investment income',
   publishing: 'Publishing deals',
@@ -47,7 +48,7 @@ const EXP_LABELS: Record<(typeof EXPENSE_KEYS)[number], string> = {
   perks: 'Benefits & perks',
   misc: 'Other',
 };
-const REV_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#8a96a3'];
+const REV_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#6f7c8b', '#8a96a3'];
 const EXP_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#6f7c8b', '#8a96a3'];
 
 export function Finance() {

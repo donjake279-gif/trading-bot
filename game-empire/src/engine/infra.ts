@@ -6,6 +6,7 @@
 import { SERVER_TIERS, RESEARCH } from './constants';
 import { hasResearch } from './development';
 import { perkRank } from './progression';
+import { engineServerDiscount } from './studioEngine';
 import { chance, pick, randInt } from './rng';
 import type { ActionResult, Game, World } from './types';
 import { gamesOf, playerCompany, pushPoint, spend, toast } from './util';
@@ -23,7 +24,7 @@ export function infraCostMult(w: World): number {
   let m = 1;
   if (hasResearch(w, 'netcode')) m *= 0.9;
   if (hasResearch(w, 'cloudInfra')) m *= 0.75;
-  return m * (1 - 0.06 * perkRank(w, 'lean'));
+  return m * (1 - 0.06 * perkRank(w, 'lean')) * (1 - engineServerDiscount(w));
 }
 
 /** Monthly server bill at a given number of concurrent players. */

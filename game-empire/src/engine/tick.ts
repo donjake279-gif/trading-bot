@@ -11,7 +11,10 @@ import { expoDaily, investmentsDaily, licensesMonthly, policiesDaily, profitShar
 import { contractsDaily } from './contracts';
 import { infraDaily } from './infra';
 import { addXp, objectivesDaily } from './progression';
-import { refreshCandidates, engineLicensing, researchDaily, staffDaily, staffMonthly } from './staff';
+import { refreshCandidates, researchDaily, staffDaily, staffMonthly } from './staff';
+import { engineDaily, engineWarsMonthly } from './studioEngine';
+import { certificationsWeekly, conventionDaily, facilitiesDaily, legendsDaily, legendsMonthly, storeDaily } from './fun';
+import { memesDaily } from './memes';
 import { marketDay as stockMarketDay, quarterlyEarnings, stockDay, sweepSubsidiaries } from './stocks';
 import { updateDaily } from './updates';
 import type { World } from './types';
@@ -43,6 +46,8 @@ export function advanceDay(w: World): void {
     contractsDaily(w);
     staffDaily(w);
     researchDaily(w);
+    engineDaily(w);
+    legendsDaily(w);
   }
   for (const id in w.companies) {
     const c = w.companies[id];
@@ -71,6 +76,9 @@ export function advanceDay(w: World): void {
     if (c.status === 'active') dailyCosts(w, c);
   }
   if (hasPlayer) {
+    facilitiesDaily(w);
+    storeDaily(w);
+    conventionDaily(w);
     policiesDaily(w);
     investmentsDaily(w);
     publishingDaily(w);
@@ -113,7 +121,7 @@ export function advanceDay(w: World): void {
   // ---- monthly close
   if (monthStart) {
     if (hasPlayer) {
-      engineLicensing(w);
+      engineWarsMonthly(w);
       licensesMonthly(w);
       const revenue = ledgerRevenue(player.ledger);
       profitSharingMonthly(w, revenue - ledgerExpenses(player.ledger));
@@ -132,6 +140,7 @@ export function advanceDay(w: World): void {
       staffMonthly(w);
       boardMonthly(w);
       if (w.day - w.player.candidatesRefreshDay >= 28) refreshCandidates(w);
+      legendsMonthly(w);
       updateRival(w);
       w.player.stats.totalRevenue = player.revenueTotal;
     }
@@ -145,8 +154,12 @@ export function advanceDay(w: World): void {
 
   if (date.getUTCMonth() === 11 && date.getUTCDate() === 12) annualAwards(w);
   if (hasPlayer) {
+    memesDaily(w);
     objectivesDaily(w);
-    if (w.day % 7 === 0) checkAchievements(w);
+    if (w.day % 7 === 0) {
+      certificationsWeekly(w);
+      checkAchievements(w);
+    }
   }
 }
 

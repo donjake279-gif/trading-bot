@@ -1,6 +1,7 @@
-import { CalendarDays, Gift, Lock, Presentation, RefreshCw, Sparkles, Star, Target, Trophy } from 'lucide-react';
+import { CalendarDays, Gift, Lock, PartyPopper, Presentation, RefreshCw, Sparkles, Star, Target, Ticket, Trophy } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
-import { EXPO_BOOTHS, MAX_LEVEL, PERKS, PERK_IDS, xpForLevel } from '../../engine/constants';
+import { CONVENTIONS, EXPO_BOOTHS, MAX_LEVEL, PERKS, PERK_IDS, xpForLevel } from '../../engine/constants';
+import { conventionBlocker, conventionName, hostConvention } from '../../engine/fun';
 import { OBJECTIVE_LIFETIME, objectiveProgress, perkRank, rerollObjective, spendPerk } from '../../engine/progression';
 import { bookExpo } from '../../engine/business';
 import { EXPO_DATE, parts, upcomingEvents } from '../../engine/calendar';
@@ -221,6 +222,51 @@ export function Goals() {
           </ul>
         </Card>
       </div>
+
+      <Convention />
     </div>
+  );
+}
+
+function Convention() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const p = playerCompany(w);
+  const con = w.player.convention;
+  return (
+    <Card
+      title="Your own fan convention"
+      subtitle={`Throw a party for your fans: ticket sales, hype for upcoming games, a boost for live ones and a happy team. ${w.player.conventionsHeld} held so far.`}
+    >
+      {con ? (
+        <div className="flex items-center gap-3 rounded-lg border border-accent/40 bg-accent-soft/30 p-3 text-sm">
+          <PartyPopper size={18} className="text-accent" />
+          <span className="flex-1">
+            <span className="font-semibold">{conventionName(w, con.tier)}</span> opens {date(con.day)} ({con.day - w.day} days)
+          </span>
+        </div>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-3">
+          {CONVENTIONS.map((c, tier) => {
+            const blocker = conventionBlocker(w, tier);
+            return (
+              <div key={c.name} className="rounded-lg border border-line bg-surface-2 p-3">
+                <div className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Ticket size={14} className="text-accent" />
+                  {conventionName(w, tier)}
+                </div>
+                <div className="mt-1 text-xs text-muted">
+                  ×{c.scale} scale · reputation {c.minRep}+
+                </div>
+                <Button size="sm" className="mt-2 w-full" variant={blocker ? 'secondary' : 'primary'} disabled={!!blocker} title={blocker ?? undefined} onClick={() => act((world) => hostConvention(world, tier))}>
+                  {blocker && !blocker.startsWith('Costs') ? blocker : `Host · ${money(c.cost)}`}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {p.reputation < CONVENTIONS[0].minRep && <div className="mt-2 text-xs text-muted">Grow your reputation to start hosting events.</div>}
+    </Card>
   );
 }
