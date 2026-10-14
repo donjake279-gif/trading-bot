@@ -43,6 +43,13 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
 - **Build the company.** Hire from a rotating candidate pool, with skills, traits and salaries. Employees have
   morale and can quit. You can train them, give raises, or fire them. Move through seven office tiers and
   research 16 technologies, including your own licensable engine.
+- **HR autopilot.** On the Team screen, HR can run the people side for you: auto jobs (idle developers join the
+  project that needs them), auto raises (anyone who grows past their pay grade, Junior → Principal, or is unhappy
+  and underpaid gets a raise every month, so people don't quit over pay), auto training (the least skilled
+  developers train each month while the studio has cash to spare) and auto replace (the best candidate for the
+  same job is hired when someone quits). A spending style (Careful, Balanced, Generous) sets how far above market
+  HR pays and how much cash it keeps in reserve. Each employee shows their pay grade and whether they are paid
+  fairly, and "Fix all pay" catches everyone up in one click.
 - **Finance.** Monthly P&L, taxes, bank loans priced on your credit, venture rounds (Seed → Growth) that dilute you,
   an IPO, share buybacks and secondary offerings. A board can fire you once you lose majority control.
 - **Capital markets.** A simulated stock market with bull and bear regimes, crashes and quarterly earnings
@@ -128,6 +135,7 @@ actions.
 | `events.ts` | Macro economy, random world events, player decisions, board, solvency, awards, auctions |
 | `infra.ts`, `datacenters.ts` | The player's server fleet: rented cloud and owned buildings, capacity, load, costs, outages, wear, autoscaling |
 | `progression.ts` | Studio XP and levels, perks, rotating goals |
+| `hr.ts` | HR autopilot: pay grades, market pay checks, monthly raises and training, replacing people who quit |
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales, rival |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |
 | `studioEngine.ts` | Your own engine: modules, versions, licensing, adoption by rivals, engine wars |

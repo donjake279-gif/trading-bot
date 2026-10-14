@@ -118,6 +118,8 @@ export interface Employee {
   assignment: string | null;
   isFounder: boolean;
   bio?: string;
+  /** Last day HR sent them on a training course. */
+  trainedDay?: number;
 }
 
 export interface Candidate {
@@ -531,6 +533,18 @@ export interface PlayerState {
   /** Legacy bonuses this run started with (for display). */
   legacy: Partial<Record<LegacyId, number>>;
   legacyBanked: boolean;
+  /** HR autopilot: raises, training and replacements on their own. */
+  hr: HrSettings;
+}
+
+export type HrSpending = 'careful' | 'balanced' | 'generous';
+
+export interface HrSettings {
+  autoRaise: boolean;
+  autoTrain: boolean;
+  autoReplace: boolean;
+  spending: HrSpending;
+  log: { day: number; text: string }[];
 }
 
 export type EngineModuleId = 'rendering' | 'physics' | 'tools' | 'networking' | 'platforms' | 'scripting';

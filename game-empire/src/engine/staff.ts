@@ -2,6 +2,7 @@
 import { BENEFITS, HIREABLE_ROLES, HOURS, OFFICES, RESEARCH, ROLES, TRAITS, salaryFor } from './constants';
 import { perkRank } from './progression';
 import { facilityEffects } from './fun';
+import { hrMonthly, hrReplace } from './hr';
 import { chance, pick, randInt, randNormal, randRange } from './rng';
 import type { Candidate, Employee, RoleId, TraitId, World } from './types';
 import { clamp, newId, playerCompany, pushNews, toast } from './util';
@@ -82,6 +83,7 @@ export function staffDaily(w: World): void {
 }
 
 export function staffMonthly(w: World): void {
+  hrMonthly(w);
   const fx = facilityEffects(w);
   const p = playerCompany(w);
   const office = OFFICES[w.player.officeLevel];
@@ -109,7 +111,8 @@ export function staffMonthly(w: World): void {
   for (const q of quitters) {
     w.player.employees = w.player.employees.filter((e) => e.id !== q.id);
     pushNews(w, { kind: 'player', title: `${q.name} quits ${p.name}`, body: `Morale was ${Math.round(q.morale)}%. ${ROLES[q.role].name}, skill ${Math.round(q.skill)}.`, companyId: p.id, tone: 'bad' });
-    toast(w, `${q.name} quit (low morale)`, 'bad', { category: 'studio', link: { route: 'team' }, body: 'Better pay, benefits or a bigger office keep people happy.' });
+    toast(w, `${q.name} quit (low morale)`, 'bad', { category: 'studio', link: { route: 'team' }, body: w.player.hr?.autoRaise ? 'Better benefits or a bigger office keep people happy.' : 'Turn on HR auto-raises in Team so underpaid people get a raise before they leave.' });
+    hrReplace(w, q);
   }
 }
 

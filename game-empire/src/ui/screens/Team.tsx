@@ -1,16 +1,17 @@
-import { useState } from 'react';
-import { GraduationCap, RefreshCw, UserMinus, UserPlus } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { BadgeDollarSign, Bot, Briefcase, GraduationCap, HandCoins, RefreshCw, UserMinus, UserPlus } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
-import { OFFICES, ROLES, TRAITS, salaryFor } from '../../engine/constants';
+import { OFFICES, ROLES, TRAITS } from '../../engine/constants';
 import { assignDevs, assignEmployee, fire, giveRaise, hire, paidRefresh, recruiterCost, setAutoAssign, train, trainingCost } from '../../engine/actions';
 import { playerPayroll } from '../../engine/finance';
 import { playerCompany } from '../../engine/util';
-import type { Employee, RoleId } from '../../engine/types';
+import type { Employee, Game, HrSpending, RoleId } from '../../engine/types';
 import { date, money } from '../lib/format';
 import { Badge, Button, Card, ConfirmButton, Progress, SectionTitle, Stat, Td, Th, cx, inputClass } from '../components/ui';
 import { recruitFee } from '../../engine/staff';
 import { BENEFITS, HOURS, QA_POLICIES, retainerCost } from '../../engine/constants';
 import { policyMonthlyCost, setPolicies } from '../../engine/business';
+import { HR_SPENDING, fixAllPay, needsRaise, payFairly, payGrade, payReview, payStatus, setHr, trainingFloor, trainingQueue } from '../../engine/hr';
 
 function Traits({ traits }: { traits: Employee['traits'] }) {
   return (
@@ -30,7 +31,6 @@ export function Team() {
   const c = playerCompany(w);
   const office = OFFICES[w.player.officeLevel];
   const [roleFilter, setRoleFilter] = useState<RoleId | 'all'>('all');
-  const [bulkTarget, setBulkTarget] = useState('');
   const emps = w.player.employees.filter((e) => roleFilter === 'all' || e.role === roleFilter);
   const projects = Object.values(w.games).filter((g) => g.companyId === c.id && (g.status === 'development' || (g.status === 'released' && g.update)));
   const avgMorale = w.player.employees.reduce((s, e) => s + e.morale, 0) / Math.max(1, w.player.employees.length);
@@ -47,33 +47,7 @@ export function Team() {
         <Stat label="Idle developers" value={w.player.employees.filter((e) => ROLES[e.role].dev && !e.assignment).length} />
       </div>
 
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input id="auto-assign" type="checkbox" className="mt-1" checked={w.player.autoAssign} onChange={(e) => act((world) => setAutoAssign(world, e.target.checked))} />
-            <span>
-              <span className="block text-sm font-medium">Auto-assign idle developers</span>
-              <span className="block text-xs text-muted">Anyone without work joins the game in development that needs people most, or a running update.</span>
-            </span>
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <select id="bulk-target" className={cx(inputClass, 'h-8 w-56 text-xs')} value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
-              <option value="">Move developers to…</option>
-              {projects.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title} {g.status === 'released' ? '(update)' : ''}
-                </option>
-              ))}
-            </select>
-            <Button size="sm" disabled={!bulkTarget} onClick={() => act((world) => assignDevs(world, bulkTarget, 'idle'), 'Idle developers moved')}>
-              All idle
-            </Button>
-            <Button size="sm" disabled={!bulkTarget} onClick={() => act((world) => assignDevs(world, bulkTarget, 'everyone'), 'Everyone moved')}>
-              Everyone
-            </Button>
-          </div>
-        </div>
-      </Card>
+      <HrAutopilot projects={projects} />
 
       <Policies />
 
@@ -107,7 +81,7 @@ export function Team() {
             </thead>
             <tbody className="divide-y divide-line-soft">
               {emps.map((e) => {
-                const market = e.isFounder ? 0 : salaryFor(e.role, e.skill);
+                const pay = payStatus(e);
                 return (
                   <tr key={e.id} className="hover:bg-surface-2/50">
                     <Td>
@@ -120,13 +94,14 @@ export function Team() {
                         <span className="w-6 tabular">{Math.round(e.skill)}</span>
                         <Progress value={e.skill} max={100} className="flex-1" height={4} />
                       </div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted">{payGrade(e.skill)}</div>
                     </Td>
                     <Td>
                       <span className={cx('tabular', e.morale < 35 ? 'text-bad' : e.morale < 60 ? 'text-warn' : 'text-good')}>{Math.round(e.morale)}%</span>
                     </Td>
                     <Td className="text-right tabular">
                       {e.isFounder ? <span className="text-muted">owner</span> : money(e.salary)}
-                      {!e.isFounder && e.salary < market * 0.95 && <div className="text-[10px] text-warn">below market</div>}
+                      {!e.isFounder && <div className={cx('text-[10px]', pay.tone === 'bad' ? 'text-bad' : pay.tone === 'warn' ? 'text-warn' : pay.tone === 'good' ? 'text-good' : 'text-muted')}>{pay.label}</div>}
                     </Td>
                     <Td>
                       {ROLES[e.role].dev ? (
@@ -156,6 +131,11 @@ export function Team() {
                         </Button>
                         {!e.isFounder && (
                           <>
+                            {needsRaise(e) && (
+                              <Button size="sm" variant="ghost" title={`Raise to ${payGrade(e.skill).toLowerCase()} pay`} onClick={() => act((world) => payFairly(world, e.id), `${e.name} is now paid fairly`)}>
+                                <BadgeDollarSign size={14} className="text-warn" />
+                              </Button>
+                            )}
                             <Button size="sm" variant="ghost" title="Give a 10% raise" onClick={() => act((world) => giveRaise(world, e.id), `${e.name} got a raise`)}>
                               +10%
                             </Button>
@@ -220,6 +200,173 @@ export function Team() {
       </Card>
 
     </div>
+  );
+}
+
+function AutoToggle({ id, on, onChange, icon, title, detail, status }: { id: string; on: boolean; onChange: (v: boolean) => void; icon: ReactNode; title: string; detail: string; status: ReactNode }) {
+  return (
+    <label htmlFor={id} className={cx('flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors', on ? 'border-accent/60 bg-accent-soft/30' : 'border-line bg-surface-2 hover:border-sub')}>
+      <input id={id} type="checkbox" className="mt-1" checked={on} onChange={(e) => onChange(e.target.checked)} />
+      <span className="min-w-0">
+        <span className="flex items-center gap-1.5 text-sm font-medium">
+          {icon}
+          {title}
+        </span>
+        <span className="block text-xs text-muted">{detail}</span>
+        <span className="mt-1 block text-[11px] text-sub">{status}</span>
+      </span>
+    </label>
+  );
+}
+
+function HrAutopilot({ projects }: { projects: Game[] }) {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const [bulkTarget, setBulkTarget] = useState('');
+  const hr = w.player.hr;
+  const style = HR_SPENDING[hr.spending];
+  const review = payReview(w);
+  const floor = trainingFloor(w);
+  const next = trainingQueue(w)[0];
+  const cash = playerCompany(w).cash;
+  const idle = w.player.employees.filter((e) => ROLES[e.role].dev && !e.assignment).length;
+  const trainedLately = w.player.employees.filter((e) => e.trainedDay !== undefined && w.day - e.trainedDay < 90).length;
+  const onCount = [w.player.autoAssign, hr.autoRaise, hr.autoTrain, hr.autoReplace].filter(Boolean).length;
+  const set = (patch: Parameters<typeof setHr>[1]) => act((world) => setHr(world, patch));
+
+  return (
+    <Card
+      title={
+        <span className="flex items-center gap-2">
+          <Bot size={16} className="text-accent" /> HR autopilot
+        </span>
+      }
+      subtitle="Let HR run the day-to-day: give people jobs, train them up and keep their pay in line with their skill so nobody quits."
+      actions={<Badge tone={onCount === 4 ? 'good' : onCount > 0 ? 'accent' : 'neutral'}>{onCount}/4 on</Badge>}
+    >
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <AutoToggle
+              id="auto-assign"
+              on={w.player.autoAssign}
+              onChange={(v) => act((world) => setAutoAssign(world, v))}
+              icon={<Briefcase size={14} />}
+              title="Auto jobs"
+              detail="Idle developers join the game that needs people most, a running update or a contract that is behind."
+              status={idle > 0 ? `${idle} idle right now` : 'Everyone has work'}
+            />
+            <AutoToggle
+              id="hr-auto-raise"
+              on={hr.autoRaise}
+              onChange={(v) => set({ autoRaise: v })}
+              icon={<BadgeDollarSign size={14} />}
+              title="Auto raises"
+              detail="Every month, anyone who has grown past their pay grade, or is unhappy and underpaid, gets a raise."
+              status={
+                review.underpaid.length ? (
+                  <span className="text-warn">
+                    {review.underpaid.length} below their pay grade (+{money(review.cost)}/mo to fix)
+                  </span>
+                ) : (
+                  <span className="text-good">Everyone is paid fairly</span>
+                )
+              }
+            />
+            <AutoToggle
+              id="hr-auto-train"
+              on={hr.autoTrain}
+              onChange={(v) => set({ autoTrain: v })}
+              icon={<GraduationCap size={14} />}
+              title="Auto training"
+              detail="Sends your least skilled developers on training each month, as long as the studio has cash to spare."
+              status={
+                !hr.autoTrain || !next ? (
+                  `${trainedLately} trained in the last 3 months${next ? '' : ' · nobody due yet'}`
+                ) : cash - next.cost < floor ? (
+                  <span className="text-warn">
+                    Waiting for cash: {next.e.isFounder ? 'your' : `${next.e.name.split(' ')[0]}'s`} training costs {money(next.cost)} and {style.name.toLowerCase()} HR keeps {money(floor)} in the bank
+                  </span>
+                ) : (
+                  `${trainedLately} trained in the last 3 months · next: ${next.e.isFounder ? 'you' : next.e.name.split(' ')[0]} (${money(next.cost)})`
+                )
+              }
+            />
+            <AutoToggle
+              id="hr-auto-replace"
+              on={hr.autoReplace}
+              onChange={(v) => set({ autoReplace: v })}
+              icon={<UserPlus size={14} />}
+              title="Auto replace"
+              detail="If someone quits, HR hires the best candidate for the same job (recruiting fee applies)."
+              status={`${w.player.candidates.length} candidate${w.player.candidates.length === 1 ? '' : 's'} on file`}
+            />
+          </div>
+          <div>
+            <div className="mb-1.5 text-xs font-medium text-sub">HR spending</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(Object.keys(HR_SPENDING) as HrSpending[]).map((id) => (
+                <button
+                  key={id}
+                  onClick={() => set({ spending: id })}
+                  className={cx('rounded-lg border px-2.5 py-2 text-left transition-colors', hr.spending === id ? 'border-accent bg-accent-soft/40' : 'border-line bg-surface-2 hover:border-sub')}
+                >
+                  <div className="text-xs font-semibold">{HR_SPENDING[id].name}</div>
+                  <div className="text-[11px] text-muted">{HR_SPENDING[id].blurb}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="rounded-lg border border-line bg-surface-2 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-medium">Pay check</div>
+                <div className="text-xs text-muted">
+                  {review.underpaid.length ? `${review.underpaid.length} ${review.underpaid.length > 1 ? 'people are' : 'person is'} paid below their grade. Underpaid people lose morale and leave.` : `Pay matches skill. ${style.name} HR pays ${Math.round(style.payTarget * 100)}% of market.`}
+                </div>
+              </div>
+              <Button size="sm" variant={review.underpaid.length ? 'primary' : 'ghost'} disabled={!review.underpaid.length} onClick={() => act((world) => fixAllPay(world), 'Everyone is paid fairly now')}>
+                <HandCoins size={13} /> Fix all pay
+              </Button>
+            </div>
+          </div>
+          <div>
+            <div className="mb-1.5 text-xs font-medium text-sub">Recent HR activity</div>
+            {hr.log.length ? (
+              <ul className="space-y-1 text-xs">
+                {hr.log.slice(0, 5).map((l, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="shrink-0 tabular text-muted">{date(l.day)}</span>
+                    <span className="text-sub">{l.text}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-xs text-muted">Nothing yet. HR checks in at the start of every month.</div>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-3">
+            <select id="bulk-target" className={cx(inputClass, 'h-8 min-w-0 flex-1 text-xs')} value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
+              <option value="">Move developers to…</option>
+              {projects.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title} {g.status === 'released' ? '(update)' : ''}
+                </option>
+              ))}
+            </select>
+            <Button size="sm" disabled={!bulkTarget} onClick={() => act((world) => assignDevs(world, bulkTarget, 'idle'), 'Idle developers moved')}>
+              All idle
+            </Button>
+            <Button size="sm" disabled={!bulkTarget} onClick={() => act((world) => assignDevs(world, bulkTarget, 'everyone'), 'Everyone moved')}>
+              Everyone
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

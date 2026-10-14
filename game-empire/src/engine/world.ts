@@ -82,6 +82,7 @@ export function playerExtras(): Pick<
   | 'store'
   | 'legacy'
   | 'legacyBanked'
+  | 'hr'
 > {
   return {
     infra: { tier: 0, nodes: 1, autoscale: true, incidents: [], lowLoadDays: 0, demand: 0, load: 0, outageUntil: 0, overloadDays: 0, downtime: [], demandHistory: [], capacityHistory: [], dataCenters: [] },
@@ -108,6 +109,7 @@ export function playerExtras(): Pick<
     store: null,
     legacy: {},
     legacyBanked: false,
+    hr: { autoRaise: true, autoTrain: true, autoReplace: false, spending: 'balanced', log: [] },
   };
 }
 
