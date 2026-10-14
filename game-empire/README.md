@@ -43,13 +43,20 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
 - **Build the company.** Hire from a rotating candidate pool, with skills, traits and salaries. Employees have
   morale and can quit. You can train them, give raises, or fire them. Move through seven office tiers and
   research 16 technologies, including your own licensable engine.
-- **HR autopilot.** On the Team screen, HR can run the people side for you: auto jobs (idle developers join the
-  project that needs them), auto raises (anyone who grows past their pay grade, Junior → Principal, or is unhappy
-  and underpaid gets a raise every month, so people don't quit over pay), auto training (the least skilled
-  developers train each month while the studio has cash to spare) and auto replace (the best candidate for the
-  same job is hired when someone quits). A spending style (Careful, Balanced, Generous) sets how far above market
-  HR pays and how much cash it keeps in reserve. Each employee shows their pay grade and whether they are paid
-  fairly, and "Fix all pay" catches everyone up in one click.
+- **HR autopilot.** On the Team screen, HR can run the people side for you:
+  - *Auto hiring* checks every week and hires the best candidates the studio can afford into empty desks, favouring
+    the roles the team is short on (developers first for small teams). It replaces anyone who quits, can pay a
+    headhunter when the pool runs dry, and grows the team up to the office size or a target you pick. It only hires
+    when there is work (a game, update or contract) or the studio is making money, and always leaves months of costs
+    in the bank.
+  - *Auto skill upgrades* send the least skilled developers on training every month (each person once every three
+    months), so skills keep climbing. The team table marks fresh gains.
+  - *Auto raises* keep pay in line with each person's pay grade (Junior → Principal) so nobody quits over pay.
+  - *Auto jobs* put idle developers on the project that needs them most.
+
+  A spending style (Careful, Balanced, Generous) sets pay, how much cash HR keeps, and how boldly it hires. When the
+  studio is losing money and runway is short, HR tightens its belt: no paid training, and raises only for people
+  about to quit. The card always says why HR is waiting (office full, waiting for cash, waiting for work).
 - **Finance.** Monthly P&L, taxes, bank loans priced on your credit, venture rounds (Seed → Growth) that dilute you,
   an IPO, share buybacks and secondary offerings. A board can fire you once you lose majority control.
 - **Capital markets.** A simulated stock market with bull and bear regimes, crashes and quarterly earnings
@@ -135,7 +142,7 @@ actions.
 | `events.ts` | Macro economy, random world events, player decisions, board, solvency, awards, auctions |
 | `infra.ts`, `datacenters.ts` | The player's server fleet: rented cloud and owned buildings, capacity, load, costs, outages, wear, autoscaling |
 | `progression.ts` | Studio XP and levels, perks, rotating goals |
-| `hr.ts` | HR autopilot: pay grades, market pay checks, monthly raises and training, replacing people who quit |
+| `hr.ts` | HR autopilot: weekly hiring, pay grades and raises, skill training, replacing people who quit |
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales, rival |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |
 | `studioEngine.ts` | Your own engine: modules, versions, licensing, adoption by rivals, engine wars |

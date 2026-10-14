@@ -1,9 +1,10 @@
-// HR autopilot: raises to pay grade, training and replacements.
+// HR autopilot: hiring, raises to pay grade, skill training and replacements.
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../world';
 import { advanceDays } from '../tick';
-import { hire } from '../actions';
-import { fixAllPay, hrMonthly, hrReplace, marketPay, needsRaise, payFairly, payGrade, payRatio, payReview, setHr } from '../hr';
+import { createGame, hire } from '../actions';
+import { ROLES, focus } from '../constants';
+import { fixAllPay, hireStatus, hrHire, hrMonthly, hrReplace, marketPay, needsRaise, payFairly, payGrade, payRatio, payReview, setHr } from '../hr';
 import { staffMonthly } from '../staff';
 import type { World } from '../types';
 import { playerCompany } from '../util';
@@ -16,6 +17,17 @@ function withStaff(n = 3): World {
   w.player.officeLevel = 2;
   for (const k of w.player.candidates.slice(0, n)) expect(hire(w, k.id).ok).toBe(true);
   return w;
+}
+
+/** A game in development, so there is work for new hires. */
+function startGame(w: World): void {
+  const founder = w.player.employees[0];
+  const r = createGame(
+    w,
+    { title: 'Busy Work', genre: 'indie', topic: 'cats', platforms: ['pc', 'mobile'], audience: 'everyone', engine: 'pixelforge', monetization: 'premium', price: 4.99, artStyle: 'pixel', multiplayer: 'single', scope: 'tiny', budget: 500, focus: focus(1, 1, 1, 1, 1, 1) },
+    [founder.id],
+  );
+  expect(r.ok, r.error).toBe(true);
 }
 
 describe('hr autopilot', () => {
@@ -33,7 +45,7 @@ describe('hr autopilot', () => {
     e.skill = Math.min(99, e.skill + 30); // years of experience later
     expect(needsRaise(e)).toBe(true);
     const before = e.salary;
-    setHr(w, { autoTrain: false });
+    setHr(w, { autoTrain: false, autoHire: false });
     hrMonthly(w);
     expect(e.salary).toBeGreaterThan(before);
     expect(payRatio(e)).toBeGreaterThanOrEqual(1);
@@ -43,7 +55,7 @@ describe('hr autopilot', () => {
   it('without auto-raises, underpaid people get unhappy', () => {
     const run = (autoRaise: boolean) => {
       const w = withStaff();
-      setHr(w, { autoRaise, autoTrain: false });
+      setHr(w, { autoRaise, autoTrain: false, autoHire: false });
       for (const e of w.player.employees) if (!e.isFounder) e.skill = Math.min(99, e.skill + 30);
       for (let m = 0; m < 4; m++) staffMonthly(w);
       const staff = w.player.employees.filter((e) => !e.isFounder);
@@ -52,25 +64,101 @@ describe('hr autopilot', () => {
     expect(run(true)).toBeGreaterThan(run(false) + 5);
   });
 
-  it('sends people on training when the studio can afford it, and not when it cannot', () => {
+  it('trains people up when the studio can afford it, and not when it cannot', () => {
     const w = withStaff();
-    setHr(w, { autoRaise: false, autoTrain: true, spending: 'generous' });
+    setHr(w, { autoRaise: false, autoTrain: true, autoHire: false, spending: 'generous' });
     const skills = w.player.employees.map((e) => e.skill);
     hrMonthly(w);
     expect(w.player.employees.some((e, i) => e.skill > skills[i])).toBe(true);
-    expect(w.player.employees.some((e) => e.trainedDay === w.day)).toBe(true);
+    const trained = w.player.employees.filter((e) => e.trainedDay === w.day);
+    expect(trained.length).toBeGreaterThan(0);
+    for (const e of trained) expect(e.trainedGain).toBeGreaterThan(0);
+    expect(w.player.hr.log[0].text).toMatch(/Training: .*\+\d/);
 
     const broke = withStaff();
     playerCompany(broke).cash = 100;
-    setHr(broke, { autoRaise: false, autoTrain: true });
+    setHr(broke, { autoRaise: false, autoTrain: true, autoHire: false });
     const before = broke.player.employees.map((e) => e.skill);
     hrMonthly(broke);
     expect(broke.player.employees.map((e) => e.skill)).toEqual(before);
   });
 
+  it('upgrades a brand new studio\'s skills on the default settings', () => {
+    const w = createWorld(opts);
+    const founder = w.player.employees[0];
+    const skill = founder.skill;
+    hrMonthly(w);
+    expect(founder.skill).toBeGreaterThan(skill);
+  });
+
+  it('hires to fill empty desks when the studio can afford it', () => {
+    const w = createWorld(opts);
+    startGame(w);
+    playerCompany(w).cash = 1e6;
+    w.player.officeLevel = 2;
+    expect(w.player.hr.autoHire).toBe(true);
+    hrHire(w);
+    expect(w.player.employees.length).toBe(2);
+    advanceDays(w, 120);
+    expect(w.player.employees.length).toBeGreaterThan(4);
+    expect(w.player.hr.log.some((l) => l.text.startsWith('Hired'))).toBe(true);
+  });
+
+  it('stops at the team target and at the office size', () => {
+    const w = createWorld(opts);
+    startGame(w);
+    playerCompany(w).cash = 1e6;
+    w.player.officeLevel = 2;
+    setHr(w, { teamTarget: 3 });
+    advanceDays(w, 90);
+    expect(w.player.employees.length).toBe(3);
+    expect(hireStatus(w).text).toMatch(/target of 3/);
+
+    const small = createWorld(opts);
+    startGame(small);
+    playerCompany(small).cash = 1e6;
+    advanceDays(small, 90);
+    expect(small.player.employees.length).toBeLessThanOrEqual(3);
+    expect(hireStatus(small).office).toBe(true);
+  });
+
+  it('does not hire people it cannot afford', () => {
+    const w = createWorld(opts);
+    startGame(w);
+    playerCompany(w).cash = 3000;
+    hrHire(w);
+    expect(w.player.employees.length).toBe(1);
+    expect(hireStatus(w).text).toMatch(/Waiting for cash|No good candidates/);
+  });
+
+  it('waits for work before hiring when the studio is not making money', () => {
+    const w = createWorld(opts); // $50K in a bedroom office
+    hrHire(w);
+    expect(w.player.employees.length).toBe(1);
+    expect(hireStatus(w).text).toMatch(/Waiting for work/);
+    startGame(w);
+    hrHire(w);
+    expect(w.player.employees.length).toBe(2);
+    expect(ROLES[w.player.employees[1].role].dev).toBe(true);
+  });
+
+  it('hires for the roles the team is missing', () => {
+    const w = createWorld(opts);
+    startGame(w);
+    playerCompany(w).cash = 1e6;
+    w.player.officeLevel = 2;
+    w.player.candidates = [
+      { id: 'k-m', name: 'Mark Eting', role: 'marketing', skill: 52, salary: 3000, traits: [] },
+      { id: 'k-c', name: 'Com Munity', role: 'community', skill: 52, salary: 2500, traits: [] },
+      { id: 'k-p', name: 'Pro Grammer', role: 'programmer', skill: 48, salary: 3500, traits: [] },
+    ];
+    hrHire(w);
+    expect(w.player.employees.map((e) => e.role)).toContain('programmer');
+  });
+
   it('replaces people who quit with the best candidate for the job', () => {
     const w = withStaff(2);
-    setHr(w, { autoReplace: true });
+    setHr(w, { autoHire: true, teamTarget: 3 });
     const quitter = w.player.employees.find((e) => !e.isFounder)!;
     w.player.candidates.push({ id: 'k-test', name: 'Rep Lacement', role: quitter.role, skill: 70, salary: 4000, traits: [] });
     w.player.employees = w.player.employees.filter((e) => e.id !== quitter.id);

@@ -109,7 +109,7 @@ export function playerExtras(): Pick<
     store: null,
     legacy: {},
     legacyBanked: false,
-    hr: { autoRaise: true, autoTrain: true, autoReplace: false, spending: 'balanced', log: [] },
+    hr: { autoRaise: true, autoTrain: true, autoHire: true, teamTarget: 0, spending: 'balanced', log: [] },
   };
 }
 

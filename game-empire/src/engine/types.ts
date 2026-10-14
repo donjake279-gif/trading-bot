@@ -120,6 +120,8 @@ export interface Employee {
   bio?: string;
   /** Last day HR sent them on a training course. */
   trainedDay?: number;
+  /** Skill gained at the last training. */
+  trainedGain?: number;
 }
 
 export interface Candidate {
@@ -542,7 +544,10 @@ export type HrSpending = 'careful' | 'balanced' | 'generous';
 export interface HrSettings {
   autoRaise: boolean;
   autoTrain: boolean;
-  autoReplace: boolean;
+  /** Fill empty desks and replace anyone who quits. */
+  autoHire: boolean;
+  /** Team size HR hires up to; 0 means fill the office. */
+  teamTarget: number;
   spending: HrSpending;
   log: { day: number; text: string }[];
 }

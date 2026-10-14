@@ -146,6 +146,7 @@ describe('bot player', () => {
         }
       }
       if (w.player.gameOver) log.push(`GAME OVER: ${w.player.gameOver.reason} on day ${w.day}`);
+      if (process.env.BOT_DEBUG === seed) console.log(w.player.hr.log.map((l) => `d${l.day} ${l.text}`).join("\n"));
       console.log(`---- ${seed}\n${log.filter((l) => l.startsWith('==') || l.startsWith('GAME') || /released/.test(l)).slice(-40).join('\n')}`);
       expect(Number.isFinite(playerCompany(w).cash)).toBe(true);
     });

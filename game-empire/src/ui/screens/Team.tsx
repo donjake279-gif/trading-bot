@@ -11,7 +11,7 @@ import { Badge, Button, Card, ConfirmButton, Progress, SectionTitle, Stat, Td, T
 import { recruitFee } from '../../engine/staff';
 import { BENEFITS, HOURS, QA_POLICIES, retainerCost } from '../../engine/constants';
 import { policyMonthlyCost, setPolicies } from '../../engine/business';
-import { HR_SPENDING, fixAllPay, needsRaise, payFairly, payGrade, payReview, payStatus, setHr, trainingFloor, trainingQueue } from '../../engine/hr';
+import { HR_SPENDING, fixAllPay, needsRaise, payFairly, payGrade, payReview, payStatus, hireStatus, setHr, trainingFloor, trainingQueue, trainingWait } from '../../engine/hr';
 
 function Traits({ traits }: { traits: Employee['traits'] }) {
   return (
@@ -94,7 +94,10 @@ export function Team() {
                         <span className="w-6 tabular">{Math.round(e.skill)}</span>
                         <Progress value={e.skill} max={100} className="flex-1" height={4} />
                       </div>
-                      <div className="text-[10px] uppercase tracking-wide text-muted">{payGrade(e.skill)}</div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted">
+                        {payGrade(e.skill)}
+                        {e.trainedDay !== undefined && w.day - e.trainedDay < 30 && <span className="ml-1 normal-case tracking-normal text-good">▲ +{Math.max(1, Math.round(e.trainedGain ?? 1))} trained</span>}
+                      </div>
                     </Td>
                     <Td>
                       <span className={cx('tabular', e.morale < 35 ? 'text-bad' : e.morale < 60 ? 'text-warn' : 'text-good')}>{Math.round(e.morale)}%</span>
@@ -203,36 +206,44 @@ export function Team() {
   );
 }
 
-function AutoToggle({ id, on, onChange, icon, title, detail, status }: { id: string; on: boolean; onChange: (v: boolean) => void; icon: ReactNode; title: string; detail: string; status: ReactNode }) {
+function AutoToggle({ id, on, onChange, icon, title, detail, status, children }: { id: string; on: boolean; onChange: (v: boolean) => void; icon: ReactNode; title: string; detail: string; status: ReactNode; children?: ReactNode }) {
   return (
-    <label htmlFor={id} className={cx('flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors', on ? 'border-accent/60 bg-accent-soft/30' : 'border-line bg-surface-2 hover:border-sub')}>
-      <input id={id} type="checkbox" className="mt-1" checked={on} onChange={(e) => onChange(e.target.checked)} />
-      <span className="min-w-0">
-        <span className="flex items-center gap-1.5 text-sm font-medium">
-          {icon}
-          {title}
+    <div className={cx('rounded-lg border px-3 py-2.5 transition-colors', on ? 'border-accent/60 bg-accent-soft/30' : 'border-line bg-surface-2 hover:border-sub')}>
+      <label htmlFor={id} className="flex cursor-pointer items-start gap-3">
+        <input id={id} type="checkbox" className="mt-1" checked={on} onChange={(e) => onChange(e.target.checked)} />
+        <span className="min-w-0">
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            {icon}
+            {title}
+          </span>
+          <span className="block text-xs text-muted">{detail}</span>
+          <span className="mt-1 block text-[11px] text-sub">{status}</span>
         </span>
-        <span className="block text-xs text-muted">{detail}</span>
-        <span className="mt-1 block text-[11px] text-sub">{status}</span>
-      </span>
-    </label>
+      </label>
+      {children && <div className="mt-2 pl-7">{children}</div>}
+    </div>
   );
 }
+
+const TEAM_TARGETS = [0, 3, 5, 10, 15, 25, 50, 100, 250, 500];
 
 function HrAutopilot({ projects }: { projects: Game[] }) {
   const w = useWorld();
   const act = useGameStore((s) => s.act);
+  const navigate = useGameStore((s) => s.navigate);
   const [bulkTarget, setBulkTarget] = useState('');
   const hr = w.player.hr;
   const style = HR_SPENDING[hr.spending];
   const review = payReview(w);
   const floor = trainingFloor(w);
   const next = trainingQueue(w)[0];
-  const cash = playerCompany(w).cash;
+  const trainWait = next ? trainingWait(w, next.cost) : null;
+  const hiring = hireStatus(w);
   const idle = w.player.employees.filter((e) => ROLES[e.role].dev && !e.assignment).length;
   const trainedLately = w.player.employees.filter((e) => e.trainedDay !== undefined && w.day - e.trainedDay < 90).length;
-  const onCount = [w.player.autoAssign, hr.autoRaise, hr.autoTrain, hr.autoReplace].filter(Boolean).length;
+  const onCount = [hr.autoHire, hr.autoTrain, hr.autoRaise, w.player.autoAssign].filter(Boolean).length;
   const set = (patch: Parameters<typeof setHr>[1]) => act((world) => setHr(world, patch));
+  const toneText = (t: 'good' | 'warn' | 'neutral') => (t === 'good' ? 'text-good' : t === 'warn' ? 'text-warn' : undefined);
 
   return (
     <Card
@@ -241,20 +252,63 @@ function HrAutopilot({ projects }: { projects: Game[] }) {
           <Bot size={16} className="text-accent" /> HR autopilot
         </span>
       }
-      subtitle="Let HR run the day-to-day: give people jobs, train them up and keep their pay in line with their skill so nobody quits."
+      subtitle="Let HR run your people: hire to fill empty desks, train everyone's skill up, keep pay in line with skill so nobody quits, and give everyone a job."
       actions={<Badge tone={onCount === 4 ? 'good' : onCount > 0 ? 'accent' : 'neutral'}>{onCount}/4 on</Badge>}
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-2">
             <AutoToggle
-              id="auto-assign"
-              on={w.player.autoAssign}
-              onChange={(v) => act((world) => setAutoAssign(world, v))}
-              icon={<Briefcase size={14} />}
-              title="Auto jobs"
-              detail="Idle developers join the game that needs people most, a running update or a contract that is behind."
-              status={idle > 0 ? `${idle} idle right now` : 'Everyone has work'}
+              id="hr-auto-hire"
+              on={hr.autoHire}
+              onChange={(v) => set({ autoHire: v })}
+              icon={<UserPlus size={14} />}
+              title="Auto hiring"
+              detail="Every week HR hires the best candidates it can afford for the roles you're short on, and replaces anyone who quits."
+              status={<span className={toneText(hiring.tone)}>{hiring.text}</span>}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="hr-team-target" className="text-[11px] text-muted">
+                  Grow team to
+                </label>
+                <select id="hr-team-target" className={cx(inputClass, 'h-7 w-32 text-xs')} value={hr.teamTarget} onChange={(e) => set({ teamTarget: Number(e.target.value) })}>
+                  {TEAM_TARGETS.map((n) => (
+                    <option key={n} value={n}>
+                      {n === 0 ? 'Fill the office' : `${n} people`}
+                    </option>
+                  ))}
+                </select>
+                {hiring.office && (
+                  <Button size="sm" variant="ghost" onClick={() => navigate({ name: 'office' })}>
+                    Bigger office →
+                  </Button>
+                )}
+              </div>
+            </AutoToggle>
+            <AutoToggle
+              id="hr-auto-train"
+              on={hr.autoTrain}
+              onChange={(v) => set({ autoTrain: v })}
+              icon={<GraduationCap size={14} />}
+              title="Auto skill upgrades"
+              detail="Every month HR sends your least skilled developers on training, so their skill goes up. Each person trains once every 3 months."
+              status={
+                !hr.autoTrain || !next ? (
+                  `${trainedLately} trained in the last 3 months${next ? '' : ' · nobody due yet'}`
+                ) : trainWait === 'cash' ? (
+                  <span className="text-warn">
+                    Waiting for cash: {next.e.isFounder ? 'your' : `${next.e.name.split(' ')[0]}'s`} training costs {money(next.cost)} and {style.name.toLowerCase()} HR keeps {money(floor)} in the bank
+                  </span>
+                ) : trainWait === 'income' ? (
+                  <span className="text-warn">
+                    Waiting for income: {next.e.isFounder ? 'your' : `${next.e.name.split(' ')[0]}'s`} training costs {money(next.cost)}. While the studio is losing money HR only trains when cash is healthy, and spends at most 15% of it on one session.
+                  </span>
+                ) : (
+                  <span className="text-good">
+                    {trainedLately} trained in the last 3 months · next: {next.e.isFounder ? 'you' : next.e.name.split(' ')[0]} ({money(next.cost)})
+                  </span>
+                )
+              }
             />
             <AutoToggle
               id="hr-auto-raise"
@@ -274,32 +328,13 @@ function HrAutopilot({ projects }: { projects: Game[] }) {
               }
             />
             <AutoToggle
-              id="hr-auto-train"
-              on={hr.autoTrain}
-              onChange={(v) => set({ autoTrain: v })}
-              icon={<GraduationCap size={14} />}
-              title="Auto training"
-              detail="Sends your least skilled developers on training each month, as long as the studio has cash to spare."
-              status={
-                !hr.autoTrain || !next ? (
-                  `${trainedLately} trained in the last 3 months${next ? '' : ' · nobody due yet'}`
-                ) : cash - next.cost < floor ? (
-                  <span className="text-warn">
-                    Waiting for cash: {next.e.isFounder ? 'your' : `${next.e.name.split(' ')[0]}'s`} training costs {money(next.cost)} and {style.name.toLowerCase()} HR keeps {money(floor)} in the bank
-                  </span>
-                ) : (
-                  `${trainedLately} trained in the last 3 months · next: ${next.e.isFounder ? 'you' : next.e.name.split(' ')[0]} (${money(next.cost)})`
-                )
-              }
-            />
-            <AutoToggle
-              id="hr-auto-replace"
-              on={hr.autoReplace}
-              onChange={(v) => set({ autoReplace: v })}
-              icon={<UserPlus size={14} />}
-              title="Auto replace"
-              detail="If someone quits, HR hires the best candidate for the same job (recruiting fee applies)."
-              status={`${w.player.candidates.length} candidate${w.player.candidates.length === 1 ? '' : 's'} on file`}
+              id="auto-assign"
+              on={w.player.autoAssign}
+              onChange={(v) => act((world) => setAutoAssign(world, v))}
+              icon={<Briefcase size={14} />}
+              title="Auto jobs"
+              detail="Idle developers join the game that needs people most, a running update or a contract that is behind."
+              status={idle > 0 ? `${idle} idle right now` : 'Everyone has work'}
             />
           </div>
           <div>

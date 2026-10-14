@@ -12,6 +12,7 @@ import { expoDaily, investmentsDaily, licensesMonthly, policiesDaily, profitShar
 import { contractsDaily } from './contracts';
 import { infraDaily } from './infra';
 import { addXp, objectivesDaily } from './progression';
+import { hrHire } from './hr';
 import { refreshCandidates, researchDaily, staffDaily, staffMonthly } from './staff';
 import { engineDaily, engineWarsMonthly } from './studioEngine';
 import { certificationsWeekly, conventionDaily, facilitiesDaily, legendsDaily, legendsMonthly, storeDaily } from './fun';
@@ -161,6 +162,7 @@ export function advanceDay(w: World): void {
     objectivesDaily(w);
     if (w.day % 7 === 0) {
       certificationsWeekly(w);
+      hrHire(w);
       checkAchievements(w);
     }
   }
