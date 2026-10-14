@@ -1,3 +1,4 @@
+import { LaunchReveal } from './ui/components/LaunchReveal';
 import { EmpireScreen } from './ui/screens/Empire';
 import { useGameStore } from './store/gameStore';
 import { Layout } from './ui/components/Layout';
@@ -84,6 +85,7 @@ export default function App() {
       </Layout>
       <NotificationDrawer />
       <GameOverModal />
+      <LaunchReveal />
       <Toasts />
       <Confetti />
     </>

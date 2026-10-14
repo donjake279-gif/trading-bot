@@ -461,7 +461,8 @@ export function bugDensity(g: Game): number {
 
 // ------------------------------------------------------------ release
 
-export function releaseGame(w: World, g: Game): void {
+/** `reveal`: the player watches a launch-day reveal, which brings its own confetti. */
+export function releaseGame(w: World, g: Game, reveal = false): void {
   const c = w.companies[g.companyId];
   let q = baseQuality(w, g, c) + randNormal(w, 0, 4.5);
   let breakout = 1;
@@ -522,11 +523,13 @@ export function releaseGame(w: World, g: Game): void {
     tone: c.isPlayer ? (g.criticScore >= 70 ? 'good' : g.criticScore < 50 ? 'bad' : 'neutral') : isMajor ? 'major' : 'neutral',
   });
   if (c.isPlayer) {
-    if (g.criticScore >= 90) celebrate(w, `${g.criticScore}/100!`, g.criticScore >= 95);
+    if (g.criticScore >= 90 && !reveal) celebrate(w, `${g.criticScore}/100!`, g.criticScore >= 95);
     toast(w, `${g.title} launched! Critics: ${g.criticScore}/100`, g.criticScore >= 70 ? 'good' : g.criticScore < 50 ? 'bad' : 'neutral', {
       category: 'game',
       link: { route: 'game', id: g.id },
       body: online ? 'Keep an eye on your server load as players arrive.' : undefined,
+      // the launch-day reveal shows the score; keep this for the history only
+      silent: reveal,
     });
   }
 }

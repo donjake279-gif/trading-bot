@@ -1,10 +1,9 @@
 // Business management: company policies, investments, publishing deals with
-// independent studios, licensing income, GameExpo, seasonal sales and rivals.
-import { BENEFITS, EXPO_BOOTHS, GENRES, MONETIZATIONS, SCOPE_IDS, retainerCost } from './constants';
+// independent studios, licensing income, GameExpo and seasonal sales.
+import { BENEFITS, EXPO_BOOTHS, MONETIZATIONS, SCOPE_IDS, retainerCost } from './constants';
 import { saleActive, saleEndDay, parts, EXPO_DATE, SUMMER_SALE, HOLIDAY_SALE } from './calendar';
 import { addXp, perkRank } from './progression';
-import { marketCap } from './stocks';
-import type { ActionResult, BenefitsPolicy, Company, Game, HoursPolicy, Policies, QaPolicy, World } from './types';
+import type { ActionResult, BenefitsPolicy, Game, HoursPolicy, Policies, QaPolicy, World } from './types';
 import { activeCompanies, earn, gamesOf, hashString, newId, playerCompany, pushNews, spend, toast } from './util';
 
 // ------------------------------------------------------------ policies
@@ -244,33 +243,5 @@ export function salesDaily(w: World): void {
   }
   if (saleActive(w.day) && !saleActive(w.day - 1)) {
     pushNews(w, { kind: 'market', title: `The ${saleActive(w.day) === 'summer' ? 'Summer' : 'Holiday'} Sale is live`, body: 'Players flock to storefronts hunting for bargains.', tone: 'major' });
-  }
-}
-
-// ------------------------------------------------------------ rival
-
-export function updateRival(w: World): void {
-  const p = playerCompany(w);
-  const myGenres = new Set(gamesOf(w, p.id).map((g) => g.genre));
-  const myValue = Math.max(1, marketCap(p));
-  let best: Company | null = null;
-  let bestScore = -Infinity;
-  for (const c of activeCompanies(w)) {
-    if (c.isPlayer || c.parentId === p.id) continue;
-    const ratio = Math.max(1, marketCap(c)) / myValue;
-    const closeness = -Math.abs(Math.log(ratio));
-    const overlap = c.specialties.filter((s) => myGenres.has(s)).length;
-    const score = closeness + overlap * 0.6 + (ratio > 1 ? 0.3 : 0);
-    if (score > bestScore) {
-      best = c;
-      bestScore = score;
-    }
-  }
-  if (best && best.id !== w.player.rivalId) {
-    const first = w.player.rivalId === null;
-    w.player.rivalId = best.id;
-    if (!first) {
-      toast(w, `New rival: ${best.name}`, 'neutral', { category: 'industry', link: { route: 'company', id: best.id }, body: `They make ${best.specialties.map((s) => GENRES[s].name).join(', ')} games and are close to your size.` });
-    }
   }
 }

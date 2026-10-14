@@ -24,7 +24,8 @@ from pinned jsDelivr URLs through an import map, because the host only allows sc
 In that build, file downloads are blocked, so saves move between browsers with **Copy save code** and
 **Paste save code**.
 
-Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-game days per second).
+Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-game days per second), **N** skips
+ahead to the next thing that needs you (the ⏭ button does the same; press again to stop).
 
 ## What you can do
 
@@ -34,6 +35,13 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   The wizard projects how well your team covers what the genre needs, and estimates time, cost and fit.
 - **Develop.** Progress, bugs, polish, crunch (fast, but bad for morale and a scandal risk), marketing campaigns
   that build hype and wishlists, early release, cancellation.
+- **Launch day.** Pressing Release opens a reveal: five critics' reviews land one by one, then the score counts
+  up, with a verdict, confetti for a great score, a new-studio-record badge, breakout and combo callouts, and
+  your rival CEO's reaction. The game waits while you watch (or skip straight to the score). A week later a
+  first-week report card shows players, earnings and where the game ranks in its genre; #1 gets a celebration.
+- **Skip to the next event.** Fast-forward at full speed until something needs you: a decision in the inbox, a
+  game ready to release, a big moment (confetti), a major headline, or 180 quiet days. It stops paused and tells
+  you why. It runs in short slices, so the page stays smooth even on a huge late-game world.
 - **Less clicking.** Idle developers join the project that needs them most (toggle in Team). Put every idle
   developer, or the whole studio, on a game with one click. Queue several updates to run back to back, or switch
   on **auto-update** and the studio keeps a live game patched and fresh by itself.
@@ -129,7 +137,14 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
 - **Grow the business.** Take work-for-hire contracts between your own games. Set company policies (benefits,
   working hours, QA, profit sharing, a marketing retainer). Park cash in bonds or an index fund. Publish smaller
   studios' games for a revenue share. License your hits to film, merchandise and esports. Book GameExpo booths,
-  join the Summer and Holiday sales, and keep an eye on your rival studio.
+  join the Summer and Holiday sales.
+- **Rival bosses.** Your rival is the nearest studio worth at least 1.5× you, run by a CEO with a personality:
+  the Showboat, the Copycat, the Shark, the Grump or the Good Sport. They react to your launches, taunt you when
+  they pull ahead, cheer their own hits, and act in character: the Copycat clones your hits (same genre and
+  topic, suspiciously similar title) and the Shark ships their nearly-done game, unpolished, on your launch
+  day. The dashboard keeps the head-to-head record. Stay worth more than them for four weeks in a row (one
+  launch spike isn't enough) for +3 reputation and most of a level's XP, and a bigger rival steps up. If yours
+  goes bust or gets bought, that counts as a win too.
 - **Live with consequences.** Weekends and holidays move player counts. Great updates bring lapsed players back,
   flops trigger a month of backlash, shipping the same update over and over tires players, and popular games
   that go quiet for months feel abandoned. Hyped rival launches in your genre steal attention.
@@ -172,7 +187,8 @@ actions.
 | `empire.ts` | Empire levels: upkeep, antitrust and crises, critic expectations, rival pace, level challenges |
 | `ventures.ts` | Anti-cheat, consoles, AI lab, films and theme parks, and the rivals they race against |
 | `automation.ts` | Live-ops autopilot (update picks, ports, contract crews) and auto-assigning idle developers |
-| `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales, rival |
+| `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales |
+| `rivalry.ts`, `launch.ts`, `skip.ts` | Rival bosses (personas, quotes, clones, launch clashes, overtakes); first-week reports; skip to the next event |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |
 | `studioEngine.ts` | Your own engine: modules, versions, licensing, adoption by rivals, engine wars |
 | `topics.ts`, `reviews.ts`, `memes.ts` | Topics and the combo book, generated player reviews, viral moments |

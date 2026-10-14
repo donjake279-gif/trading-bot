@@ -3,9 +3,10 @@
 // `version`, which is bumped whenever the world changes.
 import { create } from 'zustand';
 import { advanceDay } from '../engine/tick';
+import { skipStep, startSkip, type SkipWatch } from '../engine/skip';
 import { createWorld, type NewGameOptions } from '../engine/world';
 import { deserializeWorld, loadFromSlot, saveToSlot } from '../engine/save';
-import type { ActionResult, NewsItem, NoticeCategory, NoticeLink, World } from '../engine/types';
+import type { ActionResult, LaunchNote, NewsItem, NoticeCategory, NoticeLink, World } from '../engine/types';
 
 export type Route =
   | { name: 'dashboard' }
@@ -48,6 +49,8 @@ export interface UiToast {
   at: number;
   /** How long the toast stays up (ms). */
   ttl: number;
+  /** Jumped the line: keeps its full time on screen even with a backlog. */
+  lead?: boolean;
   leaving?: boolean;
 }
 
@@ -78,6 +81,13 @@ interface GameStore {
   toastLevel: ToastLevel;
   celebrations: { id: string; title: string; big?: boolean }[];
   clearCelebration: (id: string) => void;
+  /** Launch-day reveals waiting to be shown. */
+  launches: LaunchNote[];
+  dismissLaunch: () => void;
+  /** Fast-forwarding to the next event; how many days so far. */
+  skipping: number | null;
+  skipToNext: () => void;
+  cancelSkip: () => void;
   lastAutosaveDay: number;
   lastSavedAt: number | null;
   error: string | null;
@@ -93,7 +103,8 @@ interface GameStore {
   back: () => void;
   act: (fn: (w: World) => ActionResult | void, successToast?: string) => ActionResult;
   bump: () => void;
-  pushToast: (title: string, tone?: NewsItem['tone'], body?: string) => void;
+  /** `first` jumps the line: the toast shows now and the rest wait behind it. */
+  pushToast: (title: string, tone?: NewsItem['tone'], body?: string, first?: boolean) => void;
   dismissToast: (id: string) => void;
   holdToast: (id: string, hold: boolean) => void;
   startToast: (id: string) => void;
@@ -122,6 +133,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toastLevel: readToastLevel(),
   celebrations: [],
   clearCelebration: (id) => set({ celebrations: get().celebrations.filter((c) => c.id !== id) }),
+  launches: [],
+  dismissLaunch: () => set({ launches: get().launches.slice(1) }),
+  skipping: null,
+  skipToNext: () => {
+    const s = get();
+    if (!s.world || s.world.player.gameOver || s.skipping !== null) return;
+    skipWatch = startSkip(s.world);
+    set({ skipping: 0, paused: false });
+  },
+  cancelSkip: () => {
+    if (get().skipping === null) return;
+    skipWatch = null;
+    set({ skipping: null });
+    get().setPaused(true);
+  },
   lastAutosaveDay: 0,
   lastSavedAt: null,
   error: null,
@@ -133,7 +159,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       try {
         const world = createWorld(opts);
         const slotId = `slot-${Date.now().toString(36)}`;
-        set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [] });
+        set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], skipping: null });
         void get().saveNow(slotId);
       } catch (e) {
         set({ status: 'menu', error: e instanceof Error ? e.message : String(e) });
@@ -144,7 +170,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadSlot: async (id) => {
     try {
       const world = await loadFromSlot(id);
-      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId: id, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], error: null });
+      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId: id, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], skipping: null, error: null });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
     }
@@ -154,7 +180,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const world = deserializeWorld(json);
       const slotId = `slot-${Date.now().toString(36)}`;
-      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], error: null });
+      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], skipping: null, error: null });
       void get().saveNow(slotId);
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
@@ -172,10 +198,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  setSpeed: (i) => set({ speed: i, paused: false }),
-  togglePause: () => get().setPaused(!get().paused),
+  setSpeed: (i) => {
+    skipWatch = null;
+    set({ speed: i, paused: false, skipping: null });
+  },
+  togglePause: () => {
+    if (get().skipping !== null) return get().cancelSkip();
+    get().setPaused(!get().paused);
+  },
   setPaused: (p) => {
     const s = get();
+    if (p && s.skipping !== null) {
+      skipWatch = null;
+      set({ skipping: null });
+    }
     if (p && !s.paused && s.world) {
       // show exactly where the game stopped, and save while nothing is running
       drainWorldToasts();
@@ -215,9 +251,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   bump: () => set({ version: get().version + 1 }),
 
-  pushToast: (title, tone = 'neutral', body) => {
-    const t: UiToast = { id: `ui${++toastSeq}`, title, body, tone, at: 0, ttl: toastTtl(tone, body) };
-    set({ toasts: limitToasts([...get().toasts, t]) });
+  pushToast: (title, tone = 'neutral', body, first = false) => {
+    const t: UiToast = { id: `ui${++toastSeq}`, title, body, tone, at: 0, ttl: toastTtl(tone, body), lead: first || undefined };
+    if (!first) return set({ toasts: limitToasts([...get().toasts, t]) });
+    const rest = get().toasts.filter((x) => !x.leaving).map((x) => ({ ...x, at: 0 }));
+    set({ toasts: [t, ...limitToasts(rest).slice(0, MAX_TOASTS - 1)] });
   },
   dismissToast: (id) => {
     const t = get().toasts.find((x) => x.id === id);
@@ -285,6 +323,10 @@ function limitToasts(list: UiToast[]): UiToast[] {
 function drainWorldToasts() {
   const s = useGameStore.getState();
   const w = s.world;
+  if (w && w.launches?.length) {
+    useGameStore.setState({ launches: [...useGameStore.getState().launches, ...w.launches].slice(-3) });
+    w.launches = [];
+  }
   if (w && w.celebrations?.length) {
     // only the latest few, so a fast-forward doesn't bury the screen in confetti
     useGameStore.setState({ celebrations: [...s.celebrations, ...w.celebrations].slice(-2) });
@@ -325,15 +367,47 @@ function renderInterval(speed: number): number {
   return speed >= 2 ? 200 : 100;
 }
 
+/** Skip mode: as many days as fit in a small time budget per tick, so the page stays responsive. */
+const SKIP_BUDGET_MS = 28;
+let skipWatch: SkipWatch | null = null;
+
+function skipTick(w: World) {
+  const s = useGameStore.getState();
+  if (!skipWatch) skipWatch = startSkip(w);
+  const start = performance.now();
+  let reason: string | null = null;
+  while (!reason && performance.now() - start < SKIP_BUDGET_MS) reason = skipStep(w, skipWatch);
+  const days = skipWatch.days;
+  const now = performance.now();
+  if (reason) {
+    // stop like a normal pause (redraw, maybe autosave), then say why
+    skipWatch = null;
+    lastRender = now;
+    useGameStore.setState({ skipping: null });
+    useGameStore.getState().setPaused(true);
+    useGameStore.getState().pushToast(`Skipped ${days} day${days === 1 ? '' : 's'}`, 'neutral', reason, true);
+    return;
+  }
+  if (now - lastRender >= 200) {
+    lastRender = now;
+    drainWorldToasts();
+    useGameStore.setState({ skipping: days, version: s.version + 1 });
+  }
+}
+
 function loop() {
   const s = useGameStore.getState();
   const w = s.world;
   if (!w || s.status !== 'playing') return;
   if (w.player.gameOver) {
-    if (!s.paused) useGameStore.setState({ paused: true });
+    if (!s.paused) useGameStore.setState({ paused: true, skipping: null });
     return;
   }
   if (s.paused) return;
+  if (s.skipping !== null) {
+    skipTick(w);
+    return;
+  }
   accumulator += SPEEDS[s.speed].dps * (TICK_MS / 1000);
   let days = Math.floor(accumulator);
   if (days <= 0) return;

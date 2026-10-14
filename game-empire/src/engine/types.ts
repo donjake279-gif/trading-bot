@@ -557,6 +557,21 @@ export interface PlayerState {
   empire: EmpireState;
   ventures: Ventures;
   liveOps: LiveOpsSettings;
+  rivalry: RivalryState;
+}
+
+export interface RivalryState {
+  /** Head-to-head record per rival: your launches against theirs. */
+  records: Record<string, { won: number; lost: number }>;
+  /** Have you overtaken your current rival (and not lost the lead since)? */
+  ahead: boolean;
+  /** Weekly checks in a row you were worth more than your rival. */
+  leadWeeks: number;
+  /** Rivals you overtook or outlasted. */
+  beaten: string[];
+  lastTauntDay: number;
+  /** Recent trash talk, newest first. */
+  quotes: { day: number; companyId: string; text: string }[];
 }
 
 export interface LiveOpsSettings {
@@ -832,6 +847,16 @@ export interface World {
   awardArchive: AwardSeason[];
   /** Big moments for the UI to celebrate (confetti); drained by the store. */
   celebrations: { id: string; title: string; big?: boolean }[];
+  /** Player releases waiting for their launch-day reveal; drained by the store, never saved. */
+  launches?: LaunchNote[];
+}
+
+export interface LaunchNote {
+  gameId: string;
+  /** Best critic score before this launch, for "new studio record". */
+  prevBest: number;
+  /** What your rival had to say about it. */
+  rivalLine?: string;
 }
 
 export type AwardCategoryId =

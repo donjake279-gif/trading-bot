@@ -175,7 +175,7 @@ export function Modal({ open, onClose, title, children, wide, footer }: { open: 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={cx('max-h-[90vh] w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl', wide ? 'max-w-4xl' : 'max-w-lg')}>
+      <div role="dialog" aria-modal="true" className={cx('max-h-[90vh] w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl', wide ? 'max-w-4xl' : 'max-w-lg')}>
         <div className="flex items-center justify-between border-b border-line-soft px-5 py-3.5">
           <h2 className="text-base font-semibold">{title}</h2>
           {onClose && (

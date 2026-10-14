@@ -131,18 +131,21 @@ const CRITIC_GOOD = [
   'Easy to recommend, hard to put down.',
   'Not perfect, but it nails the things that matter.',
   'Smart design wrapped in a lovely package.',
+  'Solid all the way through, with a few moments of real magic.',
 ];
 const CRITIC_MIXED = [
   'Moments of brilliance buried under some odd decisions.',
   'Fans of {genre} will find plenty here. Everyone else, wait for a sale.',
   'Ambitious, uneven, occasionally great.',
   'Fun in short bursts, tiring in long ones.',
+  'Good ideas, average execution.',
 ];
 const CRITIC_BAD = [
   'A rough launch that needed another year in the oven.',
   'There is a good game somewhere in here. We could not find it.',
   'Frustrating, buggy and strangely empty.',
   'We wanted to like it. It did not want to be liked.',
+  'Hard to recommend at any price.',
 ];
 const CRITIC_BUGS = ['Bugs everywhere, but some of them are hilarious.', 'Crashed four times during our review. Twice on purpose, we think.'];
 
@@ -159,7 +162,9 @@ export function criticReviews(g: Game, count = 5): CriticReview[] {
     // every outlet gets its own line
     let k = (h >>> 4) % pool.length;
     for (let tries = 0; tries < pool.length && used.has(pool[k]); tries++) k = (k + 1) % pool.length;
-    const pick = used.has(pool[k]) ? [...CRITIC_RAVE, ...CRITIC_GOOD, ...CRITIC_MIXED].find((q) => !used.has(q)) ?? pool[k] : pool[k];
+    // a pool that ran dry borrows from the nearest tone, never a rave for a mediocre score
+    const near = score >= 70 ? [...CRITIC_GOOD, ...CRITIC_RAVE, ...CRITIC_MIXED] : [...CRITIC_MIXED, ...CRITIC_BAD, ...CRITIC_GOOD];
+    const pick = used.has(pool[k]) ? near.find((q) => !used.has(q)) ?? pool[k] : pool[k];
     used.add(pick);
     out.push({ outlet, score, quote: fill(pick, g) });
   }

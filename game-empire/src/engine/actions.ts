@@ -1,5 +1,6 @@
 // Player actions. Every UI interaction that changes the world goes through
 // here; each validates its preconditions and returns an ActionResult.
+import { rivalReactToLaunch } from './rivalry';
 import {
   CAMPAIGNS,
   ENGINES,
@@ -154,7 +155,10 @@ export function releasePlayerGame(w: World, gameId: string): ActionResult {
   const g = ownGame(w, gameId);
   if (!g || g.status !== 'development') return fail('Not in development.');
   if (g.workDone < g.workRequired * 0.75) return fail('The game must be at least 75% complete to ship.');
-  releaseGame(w, g);
+  const prevBest = w.player.stats.bestCritic;
+  releaseGame(w, g, true);
+  const rivalLine = rivalReactToLaunch(w, g);
+  (w.launches ??= []).push({ gameId: g.id, prevBest, rivalLine: rivalLine ?? undefined });
   return ok();
 }
 

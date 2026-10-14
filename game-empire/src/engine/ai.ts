@@ -250,7 +250,7 @@ function projectCostEstimate(c: Company, scope: ScopeId, team: number, w: World,
   return team * (c.avgSalary + 1100) * (days / 30) * 0.6 + (params ? params.budget : SCOPES[scope].budget);
 }
 
-function startProject(w: World, c: Company, idle: number): boolean {
+function startProject(w: World, c: Company, idle: number, shape?: (p: GameParams) => GameParams): boolean {
   const strat = STRATEGIES[c.strategy];
   const cash = c.cash;
   const monthlyRev = recentRevenue(c, 3) / 3;
@@ -273,7 +273,8 @@ function startProject(w: World, c: Company, idle: number): boolean {
   // occasionally pick one scope smaller for variety
   if (SCOPE_IDS.indexOf(chosen) > 0 && chance(w, 0.25)) chosen = SCOPE_IDS[SCOPE_IDS.indexOf(chosen) - 1];
 
-  let params = chooseConcept(w, c, chosen);
+  const concept = (scope: ScopeId) => (shape ? shape(chooseConcept(w, c, scope)) : chooseConcept(w, c, scope));
+  let params = concept(chosen);
   // staff the project so it ships in a sensible time; downscale if impossible
   const speed = Math.pow(c.talent / 50, 0.8) * 1.05;
   let team = 0;
@@ -285,7 +286,7 @@ function startProject(w: World, c: Company, idle: number): boolean {
     const days = work / Math.max(0.5, team * speed);
     if (days <= 820 || SCOPE_IDS.indexOf(params.scope) === 0) break;
     const smaller = SCOPE_IDS[SCOPE_IDS.indexOf(params.scope) - 1];
-    params = chooseConcept(w, c, smaller);
+    params = concept(smaller);
   }
   const upfront = upfrontCosts(w, params, false);
   if (upfront > c.cash * 0.5) params.engine = 'titan';
@@ -308,6 +309,15 @@ function startProject(w: World, c: Company, idle: number): boolean {
     });
   }
   return true;
+}
+
+/** A rival clones a hit: same genre and topic, a suspiciously similar title. */
+export function startCloneProject(w: World, c: Company, source: Game, title: string): Game | null {
+  const idle = Math.max(c.headcount - allocatedStaff(w, c) - liveOpsReserve(w, c), Math.round(c.headcount * 0.25), 1);
+  const ok = startProject(w, c, idle, (p) => ({ ...p, title, genre: source.genre, topic: source.topic, ipId: undefined, remasterOf: null, focus: aiFocus(w, source.genre, c.talent) }));
+  if (!ok) return null;
+  const mine = gamesOf(w, c.id);
+  return mine[mine.length - 1] ?? null;
 }
 
 // ------------------------------------------------------------ live ops

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Award, Bell, ChartCandlestick, Cpu, Crown, FlaskConical, Gamepad2, Globe, Inbox, Landmark, LayoutDashboard, Menu, Newspaper, Pause, Play, Server, Settings, Star, Swords, Target, Trophy, Users, X } from 'lucide-react';
+import { Award, Bell, ChartCandlestick, Cpu, Crown, FlaskConical, Gamepad2, Globe, Inbox, Landmark, LayoutDashboard, Menu, Newspaper, Pause, Play, Server, Settings, SkipForward, Star, Swords, Target, Trophy, Users, X } from 'lucide-react';
 import { SPEEDS, useGameStore, useWorld, type Route } from '../../store/gameStore';
 import { playerCompany } from '../../engine/util';
 import { founderStake } from '../../engine/stocks';
@@ -97,6 +97,9 @@ function SpeedControls() {
   const paused = useGameStore((s) => s.paused);
   const setSpeed = useGameStore((s) => s.setSpeed);
   const togglePause = useGameStore((s) => s.togglePause);
+  const skipping = useGameStore((s) => s.skipping);
+  const skipToNext = useGameStore((s) => s.skipToNext);
+  const cancelSkip = useGameStore((s) => s.cancelSkip);
   const w = useWorld();
   const blocked = !!w.player.gameOver;
   useEffect(() => {
@@ -107,12 +110,16 @@ function SpeedControls() {
         e.preventDefault();
         togglePause();
       } else if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) setSpeed(Number(e.code.slice(5)) - 1);
+      else if (e.code === 'KeyN') {
+        if (useGameStore.getState().skipping !== null) cancelSkip();
+        else skipToNext();
+      }
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [togglePause, setSpeed]);
+  }, [togglePause, setSpeed, skipToNext, cancelSkip]);
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1" title="Space: pause · 1-4: speed">
+    <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1" title="Space: pause · 1-4: speed · N: skip to next event">
       <button
         onClick={togglePause}
         disabled={blocked}
@@ -126,11 +133,21 @@ function SpeedControls() {
           key={s.label}
           disabled={blocked}
           onClick={() => setSpeed(i)}
-          className={cx('h-7 rounded-md px-2 text-xs font-semibold tabular', !paused && speed === i ? 'bg-accent text-white' : 'text-sub hover:text-ink', blocked && 'opacity-40')}
+          className={cx('h-7 rounded-md px-2 text-xs font-semibold tabular', !paused && skipping === null && speed === i ? 'bg-accent text-white' : 'text-sub hover:text-ink', blocked && 'opacity-40')}
         >
           {s.label}
         </button>
       ))}
+      <button
+        disabled={blocked}
+        onClick={() => (skipping !== null ? cancelSkip() : skipToNext())}
+        className={cx('flex h-7 items-center gap-1 rounded-md px-2 text-xs font-semibold', skipping !== null ? 'bg-accent text-white' : 'text-sub hover:text-ink', blocked && 'opacity-40')}
+        title={skipping !== null ? 'Stop skipping' : 'Skip to the next event (N)'}
+        aria-label={skipping !== null ? 'Stop skipping' : 'Skip to next event'}
+      >
+        <SkipForward size={14} className={skipping !== null ? 'animate-pulse' : undefined} />
+        {skipping !== null && <span className="tabular">{skipping}d</span>}
+      </button>
     </div>
   );
 }

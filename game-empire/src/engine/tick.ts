@@ -8,11 +8,13 @@ import { awardsDaily } from './awards';
 import { boardMonthly, expireDecisions, hitFeedback, macroDay, playerSolvency, randomEvents, resolveAuctions } from './events';
 import { computeValuation, dailyCosts, monthlyBurn, monthlyClose, recordCash, updateIpFans } from './finance';
 import { marketDay, playerGameAlerts, totalActivePlayers } from './market';
-import { expoDaily, investmentsDaily, licensesMonthly, policiesDaily, profitSharingMonthly, publishingDaily, salesDaily, updateRival } from './business';
+import { expoDaily, investmentsDaily, licensesMonthly, policiesDaily, profitSharingMonthly, publishingDaily, salesDaily } from './business';
 import { contractsDaily } from './contracts';
 import { infraDaily } from './infra';
 import { addXp, objectivesDaily } from './progression';
 import { hrHire } from './hr';
+import { ensureNemesis, rivalryDaily } from './rivalry';
+import { firstWeekReports } from './launch';
 import { empireMonthly, empireWeekly } from './empire';
 import { venturesDaily, venturesMonthly } from './ventures';
 import { refreshCandidates, researchDaily, staffDaily, staffMonthly } from './staff';
@@ -143,7 +145,7 @@ export function advanceDay(w: World): void {
       boardMonthly(w);
       if (w.day - w.player.candidatesRefreshDay >= 28) refreshCandidates(w);
       legendsMonthly(w);
-      updateRival(w);
+      ensureNemesis(w);
       w.player.stats.totalRevenue = player.revenueTotal;
     }
     let rev = 0;
@@ -158,6 +160,8 @@ export function advanceDay(w: World): void {
   if (hasPlayer) {
     memesDaily(w);
     jamDaily(w);
+    rivalryDaily(w);
+    firstWeekReports(w);
     objectivesDaily(w);
     if (w.day % 7 === 0) {
       certificationsWeekly(w);

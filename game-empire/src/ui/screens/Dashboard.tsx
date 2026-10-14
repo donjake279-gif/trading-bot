@@ -1,3 +1,4 @@
+import { HOLD_WEEKS, PERSONAS, overtakeXp, personaOf, rivalRecord } from '../../engine/rivalry';
 import { acEffectiveness, aiLead, consolePowerRatio } from '../../engine/ventures';
 import { payReview } from '../../engine/hr';
 import { CalendarDays, CircleCheck, Trophy, Gamepad2, Inbox, Plus, Rocket, Server, Sparkles, Swords, Tag, Target, TriangleAlert, Users, Wallet, X } from 'lucide-react';
@@ -12,7 +13,6 @@ import { joinSale } from '../../engine/business';
 import { readyForVersion } from '../../engine/studioEngine';
 import { playerNominations } from '../../engine/awards';
 import { saleActive, saleEndDay, upcomingEvents } from '../../engine/calendar';
-import { marketCap } from '../../engine/stocks';
 import { GoalCard } from './Goals';
 import { DecisionCard } from '../components/Overlays';
 import { LoadGauge } from './Servers';
@@ -41,7 +41,7 @@ function Checklist() {
   return (
     <Card
       title={`Getting started · ${done}/${steps.length}`}
-      subtitle="Your first steps toward an empire. Press Space to pause/resume, 1–4 to change speed."
+      subtitle="Your first steps toward an empire. Press Space to pause/resume, 1–4 to change speed, N to skip to the next event."
       actions={
         <button onClick={() => act(dismissTutorial)} className="rounded p-1 text-muted hover:text-ink" aria-label="Dismiss">
           <X size={16} />
@@ -271,18 +271,29 @@ function RivalCard() {
   const rival = w.player.rivalId ? w.companies[w.player.rivalId] : null;
   if (!rival || rival.status !== 'active') {
     return (
-      <Card title="Rival" subtitle="A studio close to your size">
+      <Card title="Rival" subtitle="A bigger studio to chase">
         <Empty icon={<Swords size={22} />} title="Your rival will be picked at the start of next month" />
       </Card>
     );
   }
   const rows: { label: string; mine: number; theirs: number; fmt: (n: number) => string }[] = [
-    { label: 'Value', mine: marketCap(me), theirs: marketCap(rival), fmt: (n) => money(n) },
+    { label: 'Value', mine: me.valuation, theirs: rival.valuation, fmt: (n) => money(n) },
     { label: 'Revenue (30d)', mine: companyRev30(w, me.id), theirs: companyRev30(w, rival.id), fmt: (n) => money(n) },
     { label: 'Players online', mine: companyCcu(w, me.id), theirs: companyCcu(w, rival.id), fmt: (n) => num(n) },
     { label: 'Reputation', mine: me.reputation, theirs: rival.reputation, fmt: (n) => String(Math.round(n)) },
   ];
-  const wins = rows.filter((r) => r.mine > r.theirs).length;
+  const persona = PERSONAS[personaOf(rival)];
+  const rec = rivalRecord(w, rival.id);
+  const quote = w.player.rivalry?.quotes.find((q) => q.companyId === rival.id);
+  const race = w.player.rivalry;
+  const reward = `+3 reputation and ${overtakeXp(w).toLocaleString()} XP`;
+  const subtitle = race?.ahead
+    ? 'You are worth more. They want that spot back.'
+    : me.valuation > rival.valuation
+      ? race?.leadWeeks
+        ? `Ahead ${race.leadWeeks} of ${HOLD_WEEKS} weeks. Hold the lead to win ${reward}.`
+        : `You pulled ahead. Hold the lead for ${HOLD_WEEKS} weeks to win ${reward}.`
+      : `Worth more than you. Stay ahead of them for ${HOLD_WEEKS} weeks to win ${reward}.`;
   return (
     <Card
       title={
@@ -290,13 +301,30 @@ function RivalCard() {
           <Swords size={14} className="text-s2" /> Rival: {rival.name}
         </span>
       }
-      subtitle={wins >= 3 ? 'You are pulling ahead.' : wins <= 1 ? 'They are ahead. Time to catch up.' : 'Neck and neck.'}
+      subtitle={subtitle}
       actions={
         <Button size="sm" variant="ghost" onClick={() => navigate({ name: 'company', id: rival.id })}>
           View
         </Button>
       }
     >
+      <div className="mb-3 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl" style={{ background: `${rival.color}33` }} title={persona.blurb}>
+          {persona.emoji}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <span className="text-sm font-semibold">{rival.ceo}</span>
+            <span className="text-[11px] text-muted tabular" title="Your launches against theirs">
+              Head to head {rec.won}–{rec.lost}
+            </span>
+          </div>
+          <div className="text-[11px] text-muted">
+            CEO · {persona.name}
+          </div>
+          <div className="mt-1 text-xs italic text-sub">{quote ? `“${quote.text}”` : persona.blurb}</div>
+        </div>
+      </div>
       <div className="space-y-2.5">
         {rows.map((r) => {
           const total = Math.max(1e-9, Math.max(0, r.mine) + Math.max(0, r.theirs));

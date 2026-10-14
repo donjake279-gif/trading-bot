@@ -120,7 +120,7 @@ function writeIndex(list: SlotMeta[]): void {
 }
 
 export function serializeWorld(w: World): string {
-  return JSON.stringify({ ...w, toasts: [], celebrations: [] });
+  return JSON.stringify({ ...w, toasts: [], celebrations: [], launches: [] });
 }
 
 export function deserializeWorld(json: string): World {
@@ -162,8 +162,13 @@ function migrate(w: World): void {
   w.player.lifelinesUsed ??= 0;
   const extras = playerExtras();
   const pl = w.player as unknown as Record<string, unknown>;
+  const hadRivalry = pl.rivalry !== undefined;
   for (const [k, v] of Object.entries(extras)) if (pl[k] === undefined) pl[k] = v;
   if ((w.version ?? 0) < 4) migrateEngine(w);
+  // an older save keeps its rival; record where you stand so loading isn't a free "overtook" reward
+  const oldRival = w.player.rivalId ? w.companies[w.player.rivalId] : null;
+  if (!hadRivalry && oldRival) w.player.rivalry.ahead = (w.companies[w.player.companyId]?.valuation ?? 0) > oldRival.valuation;
+  w.player.rivalry.leadWeeks ??= 0;
   const hr = w.player.hr as HrSettings & { autoReplace?: boolean };
   hr.autoHire ??= true;
   hr.teamTarget ??= 0;

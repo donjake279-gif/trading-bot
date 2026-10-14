@@ -81,7 +81,7 @@ export function Toasts() {
       if (!cur) return;
       if (cur.at === 0) return start(cur.id);
       // move faster through a backlog
-      const ttl = list.length > 1 ? Math.min(cur.ttl, 2600) : cur.ttl;
+      const ttl = list.length > 1 && !cur.lead ? Math.min(cur.ttl, 2600) : cur.ttl;
       if (Date.now() - cur.at > ttl) dismiss(cur.id);
     };
     tick();
@@ -90,7 +90,7 @@ export function Toasts() {
   }, [toasts.length, dismiss, start]);
   useEffect(() => setExpanded(false), [head?.id]);
   if (drawer || !head) return null;
-  const ttl = queued > 0 ? Math.min(head.ttl, 2600) : head.ttl;
+  const ttl = queued > 0 && !head.lead ? Math.min(head.ttl, 2600) : head.ttl;
   return (
     <div
       className="pointer-events-none fixed left-[52px] right-2 z-[60] flex justify-end sm:left-auto sm:right-[84px]"

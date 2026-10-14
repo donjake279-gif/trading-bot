@@ -196,14 +196,22 @@ describe('business', () => {
   });
 
   it('policies cost money and lift morale', () => {
-    const w = createWorld(opts);
-    for (const k of w.player.candidates.slice(0, 3)) hire(w, k.id);
-    expect(policyMonthlyCost(w)).toBe(0);
-    setPolicies(w, { benefits: 'premium', retainer: true });
-    expect(policyMonthlyCost(w)).toBeGreaterThan(1300 * 3);
-    advanceDays(w, 95);
-    const staff = w.player.employees.filter((e) => !e.isFounder);
-    expect(staff.reduce((s, e) => s + e.morale, 0) / staff.length).toBeGreaterThan(70);
+    const morale = (premium: boolean) => {
+      const w = createWorld(opts);
+      for (const k of w.player.candidates.slice(0, 3)) hire(w, k.id);
+      expect(policyMonthlyCost(w)).toBe(0);
+      if (premium) {
+        setPolicies(w, { benefits: 'premium', retainer: true });
+        expect(policyMonthlyCost(w)).toBeGreaterThan(1300 * 3);
+      }
+      advanceDays(w, 95);
+      const staff = w.player.employees.filter((e) => !e.isFounder);
+      return staff.reduce((s, e) => s + e.morale, 0) / staff.length;
+    };
+    const basic = morale(false);
+    const premium = morale(true);
+    expect(premium).toBeGreaterThan(basic + 5);
+    expect(premium).toBeGreaterThan(60);
   });
 });
 

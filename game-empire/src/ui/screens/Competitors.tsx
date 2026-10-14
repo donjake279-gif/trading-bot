@@ -1,3 +1,4 @@
+import { PERSONAS, personaOf } from '../../engine/rivalry';
 import { useState } from 'react';
 import { Briefcase, Handshake, ShoppingCart } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
@@ -154,7 +155,7 @@ export function CompanyDetail({ id }: { id: string }) {
         {c.id === w.player.rivalId && <Badge tone="warn">Your rival</Badge>}
         <Badge>{STRATEGIES[c.strategy].name}</Badge>
         <span>
-          CEO {c.ceo} · {c.hq} · founded {date(c.founded)}
+          CEO {c.ceo} <span title={PERSONAS[personaOf(c)].blurb}>({PERSONAS[personaOf(c)].emoji} {PERSONAS[personaOf(c)].name})</span> · {c.hq} · founded {date(c.founded)}
         </span>
       </div>
       <p className="text-sm text-muted">{STRATEGIES[c.strategy].blurb} Known for {c.specialties.map((s) => GENRES[s].name).join(', ')}.</p>
