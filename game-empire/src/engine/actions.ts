@@ -30,7 +30,7 @@ import { randInt, randRange } from './rng';
 import { makeEmployee, recruitFee, refreshCandidates } from './staff';
 import { perkRank } from './progression';
 import { acquireCompany, acquisitionPrice, buyShares, floatShares, ipoCompany, marketCap, sellShares } from './stocks';
-import type { ActionResult, CampaignId, Company, Game, MonetizationId, PlatformId, QueuedUpdate, ResearchId, StrategyId, UpdateTypeId, World, Focus } from './types';
+import type { ActionResult, CampaignId, Company, Focus, Game, LiveOpsSettings, MonetizationId, PlatformId, QueuedUpdate, ResearchId, StrategyId, UpdateTypeId, World } from './types';
 import { startUpdateRecord, updateCost } from './updates';
 import { addGame, clamp, newId, playerCompany, pushNews, toast } from './util';
 
@@ -256,6 +256,14 @@ export function setAutoUpdates(w: World, gameId: string, on: boolean): ActionRes
   const g = ownGame(w, gameId);
   if (!g || g.status !== 'released') return fail('Game is not live.');
   g.autoUpdates = on;
+  g.manualUpdates = !on;
+  return ok();
+}
+
+/** Studio-wide live ops: auto-update every game, and hire a crew when developers are busy. */
+export function setLiveOps(w: World, patch: Partial<LiveOpsSettings>): ActionResult {
+  Object.assign(w.player.liveOps, patch);
+  if (patch.auto) for (const g of Object.values(w.games)) if (g.companyId === w.player.companyId) g.manualUpdates = false;
   return ok();
 }
 

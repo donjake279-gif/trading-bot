@@ -124,13 +124,14 @@ export function trainingFloor(w: World): number {
   return Math.max(style.reserve, burn * style.runway);
 }
 
-/** Why HR can't pay for a training right now, or null if it can. While the
- * studio is losing money a session may cost at most 15% of the cash. */
+/** Why HR can't pay for a training right now, or null if it can. Training waits
+ * until the studio earns more than it spends (Generous HR is bolder). */
 export function trainingWait(w: World, cost: number): 'cash' | 'income' | null {
   const p = playerCompany(w);
   if (!p || p.cash - cost < trainingFloor(w)) return 'cash';
   if (struggling(w)) return 'income';
-  if (!profitable(w, p) && cost > p.cash * 0.15) return 'income';
+  // until the studio makes money only Generous HR trains (and spends at most 15% of cash on a session)
+  if (!profitable(w, p) && (w.player.hr.spending !== 'generous' || cost > p.cash * 0.15)) return 'income';
   return null;
 }
 
@@ -238,9 +239,12 @@ function minSkill(w: World): number {
 /** Income HR can count on: the lower of the 6-month and 2-month averages, so a
  * hit that is fading doesn't look like steady money. */
 function recentIncome(p: Company): number {
+  // a brand-new studio has no track record yet
+  if (p.monthly.length < 3) return 0;
+  // business income only: one-off windfalls (prizes, payouts) and investment gains don't pay salaries
   const avg = (n: number) => {
     const recent = p.monthly.slice(-n);
-    return recent.length ? recent.reduce((s, m) => s + m.revenue, 0) / recent.length : 0;
+    return recent.reduce((s, m) => s + Math.max(0, m.revenue - (m.ledger?.other ?? 0) - (m.ledger?.investments ?? 0)), 0) / recent.length;
   };
   return Math.min(avg(6), avg(2));
 }
@@ -249,18 +253,20 @@ function profitable(w: World, p: Company): boolean {
   return recentIncome(p) >= monthlyBurn(w, p);
 }
 
-/** Losing money with less runway than the spending style likes: HR tightens its belt. */
+/** Low on cash, or losing money with less runway than the spending style likes: HR tightens its belt. */
 export function struggling(w: World): boolean {
   const p = playerCompany(w);
   if (!p) return false;
-  const loss = monthlyBurn(w, p) - recentIncome(p);
-  return p.cash < 0 || (loss > 0 && p.cash / loss < HR_SPENDING[w.player.hr?.spending ?? 'balanced'].hireRunway);
+  const burn = monthlyBurn(w, p);
+  const loss = burn - recentIncome(p);
+  // less than two months of costs in the bank, or losing money with short runway
+  return p.cash < burn * 2 || (loss > 0 && p.cash / loss < HR_SPENDING[w.player.hr?.spending ?? 'balanced'].hireRunway);
 }
 
 /** Is there anything for new people to work on? */
 export function hasWork(w: World): boolean {
   const id = w.player.companyId;
-  return w.player.contracts.length > 0 || Object.values(w.games).some((g) => g.companyId === id && (g.status === 'development' || (g.status === 'released' && !!g.update)));
+  return w.player.contracts.length > 0 || Object.values(w.games).some((g) => g.companyId === id && g.status === 'development');
 }
 
 /** Can the studio carry another salary? A cushion of months of costs in the
@@ -284,14 +290,25 @@ function score(w: World, k: Candidate): number {
 /** The candidate HR would hire next, ignoring money. */
 export function nextHire(w: World): Candidate | null {
   const min = minSkill(w);
-  const pool = w.player.candidates.filter((k) => k.skill >= min);
+  const pool = w.player.candidates.filter((k) => k.skill >= min && fitsTeam(w, k));
   pool.sort((a, b) => score(w, b) - score(w, a));
   return pool[0] ?? null;
 }
 
+const CORE_ROLES: RoleId[] = ['programmer', 'artist', 'designer'];
+
+/** Small teams hire the people who make games first, and nobody hires developers while some sit idle. */
+function fitsTeam(w: World, k: Candidate): boolean {
+  if (ROLES[k.role].dev && w.player.employees.some((e) => !e.isFounder && ROLES[e.role].dev && !e.assignment)) return false;
+  const heads = w.player.employees.length;
+  if (heads < 4) return CORE_ROLES.includes(k.role);
+  if (heads < 6) return ROLES[k.role].dev && k.role !== 'producer';
+  return true;
+}
+
 function bestAffordable(w: World, p: Company): Candidate | null {
   const min = minSkill(w);
-  const pool = w.player.candidates.filter((k) => k.skill >= min && affordable(w, p, k.salary, recruitFee(w, k.salary)));
+  const pool = w.player.candidates.filter((k) => k.skill >= min && fitsTeam(w, k) && affordable(w, p, k.salary, recruitFee(w, k.salary)));
   pool.sort((a, b) => score(w, b) - score(w, a));
   return pool[0] ?? null;
 }
@@ -306,7 +323,7 @@ export function hireStatus(w: World): { text: string; tone: 'good' | 'warn' | 'n
   if (!hr.autoHire) return { text: `${Math.max(0, limit - heads)} open desk${limit - heads === 1 ? '' : 's'}`, tone: 'neutral' };
   if (heads >= cap) return { text: `Office full (${heads}/${cap}). Move to a bigger office so HR can keep hiring.`, tone: 'warn', office: true };
   if (heads >= limit) return { text: `At your target of ${limit} people`, tone: 'good' };
-  if (p && !profitable(w, p) && !hasWork(w)) return { text: 'Waiting for work: start a game or take a contract and HR will staff it.', tone: 'neutral' };
+  if (!hasWork(w)) return { text: 'Waiting for work: start a game or take a contract and HR will staff it.', tone: 'neutral' };
   const next = nextHire(w);
   const refresh = Math.max(0, 28 - (w.day - w.player.candidatesRefreshDay));
   if (!next) return { text: `No good candidates right now. New ones in ${refresh} day${refresh === 1 ? '' : 's'}.`, tone: 'neutral' };
@@ -324,8 +341,8 @@ export function hrHire(w: World): void {
   const hr = w.player.hr;
   const p = playerCompany(w);
   if (!hr?.autoHire || !p || p.status !== 'active') return;
-  // a studio that isn't making money only hires when there is work to do
-  if (!profitable(w, p) && !hasWork(w)) return;
+  // HR only hires when there is something for new people to work on
+  if (!hasWork(w)) return;
   const limit = hireLimit(w);
   const perWeek = 1 + Math.floor(w.player.employees.length / 8);
   const hired: Candidate[] = [];
@@ -333,7 +350,7 @@ export function hrHire(w: World): void {
   while (hired.length < perWeek && w.player.employees.length < limit) {
     let k = bestAffordable(w, p);
     // pool is dry: a busy studio with cash pays a headhunter (at most every two weeks)
-    if (!k && !headhunted && limit - w.player.employees.length >= 2 && w.day - w.player.candidatesRefreshDay >= 14 && p.cash > recruiterCost(w) * 15) {
+    if (!k && !headhunted && w.player.employees.length >= 10 && profitable(w, p) && limit - w.player.employees.length >= 2 && w.day - w.player.candidatesRefreshDay >= 14 && p.cash > recruiterCost(w) * 30) {
       headhunted = true;
       if (paidRefresh(w).ok) {
         log(w, 'Paid a headhunter for fresh candidates');

@@ -6,6 +6,7 @@ import { personName } from './names';
 import { opportunitiesDaily, resolveOpportunity } from './opportunities';
 import { resolveMeme } from './memes';
 import { resolveJam } from './jam';
+import { resolveEmpire } from './empire';
 import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
 import { acquireCompany, founderStake, marketCap } from './stocks';
 import type { DecisionEvent, Game, GenreId, World } from './types';
@@ -439,7 +440,7 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
       break;
     }
     default:
-      if (!resolveOpportunity(w, ev, optionId) && !resolveMeme(w, ev, optionId)) resolveJam(w, ev, optionId);
+      if (!resolveOpportunity(w, ev, optionId) && !resolveMeme(w, ev, optionId) && !resolveEmpire(w, ev, optionId)) resolveJam(w, ev, optionId);
   }
 }
 

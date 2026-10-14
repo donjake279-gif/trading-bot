@@ -7,7 +7,7 @@ import { ROLES, focus } from '../constants';
 import { fixAllPay, hireStatus, hrHire, hrMonthly, hrReplace, marketPay, needsRaise, payFairly, payGrade, payRatio, payReview, setHr } from '../hr';
 import { staffMonthly } from '../staff';
 import type { World } from '../types';
-import { playerCompany } from '../util';
+import { emptyLedger, playerCompany } from '../util';
 
 const opts = { seed: 'hr-1', companyName: 'People First', founderName: 'H', specialty: 'designer' as const, difficulty: 'normal' as const, rivals: 16 };
 
@@ -83,12 +83,22 @@ describe('hr autopilot', () => {
     expect(broke.player.employees.map((e) => e.skill)).toEqual(before);
   });
 
-  it('upgrades a brand new studio\'s skills on the default settings', () => {
+  it('upgrades skills once the studio makes money, sooner on Generous', () => {
     const w = createWorld(opts);
     const founder = w.player.employees[0];
     const skill = founder.skill;
     hrMonthly(w);
+    expect(founder.skill).toBe(skill); // Balanced waits for income
+    setHr(w, { spending: 'generous', autoHire: false });
+    hrMonthly(w);
     expect(founder.skill).toBeGreaterThan(skill);
+
+    const earning = createWorld(opts);
+    const p = playerCompany(earning);
+    for (let m = 0; m < 6; m++) p.monthly.push({ day: m * 30, label: `M${m}`, revenue: 60000, expenses: 10000, profit: 50000, cash: p.cash, ledger: emptyLedger() });
+    const s2 = earning.player.employees[0].skill;
+    hrMonthly(earning);
+    expect(earning.player.employees[0].skill).toBeGreaterThan(s2);
   });
 
   it('hires to fill empty desks when the studio can afford it', () => {
@@ -100,8 +110,12 @@ describe('hr autopilot', () => {
     hrHire(w);
     expect(w.player.employees.length).toBe(2);
     advanceDays(w, 120);
-    expect(w.player.employees.length).toBeGreaterThan(4);
+    expect(w.player.employees.length).toBeGreaterThan(2);
     expect(w.player.hr.log.some((l) => l.text.startsWith('Hired'))).toBe(true);
+    // a tiny game can't use more people: HR stops once developers sit idle
+    const n = w.player.employees.length;
+    advanceDays(w, 60);
+    expect(w.player.employees.length).toBe(n);
   });
 
   it('stops at the team target and at the office size', () => {

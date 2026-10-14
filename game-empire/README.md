@@ -40,17 +40,24 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
 - **Run live games.** Watch live player counts, active players, sales, reviews and freshness. Ship hotfixes,
   balance patches, content updates, seasonal events, paid expansions, monetization changes and platform ports.
   You can also change prices, run sales, or shut servers down.
+- **Live-ops autopilot.** Every live game is auto-updated by default (Studio → Live). The autopilot picks the
+  freshest kind of update, ports hits to the big platforms they're missing, and skips games that earn less than an
+  update costs, and while the studio is short of money only patches ship. A contract live-ops crew joins each update so it ships on schedule (about a month for content, two
+  for an expansion) without pulling developers off new games. Content updates and expansions make a game
+  permanently bigger: its version climbs (v1.3, then v2.0 after an expansion) and each size level brings 2% more new
+  players and 1% less churn, up to level 30.
 - **Build the company.** Hire from a rotating candidate pool, with skills, traits and salaries. Employees have
   morale and can quit. You can train them, give raises, or fire them. Move through seven office tiers and
   research 16 technologies, including your own licensable engine.
 - **HR autopilot.** On the Team screen, HR can run the people side for you:
   - *Auto hiring* checks every week and hires the best candidates the studio can afford into empty desks, favouring
-    the roles the team is short on (developers first for small teams). It replaces anyone who quits, can pay a
+    the roles the team is short on (programmers, artists and designers first for small teams). It replaces anyone who quits, can pay a
     headhunter when the pool runs dry, and grows the team up to the office size or a target you pick. It only hires
     when there is work (a game, update or contract) or the studio is making money, and always leaves months of costs
     in the bank.
   - *Auto skill upgrades* send the least skilled developers on training every month (each person once every three
-    months), so skills keep climbing. The team table marks fresh gains.
+    months) once the studio earns more than it spends (Generous HR starts sooner), so skills keep climbing. The team
+    table marks fresh gains.
   - *Auto raises* keep pay in line with each person's pay grade (Junior → Principal) so nobody quits over pay.
   - *Auto jobs* put idle developers on the project that needs them most.
 
@@ -88,6 +95,23 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   Jam where your team makes a 99-cent game in a weekend that can turn into a surprise hit.
 - **Legacy (New Game+).** Every finished run banks legacy points in your browser (retire, sell or go bust).
   Spend them on head starts for the next studio: savings, reputation, a garage, perk points or engine blueprints.
+- **Empire levels.** Your company's value sets your empire level: Indie Studio → Rising Studio ($100M) → Major
+  Publisher ($1B) → Industry Giant ($10B) → Megacorp ($100B) → Trillion-Dollar Empire ($1T) → World Power ($10T)
+  → Galactic Conglomerate ($100T). Every level makes the game harder: monthly empire upkeep (a share of revenue and of
+  idle cash), antitrust investigations (settle, fight in court, or accept a consent decree), data breaches and union
+  drives, critics who expect more, rival studios that make better games, and cheat makers, rival consoles and AI
+  labs that improve faster. Each level has challenges; clearing them all pays perk points and XP and cuts upkeep by 10%.
+- **Ventures (Empire screen).** Businesses beyond games, each harder and pricier with every generation:
+  - *Anti-cheat*: ship versions that protect your online games and license them to rival studios for a share of
+    their online revenue. Cheat makers keep improving; fall behind and a cheating wave hits and licensees leave.
+    A kernel-level driver is stronger but risks privacy backlash.
+  - *Consoles*: design handhelds, home consoles or powerhouses. Sell units, take your share of every console game's
+    store fee, and launch the next generation (2.5× the R&D) before rival hardware leaves yours behind.
+  - *AI lab*: train model generations (3× the compute each time, cheaper if you own data centers), hire researchers,
+    sell AI to the world and AI dev tools to rival studios. Your own developers work up to 25% faster with it.
+  - *Film studio*: turn your games into movies, from indie films to $1B franchise events. Hits revive the game and
+    its franchise; sequels wear audiences out.
+  - *Theme parks*: build parks around the world (each costs 1.6× the last) and add lands for your franchises.
 - **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (eight tiers,
   Shared Hosting → Hyperscale Edge → Planetary Mesh → Orbital Server Ring; the top tier holds up to 20 billion
   players at $1.2B a node and $20M a month each) plus **data centers you own**. Buy a building (Server Closet → Small Warehouse
@@ -144,6 +168,9 @@ actions.
 | `infra.ts`, `datacenters.ts` | The player's server fleet: rented cloud and owned buildings, capacity, load, costs, outages, wear, autoscaling |
 | `progression.ts` | Studio XP and levels, perks, rotating goals |
 | `hr.ts` | HR autopilot: weekly hiring, pay grades and raises, skill training, replacing people who quit |
+| `empire.ts` | Empire levels: upkeep, antitrust and crises, critic expectations, rival pace, level challenges |
+| `ventures.ts` | Anti-cheat, consoles, AI lab, films and theme parks, and the rivals they race against |
+| `automation.ts` | Live-ops autopilot (update picks, ports, contract crews) and auto-assigning idle developers |
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales, rival |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |
 | `studioEngine.ts` | Your own engine: modules, versions, licensing, adoption by rivals, engine wars |

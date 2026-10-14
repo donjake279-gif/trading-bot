@@ -2,6 +2,7 @@
 // market and its own catalogue, then decides what to build, whom to hire or
 // fire, which games to support, whether to borrow, go public or buy rivals.
 // Nothing is scripted: outcomes emerge from these decisions meeting the market.
+import { rivalQualityBoost } from './empire';
 import {
   DIFFICULTIES,
   GENRES,
@@ -541,7 +542,7 @@ export function aiDecide(w: World, c: Company): void {
 
 /** Daily AI work: development progress, marketing beats and releases. */
 export function aiDaily(w: World, c: Company): void {
-  const qm = aiQualityMult(w, c);
+  const qm = aiQualityMult(w, c) * rivalQualityBoost(w);
   const strat = STRATEGIES[c.strategy];
   for (const g of gamesOf(w, c.id)) {
     if (g.status !== 'development' || g.aiTeam <= 0) continue;

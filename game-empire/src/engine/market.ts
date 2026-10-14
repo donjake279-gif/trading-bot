@@ -5,6 +5,8 @@
 // probability proportional to appeal x visibility (a logit-style share with
 // an outside option). Owners accumulate, active players churn away, and
 // revenue follows the game's business model.
+import { contentLevelOf } from './updates';
+import { addConsoleGross, antiCheatChurn } from './ventures';
 import {
   AUDIENCES,
   GENRES,
@@ -44,7 +46,7 @@ function surgeMult(w: World): number {
   return m;
 }
 
-function platformUsers(w: World, p: Game['platforms'][number]): number {
+export function platformUsers(w: World, p: Game['platforms'][number]): number {
   let u = w.market.platforms[p].users;
   for (const e of w.market.effects) if (e.kind === 'platformBoost' && e.platform === p) u *= e.mult;
   return u;
@@ -62,6 +64,7 @@ export function platformMix(w: World, g: Pick<Game, 'platforms' | 'genre'>) {
   let spendW = 0;
   let premium = 0;
   let cut = 0;
+  let consoleW = 0;
   for (const p of g.platforms) {
     const wt = platformUsers(w, p) * platformAffinity(p, g.genre);
     const def = PLATFORMS[p];
@@ -69,9 +72,10 @@ export function platformMix(w: World, g: Pick<Game, 'platforms' | 'genre'>) {
     spendW += wt * def.spend;
     premium += wt * def.premiumAffinity;
     cut += wt * def.storeCut;
+    if (p === 'console') consoleW = wt;
   }
-  if (total <= 0) return { spend: 1, premium: 1, storeCut: 0.3 };
-  return { spend: spendW / total, premium: premium / total, storeCut: cut / total };
+  if (total <= 0) return { spend: 1, premium: 1, storeCut: 0.3, console: 0 };
+  return { spend: spendW / total, premium: premium / total, storeCut: cut / total, console: consoleW / total };
 }
 
 export function ratingOf(g: Game): number {
@@ -144,7 +148,7 @@ function churnMods(w: World, g: Game, c: Company): number {
   } else if (c.reputation > 60) {
     m *= 0.95;
   }
-  return m;
+  return m * antiCheatChurn(w, g, c) * (1 - 0.01 * contentLevelOf(g));
 }
 
 export function serverCostMult(w: World, c: Company): number {
@@ -214,10 +218,11 @@ export function marketDay(w: World): void {
     } else {
       conv = mon.conversion * (g.monetization === 'subscription' ? Math.min(1.4, aud.spend * mix.spend * 1.2) : 1);
     }
-    const penCap = Math.min(0.85, (0.03 + 0.55 * r * r * r) * mon.reach * scope.reach);
+    const size = contentLevelOf(g);
+    const penCap = Math.min(0.85, (0.03 + 0.55 * r * r * r) * mon.reach * scope.reach * (1 + 0.025 * size));
     const reachMax = Math.max(1, pool * penCap);
     const remaining = Math.max(0, 1 - g.owners / reachMax);
-    let newPlayers = shoppers * share * conv * remaining;
+    let newPlayers = shoppers * share * conv * remaining * (1 + 0.02 * size);
 
     // launch window: wishlists convert
     if (age < 12 && g.wishlists > 0) {
@@ -270,6 +275,7 @@ export function marketDay(w: World): void {
     const royalty = net * eng.royalty;
     const pubCut = net * g.publisherCut;
 
+    if (mix.console > 0) addConsoleGross(w, (salesGross + recurringGross) * mix.console);
     if (salesGross > 0) earn(c, 'sales', salesGross * (1 - mix.storeCut));
     if (recurringGross > 0) {
       const key = g.monetization === 'subscription' ? 'subscriptions' : g.monetization === 'ads' ? 'ads' : 'microtransactions';

@@ -301,7 +301,7 @@ function HrAutopilot({ projects }: { projects: Game[] }) {
                   </span>
                 ) : trainWait === 'income' ? (
                   <span className="text-warn">
-                    Waiting for income: {next.e.isFounder ? 'your' : `${next.e.name.split(' ')[0]}'s`} training costs {money(next.cost)}. While the studio is losing money HR only trains when cash is healthy, and spends at most 15% of it on one session.
+                    Waiting for income: {next.e.isFounder ? 'your' : `${next.e.name.split(' ')[0]}'s`} training costs {money(next.cost)}. HR starts training once your games earn more than the studio spends (Generous HR trains sooner).
                   </span>
                 ) : (
                   <span className="text-good">

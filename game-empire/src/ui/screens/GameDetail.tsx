@@ -37,7 +37,8 @@ import {
 } from '../../engine/actions';
 import { bugDensity, hasResearch, playerDailyWork, qualityEstimate } from '../../engine/development';
 import { ratingOf } from '../../engine/market';
-import { updateCost, updateFatigue, updateWork } from '../../engine/updates';
+import { CREW_OUTPUT, MAX_CONTENT_LEVEL, contentLevelOf, updateCost, updateFatigue, updateWork, versionLabel } from '../../engine/updates';
+import { isAutoUpdated } from '../../engine/automation';
 import { infraEffects, isOnline } from '../../engine/infra';
 import { certificationName, remasterBlocker, startRemaster } from '../../engine/fun';
 import { criticReviews, playerReviews, topicLabel } from '../../engine/reviews';
@@ -640,10 +641,17 @@ function UpdatePanel({ g }: { g: Game }) {
   return (
     <Card title="Updates" subtitle="Pick one or more updates. They run back to back with the same team.">
       <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
-        <input id={`auto-${g.id}`} type="checkbox" className="mt-1" checked={g.autoUpdates} onChange={(e) => act((world) => setAutoUpdates(world, g.id, e.target.checked))} />
+        <input id={`auto-${g.id}`} type="checkbox" className="mt-1" checked={isAutoUpdated(w, g)} onChange={(e) => act((world) => setAutoUpdates(world, g.id, e.target.checked))} />
         <span>
           <span className="block text-sm font-medium">Auto-update this game</span>
-          <span className="block text-xs text-muted">Your studio ships hotfixes, content drops, events and expansions on its own, borrowing a few developers when needed.</span>
+          <span className="block text-xs text-muted">
+            Your live-ops team ships hotfixes, content, events, expansions and ports on its own{w.player.liveOps.crew ? ', with contractors when your developers are busy' : ', borrowing a few developers when needed'}.
+          </span>
+          <span className="mt-1 block text-xs text-sub">
+            {versionLabel(g)} · size level {contentLevelOf(g)}
+            {contentLevelOf(g) > 0 && ` · +${Math.round(contentLevelOf(g) * 2)}% new players, -${contentLevelOf(g)}% churn`}
+            {contentLevelOf(g) >= MAX_CONTENT_LEVEL && ' (max)'}
+          </span>
         </span>
       </label>
 
@@ -655,7 +663,8 @@ function UpdatePanel({ g }: { g: Game }) {
           </div>
           <Progress value={running.workDone} max={running.workRequired} className="mt-2" />
           <div className="mt-2 text-xs text-muted">
-            {onGame.length} on the team{daily > 0 ? ` · about ${days(Math.max(0, running.workRequired - running.workDone) / daily)} left` : ' · stalled, nobody assigned'}
+            {onGame.length} on the team{running.aiTeam ? ` + ${num(running.aiTeam)} contractors` : ''}
+            {daily + running.aiTeam * CREW_OUTPUT > 0 ? ` · about ${days(Math.max(0, running.workRequired - running.workDone) / (daily + running.aiTeam * CREW_OUTPUT))} left` : ' · stalled, nobody assigned'}
           </div>
           {g.updateQueue.length > 0 && (
             <div className="mt-2 space-y-1">

@@ -1,3 +1,6 @@
+import { versionLabel } from '../../engine/updates';
+import { empireUpkeep } from '../../engine/empire';
+import { ventureRunRate } from '../../engine/ventures';
 import type { Company, Game, World } from '../../engine/types';
 import { gamesOf } from '../../engine/util';
 import { monthlyBurn, revenueTTM } from '../../engine/finance';
@@ -53,9 +56,21 @@ export function groupRevenueTTM(w: World, root: Company): number {
   return groupMembers(w, root).reduce((s, c) => s + revenueTTM(c), 0);
 }
 
-export function runwayMonths(w: World, c: Company): number {
+/** Monthly costs, including ventures and empire upkeep for the player. */
+export function monthlyCosts(w: World, c: Company): number {
   const burn = monthlyBurn(w, c);
+  return c.isPlayer ? burn + ventureRunRate(w).cost + empireUpkeep(w).total : burn;
+}
+
+/** Revenue over the last 30 days, including ventures for the player. */
+export function monthlyRevenue(w: World, c: Company): number {
   const rev = companyRev30(w, c.id);
+  return c.isPlayer ? rev + ventureRunRate(w).revenue : rev;
+}
+
+export function runwayMonths(w: World, c: Company): number {
+  const burn = monthlyCosts(w, c);
+  const rev = monthlyRevenue(w, c);
   const net = rev - burn;
   if (net >= 0) return Infinity;
   return Math.max(0, c.cash / -net);
@@ -66,7 +81,7 @@ export function statusLabel(g: Game): string {
     case 'development':
       return g.workDone >= g.workRequired ? 'Polishing' : 'In development';
     case 'released':
-      return g.update ? `Live · updating${g.updateQueue.length ? ` (+${g.updateQueue.length})` : ''}` : g.autoUpdates ? 'Live · auto-updates' : 'Live';
+      return g.update ? `Live ${versionLabel(g)} · updating${g.updateQueue.length ? ` (+${g.updateQueue.length})` : ''}` : `Live ${versionLabel(g)}`;
     case 'shutdown':
       return 'Servers offline';
     case 'retired':

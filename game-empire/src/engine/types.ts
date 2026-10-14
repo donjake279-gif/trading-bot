@@ -144,6 +144,7 @@ export interface ActiveUpdate {
   startDay: number;
   /** Player: employee ids. AI: uses aiTeam. */
   team: string[];
+  /** AI: its team size. Player: contract live-ops crew. */
   aiTeam: number;
   cost: number;
   /** For 'port' updates: the platform being added. */
@@ -241,6 +242,12 @@ export interface Game {
   updateQueue: QueuedUpdate[];
   /** Player: the studio keeps this game updated automatically. */
   autoUpdates: boolean;
+  /** Player switched auto updates off for this game even though they're on studio-wide. */
+  manualUpdates?: boolean;
+  /** How much the game has grown through updates: more players find it and fewer leave. */
+  contentLevel?: number;
+  verMajor?: number;
+  verMinor?: number;
   /** One of the player's first releases: gets newcomer buzz. */
   newcomer: boolean;
   /** Players are angry about a bad update until this day. */
@@ -310,6 +317,16 @@ export interface Ledger {
   research: number;
   perks: number;
   misc: number;
+  /** Console sales and platform fees. */
+  hardware: number;
+  /** AI services and anti-cheat licences. */
+  tech: number;
+  /** Box office and theme parks. */
+  entertainment: number;
+  /** Venture R&D, compute, production and upkeep. */
+  ventures: number;
+  /** Empire upkeep, fines and legal costs. */
+  empire: number;
 }
 
 export interface MonthRecord {
@@ -537,6 +554,16 @@ export interface PlayerState {
   legacyBanked: boolean;
   /** HR autopilot: raises, training and replacements on their own. */
   hr: HrSettings;
+  empire: EmpireState;
+  ventures: Ventures;
+  liveOps: LiveOpsSettings;
+}
+
+export interface LiveOpsSettings {
+  /** Auto-update every live game. */
+  auto: boolean;
+  /** Hire a contract crew so updates ship on time when developers are busy. */
+  crew: boolean;
 }
 
 export type HrSpending = 'careful' | 'balanced' | 'generous';
@@ -859,4 +886,134 @@ export interface ActionResult {
   ok: boolean;
   error?: string;
   id?: string;
+}
+
+// ---------------------------------------------------------------- empire & ventures
+
+export interface EmpireState {
+  /** Highest empire level reached. */
+  best: number;
+  /** Challenge ids completed. */
+  done: string[];
+  /** Levels whose challenges are all complete (reward paid). */
+  cleared: number[];
+  investigations: number;
+  courtWins: number;
+  /** Consent decree: platform and licence income halved until this day. */
+  decreeUntil: number;
+  /** Staff strike: development crawls until this day. */
+  strikeUntil: number;
+  overheadPaid: number;
+  finesPaid: number;
+}
+
+export type ConsoleSize = 'handheld' | 'home' | 'elite';
+
+export interface ConsoleModel {
+  id: string;
+  name: string;
+  gen: number;
+  size: ConsoleSize;
+  stage: 'design' | 'live' | 'retired';
+  startDay: number;
+  launchDay: number;
+  rdCost: number;
+  rdSpent: number;
+  /** Raw power when it launched (rivals keep getting faster). */
+  power: number;
+  price: number;
+  unitCost: number;
+  /** Consoles in people's homes. */
+  installed: number;
+  sold: number;
+  dailySales: number;
+  revenue: number;
+  fees: number;
+  marketingUntil: number;
+  shortageUntil: number;
+}
+
+export interface AiModel {
+  id: string;
+  gen: number;
+  name: string;
+  quality: number;
+  day: number;
+}
+
+export interface AiLab {
+  name: string;
+  founded: number;
+  researchers: number;
+  models: AiModel[];
+  training: { gen: number; start: number; days: number; cost: number; spent: number } | null;
+  /** Sell AI dev tools to rival studios. */
+  licensing: boolean;
+  licensees: string[];
+  revenue: number;
+  incidents: number;
+  dailyRevenue: number;
+}
+
+export interface AntiCheat {
+  name: string;
+  version: number;
+  strength: number;
+  mode: 'standard' | 'kernel';
+  building: { version: number; start: number; days: number; cost: number; spent: number } | null;
+  licensing: boolean;
+  /** Share of a licensee's online revenue. */
+  fee: number;
+  licensees: string[];
+  revenue: number;
+  /** A cheating wave is hitting your online games until this day. */
+  breachUntil: number;
+}
+
+export interface Film {
+  id: string;
+  title: string;
+  gameId: string;
+  ipId: string;
+  tier: number;
+  budget: number;
+  start: number;
+  releaseDay: number;
+  stage: 'production' | 'released';
+  score: number;
+  gross: number;
+  earned: number;
+}
+
+export interface ThemePark {
+  id: string;
+  name: string;
+  region: RegionId;
+  stage: 'building' | 'open';
+  start: number;
+  openDay: number;
+  cost: number;
+  /** IP ids with a themed land. */
+  lands: string[];
+  visitors: number;
+  revenue: number;
+  closedUntil: number;
+}
+
+export interface Ventures {
+  consoles: ConsoleModel[];
+  /** The best rival console's power. */
+  rivalPower: number;
+  /** Console store fees collected industry-wide today. */
+  feePool: number;
+  ai: AiLab | null;
+  /** Rival AI labs' best model quality. */
+  aiFrontier: number;
+  /** Yearly AI market size. */
+  aiMarket: number;
+  antiCheat: AntiCheat | null;
+  /** How good cheat makers are. */
+  cheatLevel: number;
+  films: Film[];
+  parks: ThemePark[];
 }

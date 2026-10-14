@@ -75,6 +75,11 @@ export function emptyLedger(): Ledger {
     research: 0,
     perks: 0,
     misc: 0,
+    hardware: 0,
+    tech: 0,
+    entertainment: 0,
+    ventures: 0,
+    empire: 0,
   };
 }
 
@@ -85,7 +90,7 @@ export function normalizeLedger(l: Partial<Ledger> | undefined): Ledger {
   return out;
 }
 
-export const REVENUE_KEYS = ['sales', 'microtransactions', 'subscriptions', 'ads', 'dlc', 'licensing', 'store', 'contracts', 'investments', 'publishing', 'other'] as const;
+export const REVENUE_KEYS = ['sales', 'microtransactions', 'subscriptions', 'ads', 'dlc', 'licensing', 'store', 'contracts', 'investments', 'publishing', 'hardware', 'tech', 'entertainment', 'other'] as const;
 export const EXPENSE_KEYS = [
   'salaries',
   'rent',
@@ -97,6 +102,8 @@ export const EXPENSE_KEYS = [
   'taxes',
   'research',
   'perks',
+  'ventures',
+  'empire',
   'misc',
 ] as const;
 

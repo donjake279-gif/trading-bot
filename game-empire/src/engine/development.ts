@@ -1,4 +1,6 @@
 // Game development: work estimates, daily progress, quality and release.
+import { criticPenalty, strikeActive } from './empire';
+import { aiSpeedBoost, rivalAiBoost } from './ventures';
 import {
   ART_STYLES,
   ENGINES,
@@ -222,7 +224,7 @@ export function playerSpeedMods(w: World): number {
   if (hasResearch(w, 'aiTools')) m *= 1.2;
   const pol = w.player.policies;
   if (pol) m *= HOURS[pol.hours].speed * QA_POLICIES[pol.qa].speed;
-  return m * (1 + 0.05 * perkRank(w, 'prototyping')) * facilityEffects(w).speedMult;
+  return m * (1 + 0.05 * perkRank(w, 'prototyping')) * facilityEffects(w).speedMult * aiSpeedBoost(w) * (strikeActive(w) ? 0.5 : 1);
 }
 
 export function memberOutput(w: World, e: Employee, f: Focus, crunch: boolean, teamEff: number, producerBoost: number): MemberOutput {
@@ -342,7 +344,7 @@ export function aiDevDay(w: World, g: Game, c: Company, qualityMult: number): vo
   const n = g.aiTeam;
   const teamEff = n <= max ? 1 : (max + 0.3 * (n - max)) / n;
   const talent = c.talent;
-  const work = n * teamEff * Math.pow(talent / 50, 0.8) * 1.05;
+  const work = n * teamEff * Math.pow(talent / 50, 0.8) * 1.05 * rivalAiBoost(w, c);
   const out: MemberOutput = {
     work,
     quality: Math.pow(talent / 50, 0.6) * qualityMult,
@@ -471,7 +473,7 @@ export function releaseGame(w: World, g: Game): void {
   const mon = MONETIZATIONS[g.monetization];
   g.quality = q;
   g.breakout = breakout;
-  g.criticScore = Math.round(clamp(q + randNormal(w, 0, 3) + (c.isPlayer ? 1.5 * perkRank(w, 'press') : 0), 1, 99));
+  g.criticScore = Math.round(clamp(q + randNormal(w, 0, 3) + (c.isPlayer ? 1.5 * perkRank(w, 'press') - criticPenalty(w) : 0), 1, 99));
   const density = bugDensity(g);
   g.userScoreTarget = clamp(q + mon.userScore - density * 1.2, 1, 99);
   g.userScore = Math.round(clamp(g.userScoreTarget + randNormal(w, 0, 5), 1, 99));

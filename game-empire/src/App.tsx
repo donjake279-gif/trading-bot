@@ -1,3 +1,4 @@
+import { EmpireScreen } from './ui/screens/Empire';
 import { useGameStore } from './store/gameStore';
 import { Layout } from './ui/components/Layout';
 import { GameOverModal, NotificationDrawer, Toasts } from './ui/components/Overlays';
@@ -58,13 +59,15 @@ function Screen() {
       return <EngineScreen />;
     case 'awards':
       return <Awards />;
+    case 'empire':
+      return <EmpireScreen tab={route.tab} />;
     case 'settings':
       return <Settings />;
   }
 }
 
 function routeKey(r: ReturnType<typeof useGameStore.getState>['route']): string {
-  return 'id' in r && r.id ? `${r.name}:${r.id}` : r.name;
+  return 'id' in r && r.id ? `${r.name}:${r.id}` : 'tab' in r && r.tab ? `${r.name}:${r.tab}` : r.name;
 }
 
 export default function App() {

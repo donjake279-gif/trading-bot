@@ -1,8 +1,9 @@
+import { acEffectiveness, aiLead, consolePowerRatio } from '../../engine/ventures';
 import { payReview } from '../../engine/hr';
 import { CalendarDays, CircleCheck, Trophy, Gamepad2, Inbox, Plus, Rocket, Server, Sparkles, Swords, Tag, Target, TriangleAlert, Users, Wallet, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { playerCompany } from '../../engine/util';
-import { monthlyBurn, revenueTTM } from '../../engine/finance';
+import { revenueTTM } from '../../engine/finance';
 import { dismissTutorial } from '../../engine/actions';
 import { founderStake } from '../../engine/stocks';
 import { GENRES, MONETIZATIONS, OFFICES } from '../../engine/constants';
@@ -15,7 +16,7 @@ import { marketCap } from '../../engine/stocks';
 import { GoalCard } from './Goals';
 import { DecisionCard } from '../components/Overlays';
 import { LoadGauge } from './Servers';
-import { aggregateHistory, companyActive, companyCcu, companyRev30, devGamesOf, liveGamesOf, runwayMonths } from '../lib/selectors';
+import { aggregateHistory, companyActive, companyCcu, companyRev30, devGamesOf, liveGamesOf, monthlyCosts, monthlyRevenue, runwayMonths } from '../lib/selectors';
 import { date, money, num, pct } from '../lib/format';
 import { TimeChart } from '../components/charts';
 import { Badge, Button, Card, Empty, LiveNumber, Progress, ScoreBadge, Stat, cx } from '../components/ui';
@@ -86,6 +87,12 @@ function Alerts() {
   else if (onlineLive.length && infraEffects(w).overloaded) alerts.push({ tone: 'bad', text: `Servers at ${pct(w.player.infra.load)} of capacity: new players are being turned away.`, go: () => navigate({ name: 'servers' }) });
   if (!w.player.engine && w.player.research.completed.includes('engine1')) alerts.push({ tone: 'good', text: 'Your engine research is done. Give your engine a name and found it.', go: () => navigate({ name: 'engine' }) });
   if (w.player.engine && readyForVersion(w.player.engine)) alerts.push({ tone: 'good', text: `${w.player.engine.name} ${w.player.engine.version + 1}.0 is ready to ship.`, go: () => navigate({ name: 'engine' }) });
+  const ac = w.player.ventures.antiCheat;
+  if (ac && ac.version > 0 && !ac.building && acEffectiveness(w) < 0.4) alerts.push({ tone: 'warn', text: `Cheat makers are beating ${ac.name}. Build a new version before your licensees leave.`, go: () => navigate({ name: 'empire', tab: 'antiCheat' }) });
+  const ai = w.player.ventures.ai;
+  if (ai && ai.models.length && !ai.training && aiLead(w) < 0.85) alerts.push({ tone: 'warn', text: `Rival AI labs are pulling ahead of ${ai.name}. Train the next generation.`, go: () => navigate({ name: 'empire', tab: 'ai' }) });
+  const oldConsole = w.player.ventures.consoles.find((x) => x.stage === 'live' && consolePowerRatio(w, x) < 0.65);
+  if (oldConsole && !w.player.ventures.consoles.some((x) => x.stage === 'design')) alerts.push({ tone: 'warn', text: `${oldConsole.name} is falling behind rival hardware. Time for a new generation.`, go: () => navigate({ name: 'empire', tab: 'consoles' }) });
   if (w.player.progression.perkPoints > 0) alerts.push({ tone: 'good', text: `You have ${w.player.progression.perkPoints} unspent perk point${w.player.progression.perkPoints > 1 ? 's' : ''}.`, go: () => navigate({ name: 'goals' }) });
   const bleeding = liveGamesOf(w, c.id).filter((g) => g.cost30 > g.rev30 * 1.2 && g.cost30 > 300 && w.day - (g.releaseDay ?? 0) > 60);
   for (const g of bleeding) alerts.push({ tone: 'warn', text: `${g.title}'s servers cost more than it earns.`, go: () => navigate({ name: 'game', id: g.id }) });
@@ -116,8 +123,8 @@ export function Dashboard() {
   const live = liveGamesOf(w, c.id).sort((a, b) => b.ccu - a.ccu);
   const devs = devGamesOf(w, c.id);
   const ccu = companyCcu(w, c.id);
-  const rev30 = companyRev30(w, c.id);
-  const burn = monthlyBurn(w, c);
+  const rev30 = monthlyRevenue(w, c);
+  const burn = monthlyCosts(w, c);
   const mine = Object.values(w.games).filter((g) => g.companyId === c.id);
   const ccuHistory = aggregateHistory(mine, 2, w.day - 180);
   const playerNews = w.news.filter((n) => n.kind === 'player' || n.companyId === c.id).slice(0, 6);
@@ -129,7 +136,7 @@ export function Dashboard() {
       <Checklist />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Stat label="Players online" icon={<span className="live-dot" style={{ width: 6, height: 6 }} />} value={<LiveNumber value={ccu} format={(n) => Math.round(n).toLocaleString()} />} sub={`${num(companyActive(w, c.id))} active players`} />
-        <Stat label="Cash" icon={<Wallet size={13} />} value={money(c.cash)} tone={c.cash < 0 ? 'bad' : undefined} sub={Number.isFinite(runwayMonths(w, c)) ? `${runwayMonths(w, c).toFixed(1)} mo runway` : 'Cash-flow positive'} />
+        <Stat label="Cash" icon={<Wallet size={13} />} value={money(c.cash)} tone={c.cash < 0 ? 'bad' : undefined} sub={!Number.isFinite(runwayMonths(w, c)) ? 'Cash-flow positive' : runwayMonths(w, c) > 120 ? '10+ years of runway' : `${runwayMonths(w, c).toFixed(1)} mo runway`} />
         <Stat label="Revenue (30d)" value={money(rev30)} tone={rev30 > 0 ? 'good' : undefined} sub={`TTM ${money(revenueTTM(c))}`} />
         <Stat label="Costs (monthly)" value={money(burn)} sub={`Net ${money(rev30 - burn)}/mo`} tone={rev30 - burn < 0 ? 'warn' : undefined} />
         <Stat label="Valuation" value={money(c.isPublic ? c.price * c.shares : c.valuation)} sub={`You own ${pct(founderStake(c), founderStake(c) < 1 ? 1 : 0)}`} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BriefcaseBusiness, CalendarClock, Copy, Gamepad2, Plus, Users } from 'lucide-react';
+import { BriefcaseBusiness, CalendarClock, Copy, Gamepad2, Plus, RefreshCcw, Users } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { GENRES, MONETIZATIONS, PLATFORMS, ROLES, SCOPES } from '../../engine/constants';
 import { MAX_CONTRACTS, abandonContract, acceptContract, contractDailyWork, contractTeam, staffContract, teamContractWork } from '../../engine/contracts';
@@ -8,6 +8,9 @@ import { playerCompany } from '../../engine/util';
 import type { Game } from '../../engine/types';
 import { date, days, money, num } from '../lib/format';
 import { statusLabel } from '../lib/selectors';
+import { setLiveOps } from '../../engine/actions';
+import { isAutoUpdated } from '../../engine/automation';
+import { contentLevelOf } from '../../engine/updates';
 import { Sparkline } from '../components/charts';
 import { Badge, Button, Card, ConfirmButton, Empty, LiveNumber, Progress, ScoreBadge, SectionTitle, Tabs, Td, Th, cx } from '../components/ui';
 
@@ -98,7 +101,12 @@ export function Projects() {
           </div>
         ))}
 
-      {tab === 'live' && <GameTable games={live} empty="No live games yet." />}
+      {tab === 'live' && (
+        <div className="space-y-4">
+          <LiveOpsCard games={live} />
+          <GameTable games={live} empty="No live games yet." />
+        </div>
+      )}
       {tab === 'contracts' && <Contracts />}
       {tab === 'all' && <GameTable games={all} empty="Your catalogue is empty." />}
       {tab === 'ips' &&
@@ -324,5 +332,58 @@ function OfferCard({ o, disabled }: { o: ContractOffer; disabled: boolean }) {
         </Button>
       </div>
     </div>
+  );
+}
+
+function LiveOpsCard({ games }: { games: Game[] }) {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const lo = w.player.liveOps;
+  const auto = games.filter((g) => isAutoUpdated(w, g));
+  const updating = games.filter((g) => g.update);
+  const contractors = updating.reduce((s, g) => s + (g.update?.aiTeam ?? 0), 0);
+  const avgSize = auto.length ? auto.reduce((s, g) => s + contentLevelOf(g), 0) / auto.length : 0;
+  return (
+    <Card
+      title={
+        <span className="flex items-center gap-2">
+          <RefreshCcw size={15} className="text-accent" /> Live-ops autopilot
+        </span>
+      }
+      subtitle="Your games keep growing on their own: content drops, events, expansions and ports to new platforms. Every content update makes a game bigger, so more players find it and fewer leave."
+    >
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label htmlFor="liveops-auto" className={cx('flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5', lo.auto ? 'border-accent/60 bg-accent-soft/30' : 'border-line bg-surface-2')}>
+            <input id="liveops-auto" type="checkbox" className="mt-1" checked={lo.auto} onChange={(e) => act((world) => setLiveOps(world, { auto: e.target.checked }))} />
+            <span>
+              <span className="block text-sm font-medium">Auto-update every game</span>
+              <span className="block text-xs text-muted">Skips games that earn less than an update costs. You can still switch single games off.</span>
+            </span>
+          </label>
+          <label htmlFor="liveops-crew" className={cx('flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5', lo.crew ? 'border-accent/60 bg-accent-soft/30' : 'border-line bg-surface-2')}>
+            <input id="liveops-crew" type="checkbox" className="mt-1" checked={lo.crew} onChange={(e) => act((world) => setLiveOps(world, { crew: e.target.checked }))} />
+            <span>
+              <span className="block text-sm font-medium">Hire a live-ops crew</span>
+              <span className="block text-xs text-muted">Contractors join each update so it ships on time (about a month for content) without pulling developers off new games.</span>
+            </span>
+          </label>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg bg-surface-2 p-2">
+            <div className="text-lg font-semibold tabular">{auto.length}</div>
+            <div className="text-[11px] text-muted">auto-updated</div>
+          </div>
+          <div className="rounded-lg bg-surface-2 p-2">
+            <div className="text-lg font-semibold tabular">{updating.length}</div>
+            <div className="text-[11px] text-muted">updating now{contractors ? ` · ${num(contractors)} contractors` : ''}</div>
+          </div>
+          <div className="rounded-lg bg-surface-2 p-2">
+            <div className="text-lg font-semibold tabular">{avgSize.toFixed(1)}</div>
+            <div className="text-[11px] text-muted">average size level</div>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }

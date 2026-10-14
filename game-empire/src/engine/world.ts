@@ -83,6 +83,9 @@ export function playerExtras(): Pick<
   | 'legacy'
   | 'legacyBanked'
   | 'hr'
+  | 'empire'
+  | 'ventures'
+  | 'liveOps'
 > {
   return {
     infra: { tier: 0, nodes: 1, autoscale: true, incidents: [], lowLoadDays: 0, demand: 0, load: 0, outageUntil: 0, overloadDays: 0, downtime: [], demandHistory: [], capacityHistory: [], dataCenters: [] },
@@ -110,6 +113,9 @@ export function playerExtras(): Pick<
     legacy: {},
     legacyBanked: false,
     hr: { autoRaise: true, autoTrain: true, autoHire: true, teamTarget: 0, spending: 'balanced', log: [] },
+    liveOps: { auto: true, crew: true },
+    empire: { best: 0, done: [], cleared: [], investigations: 0, courtWins: 0, decreeUntil: 0, strikeUntil: 0, overheadPaid: 0, finesPaid: 0 },
+    ventures: { consoles: [], rivalPower: 100, feePool: 0, ai: null, aiFrontier: 8, aiMarket: 20e9, antiCheat: null, cheatLevel: 20, films: [], parks: [] },
   };
 }
 

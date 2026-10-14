@@ -25,9 +25,10 @@ export type Route =
   | { name: 'goals' }
   | { name: 'engine' }
   | { name: 'awards' }
+  | { name: 'empire'; tab?: string }
   | { name: 'settings' };
 
-const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'engine', 'awards', 'settings'] as const;
+const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'engine', 'awards', 'empire', 'settings'] as const;
 
 export const SPEEDS = [
   { label: '1×', dps: 1 },
@@ -221,6 +222,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const nav = get().navigate;
     if (link.route === 'game' && link.id) nav({ name: 'game', id: link.id });
     else if (link.route === 'company' && link.id) nav({ name: 'company', id: link.id });
+    else if (link.route === 'empire') nav({ name: 'empire', tab: link.id });
     else if ((SIMPLE_ROUTES as readonly string[]).includes(link.route)) nav({ name: link.route } as Route);
     set({ drawer: null });
   },
