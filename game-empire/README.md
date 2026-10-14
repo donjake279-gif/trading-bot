@@ -112,12 +112,13 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   - *Film studio*: turn your games into movies, from indie films to $1B franchise events. Hits revive the game and
     its franchise; sequels wear audiences out.
   - *Theme parks*: build parks around the world (each costs 1.6× the last) and add lands for your franchises.
-- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (eight tiers,
-  Shared Hosting → Hyperscale Edge → Planetary Mesh → Orbital Server Ring; the top tier holds up to 20 billion
-  players at $1.2B a node and $20M a month each) plus **data centers you own**. Buy a building (Server Closet → Small Warehouse
-  → Warehouse → Large Warehouse → Data Hall → Hyperscale Campus) in any of five regions, wait for construction,
+- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (nine tiers,
+  Shared Hosting → Hyperscale Edge → Planetary Mesh (4B players) → Orbital Server Ring (20B) → Dyson Swarm Cloud,
+  which holds up to 100 billion players at $5B a node and $80M a month each) plus **data centers you own**. Buy a
+  building (Server Closet → Small Warehouse → Warehouse → Large Warehouse → Data Hall → Hyperscale Campus → Arctic
+  Megaplex → Orbital Data Station) in any of five regions, wait for construction,
   grow it into the next size, and upgrade six systems: floor space, power, cooling, network uplink, backup
-  generators and security. Fill the racks with five server models, each with its own capacity, slots, power draw
+  generators and security. Fill the racks with seven server models (Budget Server up to Quantum Racks and 30-million-player Photonic Cores), each with its own capacity, slots, power draw
   and smoothness. Owning costs more up front but much less per month than renting; hardware wears out and can be
   refreshed; covering more regions helps growth and reviews. Overloaded servers turn new players away, raise
   churn and hurt reviews. A cloud or building outage only removes its share of capacity; if nothing is left

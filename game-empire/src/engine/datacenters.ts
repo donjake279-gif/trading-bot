@@ -136,7 +136,7 @@ export function buildingBlocker(w: World, building: number): string | null {
 }
 
 function emptyServers(): Record<ServerModelId, number> {
-  return { budget: 0, rack: 0, blade: 0, pod: 0, supercluster: 0 };
+  return { budget: 0, rack: 0, blade: 0, pod: 0, supercluster: 0, quantum: 0, photonic: 0 };
 }
 
 function emptyUpgrades(): Record<DcUpgradeId, number> {

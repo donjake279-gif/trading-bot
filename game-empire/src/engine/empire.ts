@@ -3,6 +3,7 @@
 // race faster. Every level has challenges; clearing them all pays a reward
 // and trims the upkeep.
 import { pushDecision } from './events';
+import { infraCapacity } from './infra';
 import { addXp } from './progression';
 import { bestModel, consolesInstalled, aiLead } from './ventures';
 import type { DecisionEvent, World } from './types';
@@ -263,6 +264,7 @@ export const EMPIRE_CHALLENGES: EmpireChallenge[] = [
   { id: 'l7_ai', level: 7, name: 'Build a superintelligence (AI generation 10)', progress: (w) => [bestModel(w)?.gen ?? 0, 10] },
   { id: 'l7_console', level: 7, name: 'Launch a generation 6 console', progress: (w) => [Math.max(0, ...v(w).consoles.filter((c) => c.stage !== 'design').map((c) => c.gen)), 6] },
   { id: 'l7_parks', level: 7, name: 'Run 25 theme parks', progress: (w) => [v(w).parks.filter((x) => x.stage === 'open').length, 25] },
+  { id: 'l7_servers', level: 7, name: 'Room for 100 billion players on your servers', progress: (w) => [infraCapacity(w), 1e11] },
   { id: 'l7_goty', level: 7, name: 'Win Game of the Year 3 times', progress: (w) => [countGoty(w), 3] },
 ];
 

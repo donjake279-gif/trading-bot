@@ -656,7 +656,7 @@ export interface ServerIncident {
 
 export type RegionId = 'na' | 'eu' | 'asia' | 'sa' | 'oce';
 export type DcUpgradeId = 'space' | 'power' | 'cooling' | 'network' | 'backup' | 'security';
-export type ServerModelId = 'budget' | 'rack' | 'blade' | 'pod' | 'supercluster';
+export type ServerModelId = 'budget' | 'rack' | 'blade' | 'pod' | 'supercluster' | 'quantum' | 'photonic';
 
 /** A building you own and fill with your own servers. */
 export interface DataCenter {

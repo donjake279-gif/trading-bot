@@ -218,25 +218,66 @@ describe('data centers', () => {
 });
 
 describe('mega cloud tiers', () => {
-  it('the Orbital Server Ring reaches 20 billion players, at a huge price', () => {
-    const top = SERVER_TIERS[SERVER_TIERS.length - 1];
-    expect(top.nodeCapacity * top.maxNodes).toBe(20_000_000_000);
-    expect(top.nodeCost).toBeGreaterThanOrEqual(1e9);
+  const tierIndex = (name: string) => SERVER_TIERS.findIndex((t) => t.name === name);
 
+  it('the Orbital Server Ring holds 20 billion players and the Dyson Swarm 100 billion', () => {
+    const orbit = SERVER_TIERS[tierIndex('Orbital Server Ring')];
+    const dyson = SERVER_TIERS[tierIndex('Dyson Swarm Cloud')];
+    expect(orbit.nodeCapacity * orbit.maxNodes).toBe(20_000_000_000);
+    expect(dyson.nodeCapacity * dyson.maxNodes).toBe(100_000_000_000);
+    expect(SERVER_TIERS[SERVER_TIERS.length - 1]).toBe(dyson);
+    expect(dyson.nodeCost).toBeGreaterThan(orbit.nodeCost);
+    expect(dyson.upgradeCost).toBeGreaterThan(orbit.upgradeCost);
+  });
+
+  it('a full Dyson Swarm reaches 100 billion players, at a huge price', () => {
     const w = createWorld({ seed: 'orbit', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
     const p = playerCompany(w);
-    const tier = SERVER_TIERS.length - 1;
+    const tier = tierIndex('Dyson Swarm Cloud');
+    const def = SERVER_TIERS[tier];
     expect(setServerTier(w, tier).ok).toBe(false); // needs research and reputation
     w.player.research.completed.push('cloudInfra');
-    p.reputation = 90;
-    p.cash = 5e9;
-    expect(setServerTier(w, tier).ok).toBe(false); // can't afford the $8B move
-    p.cash = 3e11;
+    p.reputation = 95;
+    p.cash = 1e10;
+    expect(setServerTier(w, tier).ok).toBe(false); // can't afford the $40B move
+    p.cash = 2e12;
     expect(setServerTier(w, tier).ok).toBe(true);
-    expect(buyNodes(w, top.maxNodes).ok).toBe(true);
-    expect(w.player.infra.nodes).toBe(top.maxNodes);
-    expect(infraCapacity(w)).toBeGreaterThanOrEqual(20_000_000_000);
-    expect(infraMonthlyCost(w, 0)).toBeGreaterThanOrEqual(2e9); // billions a month, even with the cloud research discount
+    expect(buyNodes(w, def.maxNodes).ok).toBe(true);
+    expect(w.player.infra.nodes).toBe(def.maxNodes);
+    expect(infraCapacity(w)).toBeGreaterThanOrEqual(100_000_000_000);
+    expect(infraMonthlyCost(w, 0)).toBeGreaterThanOrEqual(1e10); // tens of billions a month, even with the cloud discount
     expect(buyNodes(w, 1).ok).toBe(false);
+  });
+
+  it('your own orbital data stations full of photonic cores hold billions', () => {
+    const w = createWorld({ seed: 'orbit-dc', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    const p = playerCompany(w);
+    w.player.research.completed.push('cloudInfra', 'netcode');
+    p.reputation = 95;
+    p.cash = 1e12;
+    const station = DC_BUILDINGS.findIndex((b) => b.name === 'Orbital Data Station');
+    expect(buyDataCenter(w, station, 'na').ok).toBe(true);
+    const dc = w.player.infra.dataCenters[0];
+    advanceDays(w, DC_BUILDINGS[station].build + 1);
+    const fit = serversThatFit(dc, 'photonic');
+    expect(fit).toBeGreaterThan(50);
+    expect(buyServers(w, dc.id, 'photonic', fit).ok).toBe(true);
+    expect(dcCapacity(dc)).toBeGreaterThan(1e9);
+    expect(SERVER_MODELS.photonic.capacity).toBeGreaterThan(SERVER_MODELS.quantum.capacity);
+  });
+
+  it('old saves get the new server models', () => {
+    const w = createWorld({ seed: 'orbit-old', companyName: 'Old', founderName: 'O', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    playerCompany(w).cash = 1e6;
+    expect(buyDataCenter(w, 0, 'na').ok).toBe(true);
+    const old = JSON.parse(serializeWorld(w));
+    for (const dc of old.player.infra.dataCenters) {
+      delete dc.servers.quantum;
+      delete dc.servers.photonic;
+    }
+    const m = deserializeWorld(JSON.stringify(old));
+    expect(m.player.infra.dataCenters[0].servers.photonic).toBe(0);
+    advanceDays(m, 10);
+    expect(Number.isFinite(dcCapacity(m.player.infra.dataCenters[0]))).toBe(true);
   });
 });

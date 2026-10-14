@@ -1,6 +1,7 @@
 // Persistent saves: IndexedDB for the world blob (large), localStorage for the
 // slot index (small, synchronous). Falls back to localStorage if IndexedDB is
 // unavailable. Saves can also be exported/imported as JSON files.
+import { SERVER_MODEL_IDS } from './constants';
 import type { HrSettings, World } from './types';
 import { normalizeLedger, playerCompany } from './util';
 import { SAVE_VERSION, playerExtras } from './world';
@@ -169,6 +170,7 @@ function migrate(w: World): void {
   delete hr.autoReplace;
   w.player.infra.demandHistory ??= [];
   w.player.infra.dataCenters ??= [];
+  for (const dc of w.player.infra.dataCenters) for (const id of SERVER_MODEL_IDS) dc.servers[id] ??= 0;
   w.player.infra.capacityHistory ??= [];
   w.notices ??= [];
   w.awardSeason ??= null;

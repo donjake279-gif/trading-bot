@@ -78,6 +78,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'box_office', name: 'Box Office Gold', desc: 'Make a film that grosses $1B.', check: (w) => !!w.player.ventures?.films.some((f) => f.stage === 'released' && f.gross >= 1e9) },
   { id: 'anticheat_10', name: 'Fair Play', desc: 'License your anti-cheat to 10 studios.', check: (w) => (w.player.ventures?.antiCheat?.licensees.length ?? 0) >= 10 },
   { id: 'trillion', name: 'Trillion-Dollar Empire', desc: 'Reach empire level 5.', check: (w) => (w.player.empire?.best ?? 0) >= 5 },
+  { id: 'dyson', name: 'Kardashev Scale', desc: 'Run your games on the Dyson Swarm Cloud.', check: (w) => w.player.infra.tier >= 8 },
+  { id: 'dc_orbital', name: 'Space Landlord', desc: 'Own an Orbital Data Station.', check: (w) => w.player.infra.dataCenters.some((d) => d.building >= 7 && w.day >= d.readyDay) },
   { id: 'orbital', name: 'Out of This World', desc: 'Put your servers in orbit with the Orbital Server Ring.', check: (w) => w.player.infra.tier >= 7 },
   { id: 'investor', name: 'Smart Money', desc: 'Hold $1M in investments.', check: (w) => w.player.investments.bonds + w.player.investments.indexUnits * w.market.index >= 1e6 },
   { id: 'publisher', name: 'Publisher', desc: 'Earn $1M from publishing other studios\' games.', check: (w) => w.player.publishing.reduce((s, d) => s + d.earned, 0) + (w.player.flags.publishingEarned ?? 0) >= 1e6 },
