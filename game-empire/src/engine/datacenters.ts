@@ -331,7 +331,7 @@ export function fleetPerformance(w: World): number {
 /** How many regions your players are served from (rented global tiers count too). */
 export function regionCoverage(w: World): number {
   const i = w.player.infra;
-  const rentedCover = i.nodes > 0 ? (i.tier >= 4 ? 3 : i.tier >= 3 ? 2 : 1) : 0;
+  const rentedCover = i.nodes > 0 ? (i.tier >= 7 ? 5 : i.tier >= 6 ? 4 : i.tier >= 4 ? 3 : i.tier >= 3 ? 2 : 1) : 0;
   return Math.max(1, regionsServed(w).length, rentedCover);
 }
 

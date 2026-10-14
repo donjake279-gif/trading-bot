@@ -275,8 +275,8 @@ function affordable(w: World, p: Company, salary: number, fee: number): boolean 
 }
 
 function score(w: World, k: Candidate): number {
-  // tiny teams need people who make games before marketers and producers
-  const support = !ROLES[k.role].dev || k.role === 'producer';
+  // tiny teams need people who make games before testers, marketers and producers
+  const support = !ROLES[k.role].dev || k.role === 'producer' || k.role === 'qa';
   const early = support && w.player.employees.length < 5 ? 30 : 0;
   return k.skill + 40 * roleNeed(w, k.role) - early;
 }

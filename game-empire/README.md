@@ -88,8 +88,9 @@ Controls: **Space** pauses/resumes, **1–4** set the speed (1, 3, 8 or 25 in-ga
   Jam where your team makes a 99-cent game in a weekend that can turn into a surprise hit.
 - **Legacy (New Game+).** Every finished run banks legacy points in your browser (retire, sell or go bust).
   Spend them on head starts for the next studio: savings, reputation, a garage, perk points or engine blueprints.
-- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (six tiers,
-  Shared Hosting → Hyperscale Edge) plus **data centers you own**. Buy a building (Server Closet → Small Warehouse
+- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (eight tiers,
+  Shared Hosting → Hyperscale Edge → Planetary Mesh → Orbital Server Ring; the top tier holds up to 20 billion
+  players at $1.2B a node and $20M a month each) plus **data centers you own**. Buy a building (Server Closet → Small Warehouse
   → Warehouse → Large Warehouse → Data Hall → Hyperscale Campus) in any of five regions, wait for construction,
   grow it into the next size, and upgrade six systems: floor space, power, cooling, network uplink, backup
   generators and security. Fill the racks with five server models, each with its own capacity, slots, power draw

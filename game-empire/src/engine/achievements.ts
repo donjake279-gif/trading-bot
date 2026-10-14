@@ -72,6 +72,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'contracts_5', name: 'Hired Guns', desc: 'Deliver 5 client contracts.', check: (w) => w.player.contractsCompleted >= 5 },
   { id: 'regional', name: 'Going Global', desc: 'Run your games on Regional Data Centers or better.', check: (w) => w.player.infra.tier >= 3 },
   { id: 'uptime', name: 'Five Nines', desc: 'Run Hyperscale Edge servers.', check: (w) => w.player.infra.tier >= 5 },
+  { id: 'planetary', name: 'Planet Scale', desc: 'Run your games on the Planetary Mesh.', check: (w) => w.player.infra.tier >= 6 },
+  { id: 'orbital', name: 'Out of This World', desc: 'Put your servers in orbit with the Orbital Server Ring.', check: (w) => w.player.infra.tier >= 7 },
   { id: 'investor', name: 'Smart Money', desc: 'Hold $1M in investments.', check: (w) => w.player.investments.bonds + w.player.investments.indexUnits * w.market.index >= 1e6 },
   { id: 'publisher', name: 'Publisher', desc: 'Earn $1M from publishing other studios\' games.', check: (w) => w.player.publishing.reduce((s, d) => s + d.earned, 0) + (w.player.flags.publishingEarned ?? 0) >= 1e6 },
   { id: 'max_perk', name: 'Specialist', desc: 'Max out a perk.', check: (w) => Object.values(w.player.progression.perks).some((r) => (r ?? 0) >= 3) },

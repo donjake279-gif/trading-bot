@@ -530,6 +530,8 @@ function CloudHosting() {
                   <span className="text-right tabular">{num(t.nodeCapacity)} players</span>
                   <span className="text-muted">Max capacity</span>
                   <span className="text-right tabular">{num(t.nodeCapacity * t.maxNodes)}</span>
+                  <span className="text-muted">Node price</span>
+                  <span className="text-right tabular">{money(t.nodeCost)}</span>
                   <span className="text-muted">Node upkeep</span>
                   <span className="text-right tabular">{money(t.nodeMaintenance)}/mo</span>
                   <span className="text-muted">Outage risk</span>

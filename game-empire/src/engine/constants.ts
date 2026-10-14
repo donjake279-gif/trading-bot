@@ -905,6 +905,8 @@ export const SERVER_TIERS: ServerTierDef[] = [
   { name: 'Regional Data Centers', blurb: 'Clusters on three continents. Low latency for most players.', nodeCapacity: 80000, nodeCost: 450000, nodeMaintenance: 26000, bandwidth: 0.004, outage: 0.0007, performance: 0.65, upgradeCost: 1200000, maxNodes: 60, minRep: 25, research: 'netcode' },
   { name: 'Global Cloud Network', blurb: 'Elastic cloud regions worldwide with automatic failover.', nodeCapacity: 500000, nodeCost: 4500000, nodeMaintenance: 150000, bandwidth: 0.003, outage: 0.0004, performance: 0.85, upgradeCost: 15000000, maxNodes: 80, minRep: 40, research: 'cloudInfra' },
   { name: 'Hyperscale Edge', blurb: 'Your own edge network in every major city. Practically never down.', nodeCapacity: 3000000, nodeCost: 40000000, nodeMaintenance: 850000, bandwidth: 0.002, outage: 0.00015, performance: 1, upgradeCost: 150000000, maxNodes: 100, minRep: 60, research: 'cloudInfra' },
+  { name: 'Planetary Mesh', blurb: 'A private fibre backbone through every country on Earth. Built for games the whole planet plays at once.', nodeCapacity: 25_000_000, nodeCost: 300_000_000, nodeMaintenance: 5_500_000, bandwidth: 0.0016, outage: 0.0001, performance: 1, upgradeCost: 1_500_000_000, maxNodes: 160, minRep: 70, research: 'cloudInfra' },
+  { name: 'Orbital Server Ring', blurb: 'Server satellites in low orbit. Room for 20 billion players, more people than live on Earth. Eye-wateringly expensive.', nodeCapacity: 100_000_000, nodeCost: 1_200_000_000, nodeMaintenance: 20_000_000, bandwidth: 0.0014, outage: 0.00005, performance: 1, upgradeCost: 8_000_000_000, maxNodes: 200, minRep: 80, research: 'cloudInfra' },
 ];
 
 // ---------------------------------------------------------------- progression

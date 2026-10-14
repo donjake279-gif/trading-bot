@@ -25,7 +25,7 @@ import {
   serversThatFit,
   upgradeDataCenter,
 } from '../datacenters';
-import { infraCapacity, infraDaily, infraEffects, infraMonthlyCost, sellNodes } from '../infra';
+import { buyNodes, infraCapacity, infraDaily, infraEffects, infraMonthlyCost, sellNodes, setServerTier } from '../infra';
 import type { Game, World } from '../types';
 import { playerCompany } from '../util';
 
@@ -214,5 +214,29 @@ describe('data centers', () => {
     expect(m.player.infra.dataCenters).toEqual([]);
     advanceDays(m, 30);
     expect(Number.isFinite(playerCompany(m).cash)).toBe(true);
+  });
+});
+
+describe('mega cloud tiers', () => {
+  it('the Orbital Server Ring reaches 20 billion players, at a huge price', () => {
+    const top = SERVER_TIERS[SERVER_TIERS.length - 1];
+    expect(top.nodeCapacity * top.maxNodes).toBe(20_000_000_000);
+    expect(top.nodeCost).toBeGreaterThanOrEqual(1e9);
+
+    const w = createWorld({ seed: 'orbit', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    const p = playerCompany(w);
+    const tier = SERVER_TIERS.length - 1;
+    expect(setServerTier(w, tier).ok).toBe(false); // needs research and reputation
+    w.player.research.completed.push('cloudInfra');
+    p.reputation = 90;
+    p.cash = 5e9;
+    expect(setServerTier(w, tier).ok).toBe(false); // can't afford the $8B move
+    p.cash = 3e11;
+    expect(setServerTier(w, tier).ok).toBe(true);
+    expect(buyNodes(w, top.maxNodes).ok).toBe(true);
+    expect(w.player.infra.nodes).toBe(top.maxNodes);
+    expect(infraCapacity(w)).toBeGreaterThanOrEqual(20_000_000_000);
+    expect(infraMonthlyCost(w, 0)).toBeGreaterThanOrEqual(2e9); // billions a month, even with the cloud research discount
+    expect(buyNodes(w, 1).ok).toBe(false);
   });
 });
