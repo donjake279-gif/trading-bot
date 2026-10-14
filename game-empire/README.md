@@ -205,6 +205,14 @@ studios' IP goes to auction while their staff flood the job market.
 **Determinism.** Given the same seed and the same player actions on the same days, the world evolves
 identically. A saved game resumes on exactly the same timeline. Both properties are covered by tests.
 
+## Performance
+
+The simulation runs in small slices (a day or two every 50 ms) so no single tick blocks the page. At 3× and 4×
+the screen redraws five times a second, and charts redraw about once a second (staggered, and straight away when
+paused or when what they show changes). Autosave waits for both 30 game days and 45 real seconds, and pausing saves
+just after the paused screen has drawn. In the engine, the day loop works from cached game lists, AI studios share
+one genre-crowding count per day, and valuations share one franchise-fans count per day.
+
 ## Tuning notes
 
 `src/engine/__tests__/economy.test.ts` prints development cost versus first-year revenue for every scope.

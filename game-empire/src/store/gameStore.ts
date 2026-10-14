@@ -173,8 +173,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   setSpeed: (i) => set({ speed: i, paused: false }),
-  togglePause: () => set({ paused: !get().paused }),
-  setPaused: (p) => set({ paused: p }),
+  togglePause: () => get().setPaused(!get().paused),
+  setPaused: (p) => {
+    const s = get();
+    if (p && !s.paused && s.world) {
+      // show exactly where the game stopped, and save while nothing is running
+      drainWorldToasts();
+      if (s.autosave && s.world.day - s.lastAutosaveDay >= 30 && !s.world.player.gameOver) {
+        set({ lastAutosaveDay: s.world.day });
+        // let the paused screen draw first; saving a big world takes a moment
+        setTimeout(() => {
+          if (get().paused) void get().saveNow(get().slotId);
+        }, 250);
+      }
+    }
+    set({ paused: p, version: get().version + 1 });
+  },
 
   navigate: (r) => {
     const cur = get().route;
@@ -297,8 +311,19 @@ export function useWorld(): World {
 
 // ------------------------------------------------------------ the game loop
 
-const TICK_MS = 100;
+// The simulation runs in small, even slices (a day or two every 50 ms) so no
+// single tick blocks the page for long. The screen is redrawn less often at
+// high speed: drawing is what costs the most, and 5 redraws a second still
+// reads as live. Autosave waits for both 30 game days and 45 real seconds.
+const TICK_MS = 50;
+const AUTOSAVE_MS = 45_000;
 let accumulator = 0;
+let lastRender = 0;
+let lastAutosaveAt = typeof performance !== 'undefined' ? performance.now() : 0;
+
+function renderInterval(speed: number): number {
+  return speed >= 2 ? 200 : 100;
+}
 
 function loop() {
   const s = useGameStore.getState();
@@ -313,17 +338,24 @@ function loop() {
   let days = Math.floor(accumulator);
   if (days <= 0) return;
   accumulator -= days;
-  days = Math.min(days, 6);
+  days = Math.min(days, 3);
   for (let i = 0; i < days; i++) {
     advanceDay(w);
     if (w.player.gameOver) break;
   }
   w.pauseReason = null;
-  drainWorldToasts();
-  const patch: Partial<GameStore> = { version: s.version + 1 };
-  if (w.player.gameOver) patch.paused = true;
-  useGameStore.setState(patch);
-  if (s.autosave && w.day - s.lastAutosaveDay >= 30 && !w.player.gameOver) {
+  const now = performance.now();
+  // a celebration or game over redraws straight away; toasts wait for the next redraw
+  const urgent = !!w.player.gameOver || w.celebrations.length > 0;
+  if (urgent || now - lastRender >= renderInterval(s.speed)) {
+    lastRender = now;
+    drainWorldToasts();
+    const patch: Partial<GameStore> = { version: s.version + 1 };
+    if (w.player.gameOver) patch.paused = true;
+    useGameStore.setState(patch);
+  }
+  if (s.autosave && w.day - s.lastAutosaveDay >= 30 && now - lastAutosaveAt >= AUTOSAVE_MS && !w.player.gameOver) {
+    lastAutosaveAt = now;
     useGameStore.setState({ lastAutosaveDay: w.day });
     void s.saveNow(s.slotId);
   }

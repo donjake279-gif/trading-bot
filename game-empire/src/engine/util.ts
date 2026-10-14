@@ -213,9 +213,21 @@ export function activeCompanies(w: World): Company[] {
 // Per-company game index (not serialised). Rebuilt lazily when games are
 // added or change hands; status changes don't need a rebuild.
 const gameIndex = new WeakMap<World, Map<string, Game[]>>();
+const allIndex = new WeakMap<World, Game[]>();
 
 export function markGamesDirty(w: World): void {
   gameIndex.delete(w);
+  allIndex.delete(w);
+}
+
+/** Every game in the world as an array (cached; games are only ever added). */
+export function allGames(w: World): Game[] {
+  let all = allIndex.get(w);
+  if (!all) {
+    all = Object.values(w.games);
+    allIndex.set(w, all);
+  }
+  return all;
 }
 
 export function addGame(w: World, g: Game): void {

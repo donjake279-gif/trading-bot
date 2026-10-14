@@ -47,7 +47,7 @@ import type {
   UpdateTypeId,
   World,
 } from './types';
-import { activeCompanies, addGame, clamp, emptyLedger, gamesOf, newId, pushNews } from './util';
+import { activeCompanies, addGame, allGames, clamp, emptyLedger, gamesOf, newId, pushNews } from './util';
 
 // ------------------------------------------------------------ helpers
 
@@ -92,15 +92,21 @@ export function aiFocus(w: World, genre: GenreId, talent: number): Focus {
   );
 }
 
+// How crowded each genre is, counted once a day for every studio's decisions.
+const saturationCache = new WeakMap<World, { day: number; n: Partial<Record<GenreId, number>> }>();
+
 function genreSaturation(w: World, genre: GenreId): number {
-  let n = 0;
-  for (const id in w.games) {
-    const g = w.games[id];
-    if (g.genre !== genre) continue;
-    if (g.status === 'development') n += 0.6;
-    else if (g.status === 'released' && g.releaseDay !== null && w.day - g.releaseDay < 365) n += 1;
+  let hit = saturationCache.get(w);
+  if (!hit || hit.day !== w.day) {
+    const n: Partial<Record<GenreId, number>> = {};
+    for (const g of allGames(w)) {
+      if (g.status === 'development') n[g.genre] = (n[g.genre] ?? 0) + 0.6;
+      else if (g.status === 'released' && g.releaseDay !== null && w.day - g.releaseDay < 365) n[g.genre] = (n[g.genre] ?? 0) + 1;
+    }
+    hit = { day: w.day, n };
+    saturationCache.set(w, hit);
   }
-  return n;
+  return hit.n[genre] ?? 0;
 }
 
 // ------------------------------------------------------------ concept choice

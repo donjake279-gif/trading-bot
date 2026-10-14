@@ -10,7 +10,7 @@ import { resolveEmpire } from './empire';
 import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
 import { acquireCompany, founderStake, marketCap } from './stocks';
 import type { DecisionEvent, Game, GenreId, World } from './types';
-import { activeCompanies, clamp, dayToDate, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast } from './util';
+import { activeCompanies, clamp, dayToDate, gamesOf, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast } from './util';
 
 const fmt = (n: number) => {
   const a = Math.abs(n);
@@ -205,7 +205,7 @@ function playerEvents(w: World): void {
   const emps = w.player.employees.filter((e) => !e.isFounder);
 
   // publisher deal
-  const devGames = Object.values(w.games).filter((g) => g.companyId === p.id && g.status === 'development' && g.publisherCut === 0);
+  const devGames = gamesOf(w, p.id).filter((g) => g.status === 'development' && g.publisherCut === 0);
   if (devGames.length && p.reputation < 45 && chance(w, 0.003)) {
     const g = pick(w, devGames);
     const amount = Math.round(Math.max(15000, g.workRequired * 220 + g.budget * 0.6) / 1000) * 1000;
@@ -269,7 +269,7 @@ function playerEvents(w: World): void {
   }
 
   // crunch scandal
-  const crunching = Object.values(w.games).filter((g) => g.companyId === p.id && g.status === 'development' && g.crunch && g.crunchDays > 30);
+  const crunching = gamesOf(w, p.id).filter((g) => g.status === 'development' && g.crunch && g.crunchDays > 30);
   if (crunching.length && chance(w, 0.008 * severity(w))) {
     p.reputation = Math.max(0, p.reputation - 10);
     for (const e of w.player.employees) if (!e.traits.includes('crunchProof')) e.morale = Math.max(0, e.morale - 15);
@@ -280,7 +280,7 @@ function playerEvents(w: World): void {
   }
 
   // predatory monetization aimed at kids
-  const predatory = Object.values(w.games).some((g) => g.companyId === p.id && g.status === 'released' && g.monetization === 'f2pAggressive' && g.audience === 'kids');
+  const predatory = gamesOf(w, p.id).some((g) => g.status === 'released' && g.monetization === 'f2pAggressive' && g.audience === 'kids');
   if (predatory && chance(w, 0.006 * severity(w))) {
     p.reputation = Math.max(0, p.reputation - 12);
     pushNews(w, { kind: 'player', title: `Parents outraged by ${p.name}'s loot boxes in kids' games`, companyId: p.id, tone: 'bad' });

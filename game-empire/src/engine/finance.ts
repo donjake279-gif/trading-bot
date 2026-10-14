@@ -196,6 +196,23 @@ export function holdingsValue(w: World, c: Company): number {
   return v;
 }
 
+// Franchise fans by company, counted once a day (valuations run for every studio).
+const fansCache = new WeakMap<World, { day: number; fans: Map<string, number> }>();
+
+function franchiseFans(w: World, companyId: string): number {
+  let hit = fansCache.get(w);
+  if (!hit || hit.day !== w.day) {
+    const fans = new Map<string, number>();
+    for (const id in w.ips) {
+      const ip = w.ips[id];
+      fans.set(ip.companyId, (fans.get(ip.companyId) ?? 0) + ip.fans);
+    }
+    hit = { day: w.day, fans };
+    fansCache.set(w, hit);
+  }
+  return hit.fans.get(companyId) ?? 0;
+}
+
 export function computeValuation(w: World, c: Company): number {
   const rev = revenueTTM(c);
   const recent = recentRevenue(c, 3);
@@ -210,7 +227,7 @@ export function computeValuation(w: World, c: Company): number {
   let liveRun = 0;
   let ipFans = 0;
   for (const g of gamesOf(w, c.id)) if (g.status === 'released') liveRun += g.rev30 * 12;
-  for (const id in w.ips) if (w.ips[id].companyId === c.id) ipFans += w.ips[id].fans;
+  ipFans = franchiseFans(w, c.id);
 
   let subs = 0;
   for (const id in w.companies) {

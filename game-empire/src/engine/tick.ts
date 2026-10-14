@@ -23,7 +23,7 @@ import { jamDaily } from './jam';
 import { marketDay as stockMarketDay, quarterlyEarnings, stockDay, sweepSubsidiaries } from './stocks';
 import { updateDaily } from './updates';
 import type { World } from './types';
-import { dayToDate, ledgerExpenses, ledgerRevenue } from './util';
+import { allGames, dayToDate, gamesOf, ledgerExpenses, ledgerRevenue } from './util';
 import { WARMUP_DAYS } from './constants';
 
 export function advanceDay(w: World): void {
@@ -44,10 +44,7 @@ export function advanceDay(w: World): void {
   // ---- production
   if (hasPlayer) {
     playerAutomation(w);
-    for (const id in w.games) {
-      const g = w.games[id];
-      if (g.companyId === player.id && g.status === 'development') playerDevDay(w, g, player);
-    }
+    for (const g of gamesOf(w, player.id)) if (g.status === 'development') playerDevDay(w, g, player);
     contractsDaily(w);
     staffDaily(w);
     researchDaily(w);
@@ -58,10 +55,8 @@ export function advanceDay(w: World): void {
     const c = w.companies[id];
     if (c.status === 'active' && !c.isPlayer) aiDaily(w, c);
   }
-  for (const id in w.games) {
-    const g = w.games[id];
-    if (g.update && g.status === 'released') updateDaily(w, g, w.companies[g.companyId]);
-  }
+  const games = allGames(w);
+  for (const g of games) if (g.update && g.status === 'released') updateDaily(w, g, w.companies[g.companyId]);
 
   // ---- the market
   marketDay(w);
@@ -69,8 +64,7 @@ export function advanceDay(w: World): void {
     infraDaily(w);
     if (w.day % 7 === 0) playerGameAlerts(w);
   }
-  for (const id in w.games) {
-    const g = w.games[id];
+  for (const g of allGames(w)) {
     if (g.releaseDay === w.day && g.breakout > 1) hitFeedback(w, g);
     if (hasPlayer && g.companyId === player.id && g.status === 'released' && g.ccu > w.player.stats.peakCcu) w.player.stats.peakCcu = g.ccu;
   }
@@ -153,7 +147,7 @@ export function advanceDay(w: World): void {
       w.player.stats.totalRevenue = player.revenueTotal;
     }
     let rev = 0;
-    for (const id in w.games) if (w.games[id].status === 'released') rev += w.games[id].dailyRevenue;
+    for (const g of allGames(w)) if (g.status === 'released') rev += g.dailyRevenue;
     if (w.day > -WARMUP_DAYS + 270) w.market.industryHistory.push([w.day, Math.round(totalActivePlayers(w)), Math.round(rev)]);
     if (w.market.industryHistory.length > 180) w.market.industryHistory.shift();
     const m = date.getUTCMonth();

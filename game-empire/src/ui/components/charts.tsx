@@ -1,6 +1,7 @@
 // Chart wrappers. Conventions: one y-axis, 2px lines, ~10% area wash,
 // hairline recessive grid, hover crosshair + tooltip, legend for 2+ series.
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
+import { useGameStore } from '../../store/gameStore';
 import {
   Area,
   AreaChart,
@@ -19,6 +20,68 @@ import {
 } from 'recharts';
 import { AXIS, GRID, OTHER } from '../lib/format';
 import { formatDate, formatMonth } from '../../engine/util';
+
+// ------------------------------------------------------------ smooth at speed
+
+/** How often charts redraw while the game runs fast. Rebuilding SVG charts on every tick is what made 4× laggy. */
+const CHART_REFRESH_MS = 1000;
+
+/**
+ * While the game is running at 2× or faster, keep showing the last props until
+ * CHART_REFRESH_MS has passed. A change of shape (different series, size) or
+ * pausing redraws straight away.
+ */
+let chartPhase = 0;
+
+function useThrottledProps<P>(props: P, shape: string): P {
+  const fast = useGameStore((st) => st.status === 'playing' && !st.paused && st.speed >= 1);
+  const ref = useRef<{ props: P; at: number; shape: string } | null>(null);
+  // each chart gets its own offset so a page full of charts doesn't redraw them all on the same frame
+  const phase = useRef(-1);
+  if (phase.current < 0) phase.current = (chartPhase++ * 230) % CHART_REFRESH_MS;
+  const now = performance.now();
+  if (!ref.current || !fast || ref.current.shape !== shape || now - ref.current.at >= CHART_REFRESH_MS) {
+    ref.current = { props, at: ref.current && fast && ref.current.shape === shape ? now : now - phase.current, shape };
+  }
+  return ref.current.props;
+}
+
+export interface TimeChartProps {
+  series: Series[];
+  height?: number;
+  format: (n: number) => string;
+  area?: boolean;
+  domainMin?: number;
+  yDomain?: [number | 'auto', number | 'auto'];
+}
+
+export function TimeChart(props: TimeChartProps) {
+  const shown = useThrottledProps(props, `${props.series.map((x) => x.key).join('|')}:${props.height}:${props.area}:${props.domainMin}`);
+  return useMemo(() => <TimeChartView {...shown} />, [shown]);
+}
+
+interface DonutProps {
+  slices: Slice[];
+  format: (n: number) => string;
+  height?: number;
+}
+
+export function Donut(props: DonutProps) {
+  const shown = useThrottledProps(props, `${props.slices.map((x) => x.name).join('|')}:${props.height}`);
+  return useMemo(() => <DonutView {...shown} />, [shown]);
+}
+
+interface StackedBarsProps {
+  rows: Record<string, number | string>[];
+  keys: { key: string; name: string; color: string }[];
+  format: (n: number) => string;
+  height?: number;
+}
+
+export function StackedBars(props: StackedBarsProps) {
+  const shown = useThrottledProps(props, `${props.keys.map((x) => x.key).join('|')}:${props.rows.length}:${props.height}`);
+  return useMemo(() => <StackedBarsView {...shown} />, [shown]);
+}
 
 export interface Series {
   key: string;
@@ -77,21 +140,14 @@ function mergeSeries(series: Series[]): Record<string, number>[] {
   return [...rows.values()].sort((a, b) => a.day - b.day);
 }
 
-export function TimeChart({
+function TimeChartView({
   series,
   height = 220,
   format,
   area = true,
   domainMin,
   yDomain,
-}: {
-  series: Series[];
-  height?: number;
-  format: (n: number) => string;
-  area?: boolean;
-  domainMin?: number;
-  yDomain?: [number | 'auto', number | 'auto'];
-}) {
+}: TimeChartProps) {
   const data = useMemo(() => {
     const merged = mergeSeries(series);
     return domainMin !== undefined ? merged.filter((r) => r.day >= domainMin) : merged;
@@ -195,7 +251,7 @@ export interface Slice {
   color: string;
 }
 
-export function Donut({ slices, format, height = 200 }: { slices: Slice[]; format: (n: number) => string; height?: number }) {
+function DonutView({ slices, format, height = 200 }: DonutProps) {
   const total = slices.reduce((s, x) => s + x.value, 0);
   const tooltip = ({ active, payload }: { active?: boolean; payload?: readonly TipPayload[] }) => {
     if (!active || !payload?.length) return null;
@@ -240,17 +296,7 @@ export function foldSlices(items: { name: string; value: number }[], palette: st
   return head;
 }
 
-export function StackedBars({
-  rows,
-  keys,
-  format,
-  height = 220,
-}: {
-  rows: Record<string, number | string>[];
-  keys: { key: string; name: string; color: string }[];
-  format: (n: number) => string;
-  height?: number;
-}) {
+function StackedBarsView({ rows, keys, format, height = 220 }: StackedBarsProps) {
   const tooltip = ({ active, payload, label }: { active?: boolean; payload?: readonly TipPayload[]; label?: string | number }) => {
     if (!active || !payload?.length) return null;
     return (

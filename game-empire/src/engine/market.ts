@@ -28,7 +28,7 @@ import { facilityEffects } from './fun';
 import { addXp, perkRank } from './progression';
 import { rand } from './rng';
 import type { Company, Game, GenreId, World } from './types';
-import { clamp, earn, gamesOf, spend, isPlayerGroup, toast } from './util';
+import { allGames, clamp, earn, gamesOf, isPlayerGroup, spend, toast } from './util';
 
 export const OUTSIDE_OPTION = 30;
 export const SHOP_RATE = 0.02;
@@ -163,10 +163,7 @@ export function serverCostMult(w: World, c: Company): number {
 export function marketDay(w: World): void {
   const day = w.day;
   const live: Game[] = [];
-  for (const id in w.games) {
-    const g = w.games[id];
-    if (g.status === 'released') live.push(g);
-  }
+  for (const g of allGames(w)) if (g.status === 'released') live.push(g);
 
   const weights = new Map<string, number>();
   const genreWeight: Record<string, number> = {};
@@ -417,8 +414,7 @@ export function playerGameAlerts(w: World): void {
 
 /** Pre-release hype decay and wishlist accumulation. */
 function devHypeAndWishlists(w: World) {
-  for (const id in w.games) {
-    const g = w.games[id];
+  for (const g of allGames(w)) {
     if (g.status !== 'development') continue;
     const mine = g.companyId === w.player.companyId;
     const rank = mine ? perkRank(w, 'hype') : 0;
@@ -433,6 +429,6 @@ function devHypeAndWishlists(w: World) {
 
 export function totalActivePlayers(w: World): number {
   let t = 0;
-  for (const id in w.games) if (w.games[id].status === 'released') t += w.games[id].active;
+  for (const g of allGames(w)) if (g.status === 'released') t += g.active;
   return t;
 }
