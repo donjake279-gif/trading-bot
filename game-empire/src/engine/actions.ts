@@ -1,5 +1,6 @@
 // Player actions. Every UI interaction that changes the world goes through
 // here; each validates its preconditions and returns an ActionResult.
+import { deskCapacity } from './dominionCore';
 import { rivalReactToLaunch } from './rivalry';
 import {
   CAMPAIGNS,
@@ -324,8 +325,8 @@ export function hire(w: World, candidateId: string): ActionResult {
   const k = w.player.candidates.find((x) => x.id === candidateId);
   if (!k) return fail('Candidate is no longer available.');
   const c = playerCompany(w);
-  const cap = OFFICES[w.player.officeLevel].capacity;
-  if (w.player.employees.length >= cap) return fail(`Your ${OFFICES[w.player.officeLevel].name} is full (${cap}). Move to a bigger office.`);
+  const cap = deskCapacity(w);
+  if (w.player.employees.length >= cap) return fail(`Your ${OFFICES[w.player.officeLevel].name} is full (${cap}). Move to a bigger office${w.player.dominion.cities.length ? ' or build a campus district' : ''}.`);
   const fee = recruitFee(w, k.salary);
   if (c.cash < fee) return fail(`Recruiting costs $${fee.toLocaleString()}.`);
   c.cash -= fee;

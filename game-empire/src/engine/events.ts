@@ -1,4 +1,5 @@
 // Macro-economy, random world events, player decisions, awards and auctions.
+import { resolveDominion } from './dominion';
 import { DIFFICULTIES, GENRES, GENRE_IDS, MAX_LIFELINES, PLATFORMS, PLATFORM_IDS, PLAYER_GRACE_DAYS, ROLES } from './constants';
 import { amortizedPayment, debtOf, monthlyBurn, profitTTM, revenueTTM, takeLoan } from './finance';
 import { ratingOf } from './market';
@@ -440,7 +441,7 @@ export function resolveDecision(w: World, eventId: string, optionId: string): vo
       break;
     }
     default:
-      if (!resolveOpportunity(w, ev, optionId) && !resolveMeme(w, ev, optionId) && !resolveEmpire(w, ev, optionId)) resolveJam(w, ev, optionId);
+      if (!resolveOpportunity(w, ev, optionId) && !resolveMeme(w, ev, optionId) && !resolveEmpire(w, ev, optionId) && !resolveDominion(w, ev, optionId)) resolveJam(w, ev, optionId);
   }
 }
 

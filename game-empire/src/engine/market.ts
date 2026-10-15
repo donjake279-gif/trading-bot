@@ -5,6 +5,7 @@
 // probability proportional to appeal x visibility (a logit-style share with
 // an outside option). Owners accumulate, active players churn away, and
 // revenue follows the game's business model.
+import { dominionVisibility } from './dominionCore';
 import { contentLevelOf } from './updates';
 import { addConsoleGross, antiCheatChurn } from './ventures';
 import {
@@ -28,7 +29,7 @@ import { facilityEffects } from './fun';
 import { addXp, perkRank } from './progression';
 import { rand } from './rng';
 import type { Company, Game, GenreId, World } from './types';
-import { allGames, clamp, earn, gamesOf, isPlayerGroup, spend, toast } from './util';
+import { allGames, clamp, earn, gamesOf, hashString, isPlayerGroup, spend, toast } from './util';
 
 export const OUTSIDE_OPTION = 30;
 export const SHOP_RATE = 0.02;
@@ -112,6 +113,7 @@ export function visibilityOf(w: World, g: Game, c: Company): number {
     if (c.isPlayer ? hasResearch(w, 'esports') : c.reputation > 72) esports = c.isPlayer ? 3 : 1.5;
   }
   let v = 1 + featuring + hype + wom + rep + ipV + esports;
+  if (c.isPlayer) v *= dominionVisibility(w);
   if (g.multiplayer === 'online' || g.multiplayer === 'massive') v *= 1 + 0.1 * Math.log10(1 + g.ccu / 100);
   return v;
 }
@@ -159,20 +161,49 @@ export function serverCostMult(w: World, c: Company): number {
   return m;
 }
 
+/**
+ * Quiet games (rivals' games after their first four months; yours after a
+ * year with nothing shipped for two months; never during a sale or a viral
+ * moment) change slowly, so they are
+ * simulated once a week in a 7-day step. Each game has its own weekday, so
+ * totals stay smooth. This keeps a decade-old industry with thousands of
+ * live games fast at 4x.
+ */
+const QUIET_STEP = 7;
+
+function simSlot(g: Game): number {
+  if (g.simSlot === undefined) g.simSlot = hashString(g.id) % QUIET_STEP;
+  return g.simSlot;
+}
+
+export function isQuiet(g: Game, day: number, playerOwned: boolean): boolean {
+  if (g.releaseDay === null || g.discountUntil > day || day < g.viralUntil || day < g.seasonalUntil) return false;
+  const age = day - g.releaseDay;
+  // your own games stay on the daily sim for a year and while you're working on them
+  if (playerOwned) return age > 365 && !g.update && day - g.lastUpdateDay > 60;
+  return age > 120;
+}
+
 /** Simulate one day of the whole player market. */
 export function marketDay(w: World): void {
   const day = w.day;
   const live: Game[] = [];
-  for (const g of allGames(w)) if (g.status === 'released') live.push(g);
+  const steps: number[] = [];
+  const mine = new Set<string>([w.player.companyId]);
+  for (const id in w.companies) if (w.companies[id].parentId === w.player.companyId) mine.add(id);
+  for (const g of allGames(w)) {
+    if (g.status !== 'released') continue;
+    live.push(g);
+    steps.push(isQuiet(g, day, mine.has(g.companyId)) ? ((day + simSlot(g)) % QUIET_STEP === 0 ? QUIET_STEP : 0) : 1);
+  }
 
-  const weights = new Map<string, number>();
   const genreWeight: Record<string, number> = {};
   for (const gid of GENRE_IDS) genreWeight[gid] = 0;
-  for (const g of live) {
-    const c = w.companies[g.companyId];
-    const wgt = attentionWeight(w, g, c);
-    weights.set(g.id, wgt);
-    genreWeight[g.genre] += wgt;
+  for (let i = 0; i < live.length; i++) {
+    const g = live[i];
+    // a quiet game keeps the weight from its last simulated day
+    if (steps[i] > 0 || g.simWeight === undefined) g.simWeight = attentionWeight(w, g, w.companies[g.companyId]);
+    genreWeight[g.genre] += g.simWeight;
   }
 
   const sentiment = w.market.sentiment * surgeMult(w);
@@ -187,7 +218,10 @@ export function marketDay(w: World): void {
   const merchRank = hasPlayer ? perkRank(w, 'merch') : 0;
   const hypeRank = hasPlayer ? perkRank(w, 'hype') : 0;
 
-  for (const g of live) {
+  for (let gi = 0; gi < live.length; gi++) {
+    const dt = steps[gi];
+    if (dt === 0) continue;
+    const g = live[gi];
     const c = w.companies[g.companyId];
     const r = ratingOf(g);
     const age = day - (g.releaseDay ?? day);
@@ -197,9 +231,9 @@ export function marketDay(w: World): void {
     const scope = SCOPES[g.scope];
     const mix = platformMix(w, g);
     const pool = audiencePool(w, g);
-    const wgt = weights.get(g.id) ?? 0;
+    const wgt = g.simWeight ?? 0;
     const share = wgt / (genreWeight[g.genre] + OUTSIDE_OPTION);
-    const shoppers = pool * SHOP_RATE * sentiment * shopDay;
+    const shoppers = pool * SHOP_RATE * sentiment * shopDay * dt;
     const playerOnline = c.isPlayer && fx !== null && (g.multiplayer === 'online' || g.multiplayer === 'massive');
 
     // conversion
@@ -231,7 +265,7 @@ export function marketDay(w: World): void {
     if (playerOnline) newPlayers *= fx.acquire;
     if (!(newPlayers > 0)) newPlayers = 0;
     g.owners += newPlayers;
-    g.dailyNew = newPlayers;
+    g.dailyNew = newPlayers / dt;
 
     // churn
     const density = bugDensity(g);
@@ -253,8 +287,8 @@ export function marketDay(w: World): void {
     g.lastChurn = churn;
     // lapsed players drift back to games that stay fresh and well-liked
     const lapsed = Math.max(0, g.owners - g.active);
-    const returning = lapsed * 0.0018 * g.freshness * r * (mp.serverBase > 0 ? 1.4 : 0.6);
-    g.active = Math.max(0, g.active * (1 - churn) + newPlayers * 0.92 + returning);
+    const returning = lapsed * 0.0018 * g.freshness * r * (mp.serverBase > 0 ? 1.4 : 0.6) * dt;
+    g.active = Math.max(0, g.active * (dt === 1 ? 1 - churn : Math.pow(1 - churn, dt)) + newPlayers * 0.92 + returning);
     if (g.active < 0.5) g.active = 0;
     g.ccu = g.active * mp.ccuRatio * ccuDay * (0.93 + 0.14 * rand(w));
     if (g.ccu > g.peakCcu) g.peakCcu = g.ccu;
@@ -266,7 +300,7 @@ export function marketDay(w: World): void {
     if (g.monetization === 'subscription') arpdau = mon.arpdau * (0.75 + 0.25 * mix.spend);
     if (w.day < g.seasonalUntil && !mon.upfront) arpdau *= 1.3;
     if (g.monetization === 'f2pAggressive') arpdau *= regulation;
-    const recurringGross = g.active * arpdau;
+    const recurringGross = g.active * arpdau * dt;
     const net = (salesGross + recurringGross) * (1 - mix.storeCut);
     const eng = engineStats(w, g.engine, c.isPlayer, c);
     const royalty = net * eng.royalty;
@@ -293,7 +327,7 @@ export function marketDay(w: World): void {
 
     // servers: rivals pay per game; the player's fleet is billed in infra.ts
     let server = 0;
-    if (!c.isPlayer && mp.serverBase > 0) server = (mp.serverBase + g.ccu * mp.serverCostPerCcu) * serverCostMult(w, c);
+    if (!c.isPlayer && mp.serverBase > 0) server = (mp.serverBase + g.ccu * mp.serverCostPerCcu) * serverCostMult(w, c) * dt;
     if (server > 0) spend(c, 'servers', server);
 
     let revenue = net - royalty - pubCut;
@@ -302,25 +336,29 @@ export function marketDay(w: World): void {
       earn(c, 'licensing', extra);
       revenue += extra;
     }
-    g.dailyRevenue = revenue;
+    g.dailyRevenue = revenue / dt;
     g.revenueTotal += revenue;
-    g.rev30 = g.rev30 * (29 / 30) + revenue;
+    // a step of dt days of 30-day decay, as if the revenue came in evenly
+    const q = dt === 1 ? 29 / 30 : Math.pow(29 / 30, dt);
+    const spread = dt === 1 ? 1 : (1 - q) / (1 - 29 / 30) / dt;
+    g.rev30 = g.rev30 * q + revenue * spread;
     if (!c.isPlayer) {
-      g.dailyCost = server;
+      g.dailyCost = server / dt;
       g.costTotal += server;
-      g.cost30 = g.cost30 * (29 / 30) + server;
+      g.cost30 = g.cost30 * q + server * spread;
     }
     c.rev30 = c.rev30 + revenue;
 
     // ageing
     const decay = scope.freshnessDecay * mp.freshnessDecay * ART_STYLES[g.artStyle].aging;
-    g.freshness = Math.max(0.03, g.freshness - decay * (0.6 + 0.4 * g.freshness));
-    g.hype *= c.isPlayer ? 1 - 0.035 * (1 - 0.25 * hypeRank) : 0.965;
-    g.goodwill *= 0.995;
+    for (let k = 0; k < dt; k++) g.freshness = Math.max(0.03, g.freshness - decay * (0.6 + 0.4 * g.freshness));
+    const hypeKeep = c.isPlayer ? 1 - 0.035 * (1 - 0.25 * hypeRank) : 0.965;
+    g.hype *= dt === 1 ? hypeKeep : Math.pow(hypeKeep, dt);
+    g.goodwill *= dt === 1 ? 0.995 : Math.pow(0.995, dt);
     // neglect: live-service and popular games that go quiet lose their players' patience
     const neglectAfter = !mon.upfront || mp.serverBase > 0 ? 100 : 160;
     if (g.active > 2000 && day - g.lastUpdateDay > neglectAfter) {
-      g.goodwill = Math.max(-10, g.goodwill - 0.05);
+      g.goodwill = Math.max(-10, g.goodwill - 0.05 * dt);
       if (c.isPlayer && !g.neglectWarned) {
         g.neglectWarned = true;
         toast(w, `Players feel ${g.title} has been abandoned`, 'bad', { category: 'game', link: { route: 'game', id: g.id }, body: 'No update in months. Reviews and retention will slide until you ship one.' });
@@ -332,7 +370,7 @@ export function marketDay(w: World): void {
       99,
     );
     g.userScoreTarget = target;
-    g.userScore = clamp(g.userScore + (target - g.userScore) * 0.03, 1, 99);
+    g.userScore = clamp(target + (g.userScore - target) * (dt === 1 ? 0.97 : Math.pow(0.97, dt)), 1, 99);
 
     if (g.history.length === 0 || day - g.history[g.history.length - 1][0] >= 1) {
       g.history.push([day, Math.round(g.active), Math.round(g.ccu), Math.round(revenue)]);
@@ -366,11 +404,13 @@ export function compactDeadHistory(g: Game): void {
   g.history = out.slice(-48);
 }
 
+/** Daily for 4 months, weekly to 2 years, monthly to 5 years; older points go. */
 function thinGameHistory(g: Game, day: number) {
   const out: Game['history'] = [];
   let lastKept = -Infinity;
   for (const p of g.history) {
     const age = day - p[0];
+    if (age > 1825) continue;
     const step = age <= 120 ? 1 : age <= 730 ? 7 : 30;
     if (age <= 120 || p[0] - lastKept >= step) {
       out.push(p);

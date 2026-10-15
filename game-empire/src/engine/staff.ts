@@ -1,4 +1,5 @@
 // Player staff: candidates, morale, growth, research progress.
+import { cityMorale, deskCapacity, researchSpeed } from './dominionCore';
 import { BENEFITS, HIREABLE_ROLES, HOURS, OFFICES, RESEARCH, ROLES, TRAITS, salaryFor } from './constants';
 import { perkRank } from './progression';
 import { facilityEffects } from './fun';
@@ -88,7 +89,7 @@ export function staffMonthly(w: World): void {
   const p = playerCompany(w);
   const office = OFFICES[w.player.officeLevel];
   const headcount = w.player.employees.length;
-  const crowded = headcount > office.capacity;
+  const crowded = headcount > deskCapacity(w);
   const toxic = w.player.employees.filter((e) => e.traits.includes('toxic')).length;
   const quitters: Employee[] = [];
   for (const e of w.player.employees) {
@@ -102,7 +103,7 @@ export function staffMonthly(w: World): void {
     if (toxic > 0 && !e.traits.includes('toxic')) target -= Math.min(18, (toxic / Math.max(1, headcount)) * 120);
     const crunching = e.assignment && w.games[e.assignment]?.crunch;
     if (crunching && !e.traits.includes('crunchProof')) target -= 18 * (1 - 0.3 * perkRank(w, 'crunch')) * fx.crunchMult;
-    target += BENEFITS[w.player.policies.benefits].morale + HOURS[w.player.policies.hours].morale + fx.morale;
+    target += BENEFITS[w.player.policies.benefits].morale + HOURS[w.player.policies.hours].morale + fx.morale + cityMorale(w);
     if (p.cash < 0) target -= 10;
     e.morale = clamp(e.morale + (target - e.morale) * 0.4 + randNormal(w, 0, 3), 0, 100);
     const quitChance = (e.traits.includes('loyal') ? 0.01 : e.morale < 25 ? 0.25 : e.morale < 40 ? 0.08 : 0.005) * BENEFITS[w.player.policies.benefits].quit * fx.quitMult;
@@ -119,7 +120,7 @@ export function staffMonthly(w: World): void {
 export function researchDaily(w: World): void {
   const r = w.player.research.active;
   if (!r) return;
-  r.progress += 1;
+  r.progress += researchSpeed(w);
   if (r.progress >= r.days) {
     w.player.research.completed.push(r.id);
     w.player.research.active = null;

@@ -4,6 +4,7 @@
 // with servers. Owned hardware costs more up front than renting cloud nodes
 // but far less each month, and good buildings make games run smoother.
 // Hardware wears out over the years and can be refreshed.
+import { cityServerCapacity, energyMult } from './dominionCore';
 import {
   DC_BUILDINGS,
   DC_MAX_UPGRADE,
@@ -87,11 +88,11 @@ export function dcMonthlyCost(w: World, dc: DataCenter): number {
   if (!dcReady(w, dc)) return 0;
   let upkeep = 0;
   for (const m of SERVER_MODEL_IDS) upkeep += dc.servers[m] * SERVER_MODELS[m].upkeep;
-  return DC_BUILDINGS[dc.building].rent + upkeep + dcPowerDraw(dc) * ELECTRICITY_PER_KW;
+  return DC_BUILDINGS[dc.building].rent + upkeep + dcPowerDraw(dc) * ELECTRICITY_PER_KW * energyMult(w);
 }
 
 export function ownedCapacity(w: World, onlineOnly = true): number {
-  let t = 0;
+  let t = cityServerCapacity(w);
   for (const dc of w.player.infra.dataCenters ?? []) if (onlineOnly ? dcOnline(w, dc) : dcReady(w, dc)) t += dcCapacity(dc);
   return t;
 }

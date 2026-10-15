@@ -36,6 +36,11 @@ const REV_LABELS: Record<(typeof REVENUE_KEYS)[number], string> = {
   hardware: 'Consoles & platform fees',
   tech: 'AI & anti-cheat',
   entertainment: 'Films & theme parks',
+  ecosystem: 'Ecosystem & platforms',
+  space: 'Space economy',
+  worlds: 'Virtual universes',
+  cities: 'Company cities',
+  dominion: 'Spoils, annexes & megaprojects',
   other: 'Other',
 };
 const EXP_LABELS: Record<(typeof EXPENSE_KEYS)[number], string> = {
@@ -51,10 +56,13 @@ const EXP_LABELS: Record<(typeof EXPENSE_KEYS)[number], string> = {
   perks: 'Benefits & perks',
   ventures: 'Ventures',
   empire: 'Empire upkeep & fines',
+  warfare: 'Wars, spies & crises',
+  execs: 'Executives',
+  buildout: 'Dominion build-out',
   misc: 'Other',
 };
-const REV_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#6f7c8b', '#1baf9f', '#b45cc9', '#e0a526', '#8a96a3'];
-const EXP_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#6f7c8b', '#1baf9f', '#b45cc9', '#8a96a3'];
+const REV_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#6f7c8b', '#1baf9f', '#b45cc9', '#e0a526', '#4f9de8', '#7a6ff0', '#2fbf8f', '#d9822b', '#c7476f', '#8a96a3'];
+const EXP_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767', '#5b6878', '#6f7c8b', '#1baf9f', '#b45cc9', '#c7476f', '#e0a526', '#2fbf8f', '#8a96a3'];
 
 export function Finance() {
   const w = useWorld();

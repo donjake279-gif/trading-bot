@@ -260,6 +260,10 @@ export interface Game {
   lastChurn: number;
   updates: UpdateRecord[];
   lastUpdateDay: number;
+  /** Attention weight from the last simulated market day (quiet games skip days). */
+  simWeight?: number;
+  /** Weekday (0..6) a quiet game is simulated on. */
+  simSlot?: number;
   awards: string[];
   /** Setting of the game; with the genre it forms a combo that critics love or hate. */
   topic: TopicId;
@@ -327,6 +331,22 @@ export interface Ledger {
   ventures: number;
   /** Empire upkeep, fines and legal costs. */
   empire: number;
+  /** Operating systems, subscriptions, marketplace, cloud and devices. */
+  ecosystem: number;
+  /** Orbital factories, lunar facilities and the off-world market. */
+  space: number;
+  /** Virtual universes: taxes, land and memberships. */
+  worlds: number;
+  /** Company cities: taxes, rents and tourism. */
+  cities: number;
+  /** War spoils, annexed megacorps, megaproject dividends and deals. */
+  dominion: number;
+  /** Wars, espionage, security and emergencies. */
+  warfare: number;
+  /** Executive pay and stock grants. */
+  execs: number;
+  /** Building and running ecosystems, space assets, worlds, cities and megaprojects. */
+  buildout: number;
 }
 
 export interface MonthRecord {
@@ -356,6 +376,8 @@ export interface Company {
   hq: string;
   status: 'active' | 'bankrupt' | 'acquired';
   parentId: string | null;
+  /** Megacorp that owns this studio (late game). */
+  corpId?: string | null;
   endDay: number | null;
 
   reputation: number;
@@ -558,6 +580,8 @@ export interface PlayerState {
   ventures: Ventures;
   liveOps: LiveOpsSettings;
   rivalry: RivalryState;
+  /** The late game: megacorps, wars, spies, platforms, space and more. */
+  dominion: DominionState;
 }
 
 export interface RivalryState {
@@ -849,6 +873,8 @@ export interface World {
   celebrations: { id: string; title: string; big?: boolean }[];
   /** Player releases waiting for their launch-day reveal; drained by the store, never saved. */
   launches?: LaunchNote[];
+  /** Keynotes waiting for their live show; drained by the store, never saved. */
+  keynoteShows?: KeynoteResult[];
 }
 
 export interface LaunchNote {
@@ -1041,4 +1067,466 @@ export interface Ventures {
   cheatLevel: number;
   films: Film[];
   parks: ThemePark[];
+}
+
+// ---------------------------------------------------------------- dominion (late game)
+
+/** The markets the giants fight over. */
+export type SectorId = 'games' | 'hardware' | 'platforms' | 'cloud' | 'ai' | 'media' | 'space';
+/** A side in the corporate world: 'player' or a megacorp id. */
+export type PartyId = string;
+
+export type CorpPersona = 'warlord' | 'schemer' | 'visionary' | 'showman' | 'diplomat' | 'tycoon';
+
+export interface CorpAssets {
+  ecosystemUsers: number;
+  universePop: number;
+  cities: number;
+  spaceAssets: number;
+  /** Megaproject progress (0..1) by id; 1 = finished. */
+  projects: Partial<Record<MegaprojectId, number>>;
+}
+
+/** A rival megacorporation: an AI empire that plays the late game too. */
+export interface Megacorp {
+  id: string;
+  name: string;
+  ceo: string;
+  persona: CorpPersona;
+  color: string;
+  hq: RegionId;
+  founded: number;
+  status: 'active' | 'collapsed' | 'annexed';
+  endDay: number | null;
+  cash: number;
+  valuation: number;
+  /** Yearly revenue in each sector: their strength there. */
+  power: Record<SectorId, number>;
+  /** 0..100: how hard they are to spy on. */
+  security: number;
+  /** 0..100: how good their spies are. */
+  intel: number;
+  allianceId: string | null;
+  /** -100..100: how they feel about you. */
+  relation: number;
+  /** How they feel about other corps (id -> -100..100). */
+  relations: Record<string, number>;
+  assets: CorpAssets;
+  /** 0..100: war fatigue. High means they want peace. */
+  exhaustion: number;
+  /** Game studios they own (company ids). */
+  studios: string[];
+  lastKeynote: number;
+  lastWar: number;
+  /** Your last joint venture with them (one every few months). */
+  talksDay: number;
+  history: Point[];
+}
+
+export interface Alliance {
+  id: string;
+  name: string;
+  members: PartyId[];
+  formed: number;
+}
+
+export type WarTactic = 'priceWar' | 'adBlitz' | 'exclusives' | 'lobbying' | 'talentRaid' | 'sabotage';
+
+export interface War {
+  id: string;
+  sector: SectorId;
+  attacker: PartyId;
+  defender: PartyId;
+  attackers: PartyId[];
+  defenders: PartyId[];
+  /** -100..100; positive means the attackers are winning. */
+  score: number;
+  start: number;
+  /** 0 holding .. 3 all-in, per party. */
+  intensity: Record<PartyId, number>;
+  /** The player's tactic cooldowns (tactic -> first day it can be used again). */
+  cooldowns: Partial<Record<WarTactic, number>>;
+  /** Price war: everyone's revenue in the sector is cut until this day. */
+  priceWarUntil: number;
+  /** Peace was offered to the player and is waiting in the inbox. */
+  peaceOffered: boolean;
+  log: { day: number; text: string; swing: number }[];
+  spent: Record<PartyId, number>;
+}
+
+export interface WarRecord {
+  id: string;
+  sector: SectorId;
+  title: string;
+  result: string;
+  start: number;
+  end: number;
+  /** How it went for you, if you were in it. */
+  player: 'won' | 'lost' | 'peace' | null;
+}
+
+/** A temporary multiplier on your income in one sector (war spoils, sanctions...). */
+export interface SectorMod {
+  sector: SectorId | 'all';
+  mult: number;
+  until: number;
+  reason: string;
+}
+
+export interface AnnexedCorp {
+  id: string;
+  name: string;
+  day: number;
+  /** Yearly revenue they bring in, by sector. */
+  power: Record<SectorId, number>;
+}
+
+export type ExecRole = 'coo' | 'cfo' | 'cto' | 'cmo' | 'cso' | 'counsel';
+export type ExecTrait = 'visionary' | 'ruthless' | 'cautious' | 'showman' | 'loyalist' | 'schemer' | 'workaholic' | 'diplomat';
+
+export interface Executive {
+  id: string;
+  name: string;
+  role: ExecRole;
+  skill: number;
+  /** 0..100: below 30 they start looking around. */
+  loyalty: number;
+  /** 0..100: how much they want, and how far they'll go to get it. */
+  ambition: number;
+  traits: ExecTrait[];
+  /** Monthly pay. */
+  salary: number;
+  hired: number;
+  /** Executive id they're feuding with. */
+  feudWith: string | null;
+  /** Megacorp they were poached from. */
+  fromCorp: string | null;
+  /** Secretly working for this megacorp. */
+  mole: string | null;
+  lastAgenda: number;
+  /** Stock grants received (each one raises loyalty). */
+  grants: number;
+}
+
+export type OpKind = 'roadmap' | 'plant' | 'poach' | 'sabotage' | 'smear' | 'hack';
+export type ThreatKind = 'insider' | 'leak' | 'poach' | 'cyber' | 'theft';
+
+export interface SpyOp {
+  id: string;
+  kind: OpKind;
+  target: string;
+  start: number;
+  days: number;
+  cost: number;
+  odds: number;
+  risk: number;
+}
+
+/** Something a rival is doing to you. Insiders stay hidden until security finds them. */
+export interface Threat {
+  id: string;
+  kind: ThreatKind;
+  corpId: string;
+  day: number;
+  detected: boolean;
+  target: string | null;
+  strength: number;
+}
+
+export interface Espionage {
+  /** Security tier 0..5. */
+  level: number;
+  auditDay: number;
+  threats: Threat[];
+  ops: SpyOp[];
+  /** Intel on each megacorp (0..100): better odds and early warnings. */
+  intel: Record<string, number>;
+  /** Megacorps where you have a mole. */
+  plants: string[];
+  stats: { opsWon: number; opsFailed: number; opsExposed: number; caught: number; leaks: number; poached: number };
+  log: { day: number; text: string; tone: 'good' | 'bad' | 'neutral' }[];
+}
+
+export type EcoPart = 'os' | 'subscription' | 'marketplace' | 'cloud' | 'devices';
+
+export interface EcosystemState {
+  name: string;
+  founded: number;
+  levels: Record<EcoPart, number>;
+  building: { part: EcoPart; level: number; start: number; days: number; cost: number } | null;
+  /** Monthly active users across the ecosystem. */
+  users: number;
+  subscribers: number;
+  /** Monthly subscription price. */
+  subPrice: number;
+  /** Marketplace cut on third-party sales. */
+  cut: number;
+  /** Open platforms attract developers; closed ones keep more money. */
+  open: boolean;
+  /** Put your new games into the subscription on day one. */
+  dayOne: boolean;
+  /** 0..1: share of studios that ship on your platform. */
+  developers: number;
+  exclusives: { companyId: string; until: number }[];
+  partRevenue: Record<EcoPart, number>;
+  monthRevenue: number;
+  revenue: number;
+  /** Visibility boost your platform gives your own games (refreshed monthly). */
+  promo: number;
+  /** Total spent building it. */
+  invested: number;
+  history: Point[];
+}
+
+export type RevealKind = 'game' | 'console' | 'ai' | 'engine' | 'ecosystem' | 'universe' | 'space' | 'megaproject' | 'city';
+
+export interface RevealItem {
+  kind: RevealKind;
+  refId: string;
+  label: string;
+  /** Held back for "one more thing". */
+  surprise: boolean;
+}
+
+export interface KeynotePlan {
+  id: string;
+  title: string;
+  venue: number;
+  day: number;
+  booked: number;
+  reveals: RevealItem[];
+  cost: number;
+}
+
+export interface KeynoteShowItem {
+  kind: RevealKind;
+  label: string;
+  /** 0..100 audience reaction. */
+  score: number;
+  reaction: string;
+  surprise: boolean;
+}
+
+export interface KeynoteResult {
+  id: string;
+  day: number;
+  title: string;
+  venue: number;
+  items: KeynoteShowItem[];
+  /** Overall 0..100. */
+  score: number;
+  hype: number;
+  stockMove: number;
+  rep: number;
+  preorders: number;
+  reactions: { corpId: string; name: string; text: string }[];
+  leaked: boolean;
+  flop: boolean;
+  /** A rival keynote the same week split the audience. */
+  clash: string | null;
+}
+
+export interface KeynoteState {
+  plan: KeynotePlan | null;
+  history: KeynoteResult[];
+  lastDay: number;
+  /** A rival's keynote is hogging the spotlight until this day. */
+  rivalSpotlightUntil: number;
+  /** Rival keynotes announced for the coming weeks. */
+  upcoming: { corpId: string; day: number; title: string; sector: SectorId }[];
+}
+
+export type SpaceKind = 'spaceport' | 'orbitalFactory' | 'orbitalStation' | 'lunarBase' | 'heliumMine' | 'lunarResort' | 'marsColony' | 'asteroidMining' | 'jovianOutpost';
+
+export interface SpaceAsset {
+  id: string;
+  kind: SpaceKind;
+  name: string;
+  stage: 'building' | 'active' | 'lost';
+  start: number;
+  ready: number;
+  /** Book cost (everything spent on it). */
+  cost: number;
+  /** Still to be paid while it's being built (spread over the build). */
+  buildCost: number;
+  level: number;
+  offlineUntil: number;
+  /** Last month's revenue. */
+  output: number;
+}
+
+export interface SpaceState {
+  assets: SpaceAsset[];
+  /** Reusable rockets 0..5: cheaper, safer launches. */
+  launchTech: number;
+  /** Radiation and debris shielding 0..5. */
+  shield: number;
+  /** People living off Earth (everyone's colonies). */
+  offworld: number;
+  /** Who got there first. */
+  firsts: Partial<Record<SpaceKind, PartyId>>;
+  monthRevenue: number;
+  revenue: number;
+  incidents: number;
+}
+
+export interface Universe {
+  id: string;
+  name: string;
+  theme: TopicId;
+  ipId: string | null;
+  founded: number;
+  stage: 'building' | 'live' | 'closed';
+  ready: number;
+  cost: number;
+  /** Capacity tier 1..5. */
+  scale: number;
+  population: number;
+  peak: number;
+  /** 0..100. */
+  satisfaction: number;
+  /** In-world currency in circulation (coins). */
+  money: number;
+  /** Price index (100 at launch). */
+  prices: number;
+  /** Yearly inflation, e.g. 0.05. */
+  inflation: number;
+  /** Tax on in-world trades, 0..0.3. */
+  tax: number;
+  /** Coins dropped into the world: 0 tight .. 2 generous. */
+  faucet: number;
+  /** Share of the world's land sold to residents. */
+  landSold: number;
+  /** Moderation spending tier 0..3. */
+  moderation: number;
+  /** 0..100. */
+  toxicity: number;
+  /** 0..1 content freshness. */
+  freshness: number;
+  /** The world's central bank tunes tax and faucet for you. */
+  autopilot: boolean;
+  /** Real-money trading allowed. */
+  rmt: boolean;
+  monthRevenue: number;
+  revenue: number;
+  history: [number, number, number][];
+  crisis: string | null;
+  crisisUntil: number;
+}
+
+export type DistrictKind = 'residential' | 'campus' | 'research' | 'data' | 'industry' | 'entertainment' | 'commerce' | 'energy' | 'spaceport';
+
+export interface District {
+  id: string;
+  kind: DistrictKind;
+  level: number;
+  /** Building (or upgrading) until this day. */
+  ready: number;
+}
+
+export interface CompanyCity {
+  id: string;
+  name: string;
+  region: RegionId;
+  founded: number;
+  ready: number;
+  /** District plots. */
+  slots: number;
+  districts: District[];
+  population: number;
+  /** 0..100. */
+  happiness: number;
+  /** 0..100: riots start around 70. */
+  unrest: number;
+  /** City tax 0..0.4. */
+  tax: number;
+  /** Public services 0..3. */
+  services: number;
+  autopilot: boolean;
+  /** Everything spent founding and building it. */
+  invested: number;
+  monthRevenue: number;
+  revenue: number;
+  /** Riots or a disaster: the city earns nothing until this day. */
+  troubleUntil: number;
+  history: Point[];
+}
+
+export type MegaprojectId = 'neuralNet' | 'fusionGrid' | 'fullDive' | 'orbitalElevator' | 'arcologies' | 'quantumWeb' | 'dysonCompute' | 'terraform' | 'starship';
+
+export interface MegaprojectRun {
+  id: MegaprojectId;
+  stage: 'building' | 'done' | 'abandoned';
+  phase: number;
+  /** 0..1 within the current phase. */
+  progress: number;
+  start: number;
+  spent: number;
+  budget: number;
+  /** 0.5..1.3: how good the finished project is. */
+  quality: number;
+  /** Stalled (protests, sabotage, a funding decision) until this day. */
+  pausedUntil: number;
+  done: number;
+}
+
+export type EmergencyKind = 'outage' | 'breach' | 'whistleblower' | 'breakup' | 'liquidity' | 'supply' | 'rogueAi' | 'worldCrash' | 'orbital' | 'cityRiot' | 'boycott';
+
+export interface Emergency {
+  id: string;
+  kind: EmergencyKind;
+  title: string;
+  start: number;
+  stage: number;
+  /** 0..100: at 100 the crisis turns into a disaster. */
+  pressure: number;
+  /** 1..3. */
+  severity: number;
+  /** The crisis escalates (next decision) on this day. */
+  nextStage: number;
+  log: { day: number; text: string }[];
+}
+
+export type ScarKey = 'rep' | 'ecoGrowth' | 'antitrust' | 'devSpeed' | 'revenue' | 'hardwareCost' | 'aiRevenue' | 'worldPop' | 'spaceRisk' | 'cityHappiness';
+
+/** A lasting consequence of a crisis (or a reward for handling one well). */
+export interface Scar {
+  id: string;
+  label: string;
+  key: ScarKey;
+  value: number;
+  until: number;
+}
+
+export interface DominionState {
+  /** Highest unlock level already announced. */
+  seen: number;
+  corps: Megacorp[];
+  alliances: Alliance[];
+  wars: War[];
+  warHistory: WarRecord[];
+  mods: SectorMod[];
+  annexed: AnnexedCorp[];
+  /** Your yearly revenue by sector, refreshed monthly. */
+  power: Record<SectorId, number>;
+  /** Independent studios' yearly game revenue, refreshed monthly. */
+  indieGames: number;
+  execs: Executive[];
+  execPool: Executive[];
+  execPoolDay: number;
+  spy: Espionage;
+  ecosystem: EcosystemState | null;
+  keynotes: KeynoteState;
+  space: SpaceState;
+  universes: Universe[];
+  cities: CompanyCity[];
+  megaprojects: MegaprojectRun[];
+  emergency: Emergency | null;
+  emergencyHistory: { kind: EmergencyKind; title: string; start: number; end: number; outcome: 'contained' | 'disaster' }[];
+  nextEmergency: number;
+  scars: Scar[];
+  feed: { day: number; text: string; tone: 'good' | 'bad' | 'neutral' | 'major' }[];
+  stats: { warsWon: number; warsLost: number; keynotes: number; annexed: number; megaprojects: number; emergencies: number; disasters: number };
+  /** Day the starship left for another star. */
+  victory: number | null;
 }

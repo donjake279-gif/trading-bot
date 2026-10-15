@@ -120,7 +120,7 @@ function writeIndex(list: SlotMeta[]): void {
 }
 
 export function serializeWorld(w: World): string {
-  return JSON.stringify({ ...w, toasts: [], celebrations: [], launches: [] });
+  return JSON.stringify({ ...w, toasts: [], celebrations: [], launches: [], keynoteShows: [] });
 }
 
 export function deserializeWorld(json: string): World {

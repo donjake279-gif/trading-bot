@@ -122,7 +122,8 @@ describe('empire levels', () => {
   it('a big empire gets investigated and the game keeps running', () => {
     const w = rich();
     let seen = false;
-    for (let d = 0; d < 730 && !seen; d++) {
+    // about 8% a month at this level: four years makes a miss very unlikely
+    for (let d = 0; d < 1460 && !seen; d++) {
       advanceDay(w);
       seen = w.pendingEvents.some((e) => e.kind === 'antitrust');
       for (const ev of [...w.pendingEvents]) resolveDecision(w, ev.id, ev.defaultOption ?? ev.options[ev.options.length - 1].id);

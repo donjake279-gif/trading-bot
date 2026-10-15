@@ -80,6 +80,14 @@ export function emptyLedger(): Ledger {
     entertainment: 0,
     ventures: 0,
     empire: 0,
+    ecosystem: 0,
+    space: 0,
+    worlds: 0,
+    cities: 0,
+    dominion: 0,
+    warfare: 0,
+    execs: 0,
+    buildout: 0,
   };
 }
 
@@ -90,7 +98,27 @@ export function normalizeLedger(l: Partial<Ledger> | undefined): Ledger {
   return out;
 }
 
-export const REVENUE_KEYS = ['sales', 'microtransactions', 'subscriptions', 'ads', 'dlc', 'licensing', 'store', 'contracts', 'investments', 'publishing', 'hardware', 'tech', 'entertainment', 'other'] as const;
+export const REVENUE_KEYS = [
+  'sales',
+  'microtransactions',
+  'subscriptions',
+  'ads',
+  'dlc',
+  'licensing',
+  'store',
+  'contracts',
+  'investments',
+  'publishing',
+  'hardware',
+  'tech',
+  'entertainment',
+  'ecosystem',
+  'space',
+  'worlds',
+  'cities',
+  'dominion',
+  'other',
+] as const;
 export const EXPENSE_KEYS = [
   'salaries',
   'rent',
@@ -104,6 +132,9 @@ export const EXPENSE_KEYS = [
   'perks',
   'ventures',
   'empire',
+  'warfare',
+  'execs',
+  'buildout',
   'misc',
 ] as const;
 

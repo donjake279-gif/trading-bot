@@ -6,6 +6,8 @@ import { pushDecision } from './events';
 import { infraCapacity } from './infra';
 import { addXp } from './progression';
 import { bestModel, consolesInstalled, aiLead } from './ventures';
+import { SECTOR_IDS, antitrustFactor, fmtMoney, sectorLeader, sectorTotal } from './dominionCore';
+import { playerColonists } from './space';
 import type { DecisionEvent, World } from './types';
 import { celebrate, ledgerRevenue, playerCompany, pushNews, spend, toast } from './util';
 import { chance, rand } from './rng';
@@ -38,7 +40,9 @@ export const EMPIRE_LEVELS: EmpireLevelDef[] = [
   { name: 'Megacorp', min: 1e11, blurb: 'Hackers, unions and lawmakers all want a piece.', overhead: 0.04, cashDrag: 0.001, antitrust: 0.05, crisis: 0.03, critics: 2, rivalPace: 0.3, rivalQuality: 0.035 },
   { name: 'Trillion-Dollar Empire', min: 1e12, blurb: 'Every government on Earth is investigating you.', overhead: 0.06, cashDrag: 0.002, antitrust: 0.08, crisis: 0.05, critics: 3, rivalPace: 0.5, rivalQuality: 0.05 },
   { name: 'World Power', min: 1e13, blurb: 'You are bigger than most countries. They have noticed.', overhead: 0.08, cashDrag: 0.003, antitrust: 0.12, crisis: 0.07, critics: 4, rivalPace: 0.75, rivalQuality: 0.065 },
-  { name: 'Galactic Conglomerate', min: 1e14, blurb: 'The final level. Everything is against you.', overhead: 0.1, cashDrag: 0.004, antitrust: 0.16, crisis: 0.09, critics: 5, rivalPace: 1, rivalQuality: 0.08 },
+  { name: 'Galactic Conglomerate', min: 1e14, blurb: 'The world’s governments and megacorps unite against you.', overhead: 0.1, cashDrag: 0.004, antitrust: 0.16, crisis: 0.09, critics: 5, rivalPace: 1, rivalQuality: 0.08 },
+  { name: 'Solar Dynasty', min: 1e15, blurb: 'You own a slice of the Solar System. Every rival alive wants you gone.', overhead: 0.12, cashDrag: 0.005, antitrust: 0.2, crisis: 0.11, critics: 6, rivalPace: 1.3, rivalQuality: 0.095 },
+  { name: 'Cosmic Sovereign', min: 1e16, blurb: 'The final level. Only the stars are left.', overhead: 0.14, cashDrag: 0.006, antitrust: 0.24, crisis: 0.13, critics: 7, rivalPace: 1.6, rivalQuality: 0.11 },
 ];
 
 /** Current empire level from the company's valuation. */
@@ -89,7 +93,7 @@ export function strikeActive(w: World): boolean {
   return w.day < (w.player.empire?.strikeUntil ?? 0);
 }
 
-const money = (n: number) => (n >= 1e12 ? `$${(n / 1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1000)}K`);
+const money = fmtMoney;
 
 // ------------------------------------------------------------ monthly pressure
 
@@ -106,7 +110,7 @@ export function empireMonthly(w: World): void {
     e.overheadPaid += upkeep.total;
   }
 
-  if (def.antitrust > 0 && chance(w, def.antitrust)) {
+  if (def.antitrust > 0 && chance(w, Math.min(0.6, def.antitrust * antitrustFactor(w)))) {
     const fine = Math.round(Math.max(0, p.cash) * 0.015);
     const fees = Math.round(Math.max(0, p.cash) * 0.003);
     const odds = Math.round(courtOdds(w) * 100);
@@ -266,7 +270,43 @@ export const EMPIRE_CHALLENGES: EmpireChallenge[] = [
   { id: 'l7_parks', level: 7, name: 'Run 25 theme parks', progress: (w) => [v(w).parks.filter((x) => x.stage === 'open').length, 25] },
   { id: 'l7_servers', level: 7, name: 'Room for 100 billion players on your servers', progress: (w) => [infraCapacity(w), 1e11] },
   { id: 'l7_goty', level: 7, name: 'Win Game of the Year 3 times', progress: (w) => [countGoty(w), 3] },
+  // the Dominion
+  { id: 'l2_execs', level: 2, name: 'Hire 3 executives', progress: (w) => [dom(w).execs.length, 3] },
+  { id: 'l2_keynote', level: 2, name: 'Hold a keynote that scores 70+', progress: (w) => [Math.max(0, ...dom(w).keynotes.history.map((k) => k.score)), 70] },
+  { id: 'l3_eco', level: 3, name: 'Launch your own operating system', progress: (w) => [dom(w).ecosystem?.levels.os ?? 0, 1] },
+  { id: 'l3_spy', level: 3, name: 'Pull off 3 spy operations', progress: (w) => [dom(w).spy.stats.opsWon, 3] },
+  { id: 'l4_war', level: 4, name: 'Win an empire war', progress: (w) => [dom(w).stats.warsWon, 1] },
+  { id: 'l4_world', level: 4, name: 'A universe with 10 million residents', progress: (w) => [Math.max(0, ...dom(w).universes.map((u) => u.population)), 1e7] },
+  { id: 'l4_crisis', level: 4, name: 'Contain an emergency', progress: (w) => [dom(w).emergencyHistory.filter((e) => e.outcome === 'contained').length, 1] },
+  { id: 'l5_moon', level: 5, name: 'Open a lunar base', progress: (w) => [dom(w).space.assets.filter((a) => a.kind === 'lunarBase' && a.stage === 'active').length, 1] },
+  { id: 'l5_city', level: 5, name: 'A company city of 1 million people', progress: (w) => [Math.max(0, ...dom(w).cities.map((c) => c.population)), 1e6] },
+  { id: 'l5_annex', level: 5, name: 'Absorb a megacorp', progress: (w) => [dom(w).stats.annexed, 1] },
+  { id: 'l6_mega', level: 6, name: 'Complete a megaproject', progress: (w) => [dom(w).stats.megaprojects, 1] },
+  { id: 'l6_users', level: 6, name: '1 billion people in your ecosystem', progress: (w) => [dom(w).ecosystem?.users ?? 0, 1e9] },
+  { id: 'l6_lead', level: 6, name: 'Lead 4 markets', progress: (w) => [leadCount(w), 4] },
+  { id: 'l7_mars', level: 7, name: 'Found a Mars colony', progress: (w) => [dom(w).space.assets.filter((a) => a.kind === 'marsColony' && a.stage === 'active').length, 1] },
+  { id: 'l7_wars', level: 7, name: 'Win 5 empire wars', progress: (w) => [dom(w).stats.warsWon, 5] },
+  { id: 'l7_mega3', level: 7, name: 'Complete 3 megaprojects', progress: (w) => [dom(w).stats.megaprojects, 3] },
+  { id: 'l8_dyson', level: 8, name: 'Complete the Dyson Compute Swarm', progress: (w) => [dom(w).megaprojects.some((m) => m.id === 'dysonCompute' && m.stage === 'done') ? 1 : 0, 1] },
+  { id: 'l8_colonists', level: 8, name: '100 million colonists off Earth', progress: (w) => [playerColonists(w), 1e8] },
+  { id: 'l8_annex', level: 8, name: 'Absorb 3 megacorps', progress: (w) => [dom(w).stats.annexed, 3] },
+  { id: 'l8_lead', level: 8, name: 'Lead every market', progress: (w) => [leadCount(w), SECTOR_IDS.length] },
+  { id: 'l9_starship', level: 9, name: 'Launch the Interstellar Starship', progress: (w) => [dom(w).victory ? 1 : 0, 1] },
+  { id: 'l9_worlds', level: 9, name: '5 billion residents in your universes', progress: (w) => [dom(w).universes.reduce((s, u) => s + u.population, 0), 5e9] },
+  { id: 'l9_half', level: 9, name: 'Own half of every market', progress: (w) => [halfCount(w), SECTOR_IDS.length] },
 ];
+
+function dom(w: World) {
+  return w.player.dominion;
+}
+
+function leadCount(w: World): number {
+  return SECTOR_IDS.filter((s) => sectorLeader(w, s) === 'player' && sectorTotal(w, s) > 0).length;
+}
+
+function halfCount(w: World): number {
+  return SECTOR_IDS.filter((s) => sectorTotal(w, s) > 0 && w.player.dominion.power[s] / sectorTotal(w, s) >= 0.5).length;
+}
 
 export const LEVEL_REWARD = { perkPoints: 2, xp: 5000 };
 

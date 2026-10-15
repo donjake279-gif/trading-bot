@@ -3,6 +3,7 @@
 // on them, films and theme parks cash in on your franchises. Every generation
 // costs more than the last while rivals, cheat makers and AI labs keep
 // getting better, faster the bigger your empire grows.
+import { aiRevenueMult, aiTrainDiscount, ecoConsoleBoost, hardwareCostMult, trainingBonus } from './dominionCore';
 import { PLATFORMS, REGIONS } from './constants';
 import { ownedCapacity } from './datacenters';
 import { hasResearch } from './development';
@@ -294,7 +295,7 @@ function consoleAppeal(w: World, c: ConsoleModel, library: number): number {
   const def = CONSOLE_SIZES[c.size];
   const p = playerCompany(w);
   const age = (w.day - c.launchDay) / 365;
-  let a = Math.pow(consolePowerRatio(w, c), 1.6) * Math.pow(def.refPrice / Math.max(1, c.price), 1.3);
+  let a = Math.pow(consolePowerRatio(w, c), 1.6) * Math.pow(def.refPrice / Math.max(1, c.price), 1.3) * ecoConsoleBoost(w);
   a *= library * (0.6 + p.reputation / 125);
   if (w.day < c.marketingUntil) a *= 1.5;
   if (age < 60 / 365) a *= 1.8;
@@ -343,7 +344,7 @@ function consolesDaily(w: World): void {
     const rev = units * c.price;
     c.revenue += rev;
     earn(p, 'hardware', rev);
-    spend(p, 'ventures', units * c.unitCost);
+    spend(p, 'ventures', units * c.unitCost * hardwareCostMult(w));
     c.unitCost *= 1 - 0.12 / 365;
   }
 }
@@ -389,7 +390,7 @@ export function computeDiscount(w: World): number {
 }
 
 export function aiTrainCost(w: World, gen: number): number {
-  return Math.round(2.5e8 * Math.pow(3, gen - 1) * (1 - computeDiscount(w)));
+  return Math.round(2.5e8 * Math.pow(3, gen - 1) * (1 - computeDiscount(w)) * aiTrainDiscount(w));
 }
 
 export function aiTrainDays(gen: number): number {
@@ -403,7 +404,7 @@ export function nextModelGen(w: World): number {
 export function trainingOdds(w: World, gen: number): number {
   const ai = vt(w).ai;
   const staff = ai ? Math.min(0.1, ai.researchers / 5000) : 0;
-  return clamp(0.92 - 0.035 * gen + staff, 0.4, 0.97);
+  return clamp(0.92 - 0.035 * gen + staff + trainingBonus(w), 0.4, 0.97);
 }
 
 export function foundAiLab(w: World, name: string): ActionResult {
@@ -484,7 +485,7 @@ function aiDaily(w: World): void {
   if (!m) return;
   const q4 = Math.pow(m.quality, 4);
   const share = q4 / (q4 + 3 * Math.pow(vt(w).aiFrontier, 4));
-  const rev = (vt(w).aiMarket / 365) * share * randRange(w, 0.95, 1.05);
+  const rev = (vt(w).aiMarket / 365) * share * randRange(w, 0.95, 1.05) * aiRevenueMult(w);
   ai.dailyRevenue = rev;
   ai.revenue += rev;
   earn(p, 'tech', rev);
@@ -733,7 +734,7 @@ function frontiersDaily(w: World): void {
   v.cheatLevel += (8 / 365) * pace;
   v.rivalPower *= 1 + (0.1 / 365) * pace;
   v.aiFrontier += (6 / 365) * pace;
-  v.aiMarket = Math.min(5e12, v.aiMarket * (1 + 0.25 / 365));
+  v.aiMarket = Math.min(w.player.dominion?.megaprojects.some((m) => m.id === 'dysonCompute' && m.stage === 'done') ? 5e13 : 5e12, v.aiMarket * (1 + 0.25 / 365));
 }
 
 export function venturesDaily(w: World): void {

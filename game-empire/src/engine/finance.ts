@@ -1,4 +1,5 @@
 // Company finances: running costs, monthly close, loans, valuation, insolvency.
+import { dominionAssetValue } from './dominionCore';
 import { MONETIZATIONS, OFFICES, STORE_MONTHLY_COST, TAX_RATE } from './constants';
 import { facilityUpkeep } from './fun';
 import { bankName } from './names';
@@ -244,7 +245,7 @@ export function computeValuation(w: World, c: Company): number {
     ipFans * 2.5 +
     subs +
     holdingsValue(w, c) +
-    (c.isPlayer ? investmentValue(w) : 0) +
+    (c.isPlayer ? investmentValue(w) + dominionAssetValue(w) : 0) +
     c.reputation * Math.min(20000, 1000 + rev * 0.02);
   return Math.max(Math.max(1000, c.cash * 0.3), v);
 }

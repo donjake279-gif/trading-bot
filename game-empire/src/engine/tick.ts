@@ -17,6 +17,7 @@ import { ensureNemesis, rivalryDaily } from './rivalry';
 import { firstWeekReports } from './launch';
 import { empireMonthly, empireWeekly } from './empire';
 import { venturesDaily, venturesMonthly } from './ventures';
+import { dominionDaily, dominionMonthly, dominionWeekly } from './dominion';
 import { refreshCandidates, researchDaily, staffDaily, staffMonthly } from './staff';
 import { engineDaily, engineWarsMonthly } from './studioEngine';
 import { certificationsWeekly, conventionDaily, facilitiesDaily, legendsDaily, legendsMonthly, storeDaily } from './fun';
@@ -86,6 +87,7 @@ export function advanceDay(w: World): void {
     expoDaily(w);
     salesDaily(w);
     venturesDaily(w);
+    dominionDaily(w);
   }
 
   // ---- AI decisions (staggered weekly)
@@ -127,6 +129,7 @@ export function advanceDay(w: World): void {
       licensesMonthly(w);
       venturesMonthly(w);
       empireMonthly(w);
+      dominionMonthly(w);
       const revenue = ledgerRevenue(player.ledger);
       profitSharingMonthly(w, revenue - ledgerExpenses(player.ledger));
       if (revenue > 0) addXp(w, Math.min(600, 25 * Math.log10(1 + revenue / 1000) ** 1.6));
@@ -167,6 +170,7 @@ export function advanceDay(w: World): void {
       certificationsWeekly(w);
       hrHire(w);
       empireWeekly(w);
+      dominionWeekly(w);
       checkAchievements(w);
     }
   }

@@ -2,7 +2,8 @@
 // doesn't follow on its own: underpaid staff lose morale and quit. HR keeps
 // pay in line with each person's pay grade, trains people up, and hires to
 // fill empty desks (and replace anyone who leaves) when the studio can afford it.
-import { OFFICES, ROLES, salaryFor } from './constants';
+import { deskCapacity } from './dominionCore';
+import { ROLES, salaryFor } from './constants';
 import { hire, paidRefresh, recruiterCost, train, trainingCost } from './actions';
 import { monthlyBurn } from './finance';
 import { recruitFee } from './staff';
@@ -218,7 +219,7 @@ const ROLE_MIX: Record<RoleId, number> = {
 
 /** How many people HR will grow the team to. */
 export function hireLimit(w: World): number {
-  const cap = OFFICES[w.player.officeLevel].capacity;
+  const cap = deskCapacity(w);
   const t = w.player.hr?.teamTarget ?? 0;
   return t > 0 ? Math.min(cap, t) : cap;
 }
@@ -318,7 +319,7 @@ export function hireStatus(w: World): { text: string; tone: 'good' | 'warn' | 'n
   const hr = w.player.hr;
   const p = playerCompany(w);
   const heads = w.player.employees.length;
-  const cap = OFFICES[w.player.officeLevel].capacity;
+  const cap = deskCapacity(w);
   const limit = hireLimit(w);
   if (!hr.autoHire) return { text: `${Math.max(0, limit - heads)} open desk${limit - heads === 1 ? '' : 's'}`, tone: 'neutral' };
   if (heads >= cap) return { text: `Office full (${heads}/${cap}). Move to a bigger office so HR can keep hiring.`, tone: 'warn', office: true };

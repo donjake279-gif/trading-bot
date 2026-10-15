@@ -4,6 +4,7 @@ import { refreshContractOffers } from './contracts';
 import { applyLegacy } from './legacy';
 import { refillObjectives } from './progression';
 import { initNemesis } from './rivalry';
+import { emptyDominion } from './dominionCore';
 import { DIFFICULTIES, GENRE_IDS, PLATFORMS, PLATFORM_IDS, WARMUP_DAYS } from './constants';
 import { makeStudio, seedCatalog, TIERS } from './ai';
 import { computeValuation } from './finance';
@@ -87,6 +88,7 @@ export function playerExtras(): Pick<
   | 'ventures'
   | 'liveOps'
   | 'rivalry'
+  | 'dominion'
 > {
   return {
     infra: { tier: 0, nodes: 1, autoscale: true, incidents: [], lowLoadDays: 0, demand: 0, load: 0, outageUntil: 0, overloadDays: 0, downtime: [], demandHistory: [], capacityHistory: [], dataCenters: [] },
@@ -116,6 +118,7 @@ export function playerExtras(): Pick<
     hr: { autoRaise: true, autoTrain: true, autoHire: true, teamTarget: 0, spending: 'balanced', log: [] },
     liveOps: { auto: true, crew: true },
     rivalry: { records: {}, ahead: false, leadWeeks: 0, beaten: [], lastTauntDay: -9999, quotes: [] },
+    dominion: emptyDominion(),
     empire: { best: 0, done: [], cleared: [], investigations: 0, courtWins: 0, decreeUntil: 0, strikeUntil: 0, overheadPaid: 0, finesPaid: 0 },
     ventures: { consoles: [], rivalPower: 100, feePool: 0, ai: null, aiFrontier: 8, aiMarket: 20e9, antiCheat: null, cheatLevel: 20, films: [], parks: [] },
   };
