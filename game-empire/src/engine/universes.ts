@@ -150,6 +150,31 @@ export function universesDaily(w: World): void {
   }
 }
 
+/** 0..1: how much of your worlds' load your spare server capacity covers. Residents lag without it. */
+export function worldServerCoverage(w: World): number {
+  const need = w.player.dominion.universes.reduce((s, u) => s + (u.stage === 'live' ? u.population * 0.08 : 0), 0);
+  const spare = Math.max(0, onlineFleetCapacity(w) - w.player.infra.demand);
+  return need > 0 ? clamp(spare / need, 0, 1) : 1;
+}
+
+/** Where a world's satisfaction is heading, and what pushes it up or down. */
+export function worldMood(w: World, u: Universe, serverOk = worldServerCoverage(w)): { target: number; parts: { label: string; value: number }[] } {
+  const infl = Math.max(0, u.inflation - 0.08);
+  const deflation = Math.max(0, -u.inflation - 0.05);
+  const parts = [
+    { label: 'Fresh content', value: (u.freshness - 0.5) * 30 },
+    { label: 'Toxicity', value: -u.toxicity * 0.3 },
+    { label: 'Inflation', value: -Math.min(40, infl * 60) },
+    { label: 'Deflation', value: -Math.min(30, deflation * 30) },
+    { label: 'High taxes', value: -Math.max(0, u.tax - 0.1) * 120 },
+    { label: 'Server lag', value: -(1 - serverOk) * 30 },
+    { label: 'Moderation', value: u.moderation * 2 },
+    { label: 'Land squeeze', value: u.landSold > 0.6 ? -6 : 0 },
+    { label: 'Coin drops', value: 4 * u.faucet },
+  ].filter((x) => Math.abs(x.value) >= 0.5);
+  return { target: clamp(68 + parts.reduce((s, x) => s + x.value, 0), 0, 100), parts };
+}
+
 /** Weekly: residents come and go, the economy breathes. */
 export function universesWeekly(w: World): void {
   const d = w.player.dominion;
@@ -165,34 +190,38 @@ export function universesWeekly(w: World): void {
   const rivalPop = corps.reduce((s, c) => s + c.assets.universePop, 0);
   const myCap = live.reduce((s, u) => s + universeCapacity(w, u), 0);
   const competition = clamp(1 - rivalPop / (rivalPop + myCap * 2 + 1), 0.35, 1);
-  // residents need servers: lag when the fleet is full
-  const need = live.reduce((s, u) => s + u.population * 0.08, 0);
-  const spare = Math.max(0, onlineFleetCapacity(w) - w.player.infra.demand);
-  const serverOk = need > 0 ? clamp(spare / need, 0, 1) : 1;
+  const serverOk = worldServerCoverage(w);
   for (const u of live) {
     const ip = u.ipId ? w.ips[u.ipId] : null;
     const fame = 1 + (ip ? Math.log10(1 + ip.fans) / 8 : 0);
     const cap = universeCapacity(w, u);
     // the economy: coins in, coins out, prices follow
-    const activity = u.population * 10 * (0.5 + u.satisfaction / 140);
+    const spendRate = 10 * (0.5 + u.satisfaction / 140);
+    if (u.autopilot) {
+      // the central bank steers the money supply toward prices rising ~3% a year
+      const years = Math.max(0, (w.day - u.ready) / 365);
+      const target = COINS_PER_RESIDENT * Math.pow(1.03, years * 1.25);
+      const perCapita = u.money / Math.max(1, u.population);
+      if (u.tax > 0.15) u.tax = 0.15;
+      u.faucet = clamp(Math.round(((spendRate * u.tax * 0.6 + 0.15 * (target - perCapita)) / 2) * 100) / 100, 0, 2);
+    }
+    const activity = u.population * spendRate;
     u.money = Math.max(0, u.money + u.population * u.faucet * 2 - activity * u.tax * 0.6 + (w.day < u.crisisUntil && u.crisis === 'dupe' ? u.money * 0.08 : 0));
     const fair = Math.max(1, u.population * COINS_PER_RESIDENT);
     const prevPrices = u.prices;
     u.prices = clamp(u.prices + (100 * Math.pow(u.money / fair, 0.8) - u.prices) * 0.25, 5, 5000);
-    u.inflation = Math.pow(u.prices / Math.max(1, prevPrices), 52) - 1;
-    if (u.autopilot) {
-      if (u.inflation > 0.06) u.faucet = Math.max(0, Math.round((u.faucet - 0.05) * 100) / 100);
-      else if (u.inflation < 0) u.faucet = Math.min(2, Math.round((u.faucet + 0.05) * 100) / 100);
-      if (u.tax > 0.15) u.tax = 0.15;
-    }
+    // yearly inflation, smoothed so one odd week doesn't read as hyperinflation
+    const trend = 0.85 * (Math.log(1 + Math.max(-0.99, u.inflation)) / 52) + 0.15 * Math.log(u.prices / Math.max(1, prevPrices));
+    u.inflation = Math.exp(trend * 52) - 1;
     u.toxicity += (45 - 12 * u.moderation + (u.rmt ? 15 : 0) + Math.log10(1 + u.population / 1e6) * 4 - u.toxicity) * 0.1;
     u.freshness = Math.max(0, u.freshness - 0.012);
-    const infl = Math.max(0, u.inflation - 0.08);
-    const deflation = Math.max(0, -u.inflation - 0.05);
-    const targetSat = clamp(68 + (u.freshness - 0.5) * 30 - u.toxicity * 0.3 - Math.min(40, infl * 60) - deflation * 30 - Math.max(0, u.tax - 0.1) * 120 - (1 - serverOk) * 30 + u.moderation * 2 - (u.landSold > 0.6 ? 6 : 0) + 4 * u.faucet, 0, 100);
+    const targetSat = worldMood(w, u, serverOk).target;
     u.satisfaction += (targetSat - u.satisfaction) * 0.2;
     const desired = cap * clamp((0.15 + (0.7 * u.satisfaction) / 100) * fame * competition * (1 + scarValue(w, 'worldPop')), 0, 1);
+    const before = u.population;
     u.population = Math.max(0, u.population + (desired - u.population) * (desired > u.population ? 0.05 : 0.03));
+    // newcomers get starter coins and leavers take theirs: growth alone doesn't move prices
+    if (before > 0) u.money *= u.population / before;
     u.peak = Math.max(u.peak, u.population);
     u.history.push([w.day, Math.round(u.population), Math.round(u.prices)]);
     if (u.history.length > 104) u.history.shift();

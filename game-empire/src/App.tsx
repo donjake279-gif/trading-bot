@@ -1,5 +1,7 @@
 import { LaunchReveal } from './ui/components/LaunchReveal';
 import { EmpireScreen } from './ui/screens/Empire';
+import { DominionScreen } from './ui/screens/dominion/Dominion';
+import { KeynoteShow } from './ui/components/KeynoteShow';
 import { useGameStore } from './store/gameStore';
 import { Layout } from './ui/components/Layout';
 import { GameOverModal, NotificationDrawer, Toasts } from './ui/components/Overlays';
@@ -62,6 +64,8 @@ function Screen() {
       return <Awards />;
     case 'empire':
       return <EmpireScreen tab={route.tab} />;
+    case 'dominion':
+      return <DominionScreen tab={route.tab} />;
     case 'settings':
       return <Settings />;
   }
@@ -86,6 +90,7 @@ export default function App() {
       <NotificationDrawer />
       <GameOverModal />
       <LaunchReveal />
+      <KeynoteShow />
       <Toasts />
       <Confetti />
     </>

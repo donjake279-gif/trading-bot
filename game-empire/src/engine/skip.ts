@@ -23,6 +23,7 @@ export function startSkip(w: World): SkipWatch {
 export function skipStep(w: World, watch: SkipWatch): string | null {
   const toastsBefore = w.toasts.length;
   const celebrationsBefore = w.celebrations.length;
+  const keynotesBefore = w.keynoteShows?.length ?? 0;
   const pending = new Set(w.pendingEvents.map((e) => e.id));
   advanceDay(w);
   watch.days += 1;
@@ -30,6 +31,7 @@ export function skipStep(w: World, watch: SkipWatch): string | null {
   const decision = w.pendingEvents.find((e) => !pending.has(e.id));
   if (decision) return decision.title;
   if (w.celebrations.length > celebrationsBefore) return w.celebrations[w.celebrations.length - 1].title;
+  if ((w.keynoteShows?.length ?? 0) > keynotesBefore) return `${w.keynoteShows![w.keynoteShows!.length - 1].title} is on stage`;
   for (const g of gamesOf(w, w.player.companyId)) {
     if (g.status === 'development' && g.workDone >= g.workRequired && !watch.ready.has(g.id)) return `${g.title} is ready to release`;
   }

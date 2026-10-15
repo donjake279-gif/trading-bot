@@ -4,6 +4,8 @@ export function money(n: number, digits?: number): string {
   if (!Number.isFinite(n)) return '—';
   const a = Math.abs(n);
   const sign = n < 0 ? '-' : '';
+  if (a >= 0.9995e18) return `${sign}$${(a / 1e18).toFixed(digits ?? 2)}Qi`;
+  if (a >= 0.9995e15) return `${sign}$${(a / 1e15).toFixed(digits ?? 2)}Q`;
   if (a >= 0.9995e12) return `${sign}$${(a / 1e12).toFixed(digits ?? 2)}T`;
   if (a >= 0.9995e9) return `${sign}$${(a / 1e9).toFixed(digits ?? 2)}B`;
   if (a >= 0.9995e6) return `${sign}$${(a / 1e6).toFixed(digits ?? 1)}M`;
@@ -20,6 +22,8 @@ export function num(n: number, digits?: number): string {
   if (!Number.isFinite(n)) return '—';
   const a = Math.abs(n);
   const sign = n < 0 ? '-' : '';
+  if (a >= 1e15) return `${sign}${(a / 1e15).toFixed(digits ?? 2)}Q`;
+  if (a >= 1e12) return `${sign}${(a / 1e12).toFixed(digits ?? 2)}T`;
   if (a >= 1e9) return `${sign}${(a / 1e9).toFixed(digits ?? 2)}B`;
   if (a >= 1e6) return `${sign}${(a / 1e6).toFixed(digits ?? 2)}M`;
   if (a >= 1e4) return `${sign}${(a / 1e3).toFixed(digits ?? 0)}K`;

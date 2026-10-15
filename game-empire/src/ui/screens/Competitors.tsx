@@ -4,6 +4,7 @@ import { Briefcase, Handshake, ShoppingCart } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { GENRES, MONETIZATIONS, SCOPES, STRATEGIES, STRATEGY_IDS } from '../../engine/constants';
 import { debtOf, revenueTTM } from '../../engine/finance';
+import { corpById } from '../../engine/megacorps';
 import { acquire, acquisitionQuote, buyStock, sellStock, setSubsidiaryStrategy, transferToSubsidiary } from '../../engine/actions';
 import { floatShares, founderStake, marketCap, tradeCost } from '../../engine/stocks';
 import { playerCompany } from '../../engine/util';
@@ -18,6 +19,8 @@ type SortKey = 'valuation' | 'revenue' | 'headcount' | 'reputation' | 'ccu';
 function statusBadge(w: ReturnType<typeof useWorld>, c: Company) {
   if (c.status === 'bankrupt') return <Badge tone="bad">Bankrupt</Badge>;
   if (c.parentId) return <Badge tone={c.parentId === w.player.companyId ? 'good' : 'neutral'}>Owned by {w.companies[c.parentId]?.name}</Badge>;
+  const corp = c.corpId ? corpById(w, c.corpId) : undefined;
+  if (corp?.status === 'active') return <Badge tone="warn" title="A megacorporation owns this studio">Owned by {corp.name}</Badge>;
   if (c.isPublic) return <Badge tone="accent">Public · ${c.price.toFixed(2)}</Badge>;
   return <Badge>Private</Badge>;
 }

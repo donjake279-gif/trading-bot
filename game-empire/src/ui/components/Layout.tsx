@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Award, Bell, ChartCandlestick, Cpu, Crown, FlaskConical, Gamepad2, Globe, Inbox, Landmark, LayoutDashboard, Menu, Newspaper, Pause, Play, Server, Settings, SkipForward, Star, Swords, Target, Trophy, Users, X } from 'lucide-react';
+import { Award, Bell, Castle, ChartCandlestick, Cpu, Crown, FlaskConical, Gamepad2, Globe, Inbox, Landmark, LayoutDashboard, Menu, Newspaper, Pause, Play, Server, Settings, SkipForward, Star, Swords, Target, Trophy, Users, X } from 'lucide-react';
 import { SPEEDS, useGameStore, useWorld, type Route } from '../../store/gameStore';
 import { playerCompany } from '../../engine/util';
 import { founderStake } from '../../engine/stocks';
@@ -9,6 +9,8 @@ import { fleetDown, isOnline } from '../../engine/infra';
 import { readyForVersion } from '../../engine/studioEngine';
 import { playerNominations } from '../../engine/awards';
 import { empireLevel } from '../../engine/empire';
+import { dominionOpen } from '../../engine/dominionCore';
+import { dominionAlerts } from '../../engine/dominion';
 import { money, pct } from '../lib/format';
 import { unreadCount } from './Overlays';
 import { cx } from './ui';
@@ -20,6 +22,7 @@ const NAV: { route: Route['name']; label: string; icon: ReactNode }[] = [
   { route: 'office', label: 'Office & R&D', icon: <FlaskConical size={17} /> },
   { route: 'engine', label: 'Engine', icon: <Cpu size={17} /> },
   { route: 'empire', label: 'Empire', icon: <Crown size={17} /> },
+  { route: 'dominion', label: 'Dominion', icon: <Castle size={17} /> },
   { route: 'servers', label: 'Servers', icon: <Server size={17} /> },
   { route: 'goals', label: 'Goals & Perks', icon: <Target size={17} /> },
   { route: 'industry', label: 'Industry', icon: <Globe size={17} /> },
@@ -47,10 +50,12 @@ function NavList({ onPick }: { onPick?: () => void }) {
   const season = w.awardSeason;
   const awardBadge = season && !season.done && w.day < season.ceremonyDay ? (playerNominations(w).filter((n) => n.category !== 'glitch').length || 'live') : season?.done && !season.watched ? 'new' : null;
   const empireLvl = empireLevel(w);
+  const domOpen = dominionOpen(w);
+  const domAlerts = domOpen ? dominionAlerts(w) : 0;
   const engineAlert = w.player.engine ? readyForVersion(w.player.engine) : w.player.research.completed.includes('engine1');
   return (
     <nav className="flex flex-col gap-0.5">
-      {NAV.map((n) => (
+      {NAV.filter((n) => n.route !== 'dominion' || domOpen).map((n) => (
         <button
           key={n.route}
           onClick={() => {
@@ -67,6 +72,7 @@ function NavList({ onPick }: { onPick?: () => void }) {
           {n.route === 'projects' && devCount > 0 && <span className="rounded bg-accent-soft px-1.5 text-[10px] font-semibold text-accent">{devCount}</span>}
           {n.route === 'servers' && serverAlert && <span className="h-2 w-2 rounded-full bg-bad" title="Servers need attention" />}
           {n.route === 'empire' && empireLvl > 0 && <span className="rounded bg-warn-soft px-1.5 text-[10px] font-semibold text-warn">L{empireLvl}</span>}
+          {n.route === 'dominion' && domAlerts > 0 && <span className={cx('rounded px-1.5 text-[10px] font-semibold', w.player.dominion.emergency ? 'animate-pulse bg-bad-soft text-bad' : 'bg-bad-soft text-bad')} title="Emergencies and wars">{domAlerts}</span>}
           {n.route === 'engine' && engineAlert && <span className="h-2 w-2 rounded-full bg-good" title={w.player.engine ? 'Ready to ship a new version' : 'Ready to found your engine'} />}
           {n.route === 'awards' && awardBadge && <span className="rounded bg-warn-soft px-1.5 text-[10px] font-semibold text-warn">{awardBadge}</span>}
           {n.route === 'goals' && perkPoints > 0 && <span className="rounded bg-good-soft px-1.5 text-[10px] font-semibold text-good" title="Unspent perk points">{perkPoints}</span>}

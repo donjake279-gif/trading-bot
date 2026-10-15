@@ -8,6 +8,7 @@ import { SECTOR_IDS, dlog, empireScale, execPower, featureOpen, fmtMoney, bestLe
 import { baseQuality } from './development';
 import { SCOPE_IDS } from './constants';
 import { aiLead, bestModel } from './ventures';
+import { MEGAPROJECTS } from './megaprojects';
 import type { ActionResult, KeynotePlan, KeynoteResult, KeynoteShowItem, RevealItem, RevealKind, SectorId, World } from './types';
 import { celebrate, clamp, dayToDate, newId, playerCompany, pushNews, spend, toast } from './util';
 import { chance, pick, randNormal, randRange } from './rng';
@@ -43,10 +44,10 @@ export function venueBlocker(w: World, venue: number): string | null {
 }
 
 /** Everything you could show off right now, with a rough audience score. */
-export function revealOptions(w: World): (RevealItem & { base: number; readiness: number })[] {
+export function revealOptions(w: World): (RevealItem & { base: number; readiness: number; stale?: boolean })[] {
   const p = playerCompany(w);
   const d = w.player.dominion;
-  const out: (RevealItem & { base: number; readiness: number })[] = [];
+  const out: (RevealItem & { base: number; readiness: number; stale?: boolean })[] = [];
   for (const id in w.games) {
     const g = w.games[id];
     if (g.companyId !== p.id || g.status !== 'development') continue;
@@ -69,10 +70,17 @@ export function revealOptions(w: World): (RevealItem & { base: number; readiness
     for (const k in eco.levels) lv += eco.levels[k as keyof typeof eco.levels];
     out.push({ kind: 'ecosystem', refId: 'eco', label: eco.building ? `${eco.name}: new ${eco.building.part}` : eco.name, surprise: false, base: 45 + 2 * lv + (eco.building ? 8 : 0), readiness: 1 });
   }
-  for (const u of d.universes) if (u.stage !== 'closed') out.push({ kind: 'universe', refId: u.id, label: u.name, surprise: false, base: 52 + 6 * u.scale, readiness: u.stage === 'live' ? 1 : (w.day - u.founded) / Math.max(1, u.ready - u.founded) });
+  for (const u of d.universes) if (u.stage !== 'closed') out.push({ kind: 'universe', refId: u.id, label: u.name, surprise: false, base: 52 + 6 * u.scale - (u.stage === 'live' ? 8 : 0), readiness: u.stage === 'live' ? 1 : (w.day - u.founded) / Math.max(1, u.ready - u.founded) });
   for (const a of d.space.assets) if (a.stage === 'building') out.push({ kind: 'space', refId: a.id, label: a.name, surprise: false, base: 62 + 3 * spaceRank(a.kind), readiness: (w.day - a.start) / Math.max(1, a.ready - a.start) });
-  for (const m of d.megaprojects) if (m.stage === 'building') out.push({ kind: 'megaproject', refId: m.id, label: m.id, surprise: false, base: 76, readiness: 1 });
+  for (const m of d.megaprojects) if (m.stage === 'building') out.push({ kind: 'megaproject', refId: m.id, label: MEGAPROJECTS[m.id].name, surprise: false, base: 76, readiness: 1 });
   for (const c of d.cities) if (w.day < c.ready || c.districts.some((x) => w.day < x.ready)) out.push({ kind: 'city', refId: c.id, label: c.name, surprise: false, base: 55, readiness: 1 });
+  // old news: what you showed at your last two keynotes gets a cooler reception
+  const recent = new Set(d.keynotes.history.slice(0, 2).flatMap((h) => h.items.map((x) => `${x.kind}:${x.label}`)));
+  for (const o of out) {
+    if (!recent.has(`${o.kind}:${o.label}`)) continue;
+    o.base -= 20;
+    o.stale = true;
+  }
   return out;
 }
 
@@ -207,7 +215,8 @@ export function runKeynote(w: World, plan: KeynotePlan): KeynoteResult {
   });
   const rep = clamp((overall - 50) / 15, -3, 4) * (flop ? 1.4 : 1);
   p.reputation = clamp(p.reputation + rep, 0, 100);
-  const stockMove = clamp(((overall - 55) / 250) * Math.sqrt(reach), -0.12, 0.18);
+  // giants' share prices move less
+  const stockMove = clamp(((overall - 55) / 250) * Math.sqrt(reach), -0.12, 0.18) / (1 + 0.15 * Math.max(0, bestLevel(w) - 3));
   if (p.isPublic) p.price *= Math.exp(stockMove);
   // wartime propaganda
   for (const war of d.wars) {

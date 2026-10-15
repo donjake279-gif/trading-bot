@@ -1,6 +1,7 @@
 // Player actions. Every UI interaction that changes the world goes through
 // here; each validates its preconditions and returns an ActionResult.
 import { deskCapacity } from './dominionCore';
+import { corpById, shiftRelation } from './megacorps';
 import { rivalReactToLaunch } from './rivalry';
 import {
   CAMPAIGNS,
@@ -581,6 +582,11 @@ export function acquisitionQuote(w: World, targetId: string): { price: number; b
     premium = t.strategy === 'indieArtisan' ? 1.8 : 1.4;
     note = t.strategy === 'indieArtisan' ? 'Independent founders demand a big premium.' : 'Founders want a 40% premium.';
   }
+  const corp = t.corpId ? corpById(w, t.corpId) : undefined;
+  if (corp?.status === 'active') {
+    premium *= 1.6;
+    note = `${corp.name} owns this studio: they want 60% more, and they won't forgive you quickly.`;
+  }
   const price = acquisitionPrice(w, p, t, premium);
   const blocker = price > p.cash ? `You need $${Math.round(price).toLocaleString()} in cash.` : null;
   return { price, blocker, note };
@@ -590,7 +596,15 @@ export function acquire(w: World, targetId: string): ActionResult {
   const q = acquisitionQuote(w, targetId);
   if (q.blocker) return fail(q.blocker);
   const t = w.companies[targetId];
+  const corp = t.corpId ? corpById(w, t.corpId) : undefined;
   acquireCompany(w, playerCompany(w), t, q.price);
+  if (corp) {
+    // prising a studio out of a megacorp's hands
+    corp.studios = corp.studios.filter((id) => id !== t.id);
+    corp.power.games *= 0.97;
+    shiftRelation(w, 'player', corp.id, -15);
+  }
+  t.corpId = null;
   return ok();
 }
 

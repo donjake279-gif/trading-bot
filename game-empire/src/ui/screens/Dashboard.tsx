@@ -1,5 +1,6 @@
 import { HOLD_WEEKS, PERSONAS, overtakeXp, personaOf, rivalRecord } from '../../engine/rivalry';
 import { acEffectiveness, aiLead, consolePowerRatio } from '../../engine/ventures';
+import { playerScore, warsOf } from '../../engine/megacorps';
 import { payReview } from '../../engine/hr';
 import { CalendarDays, CircleCheck, Trophy, Gamepad2, Inbox, Plus, Rocket, Server, Sparkles, Swords, Tag, Target, TriangleAlert, Users, Wallet, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
@@ -68,6 +69,14 @@ function Alerts() {
   const navigate = useGameStore((s) => s.navigate);
   const c = playerCompany(w);
   const alerts: { tone: 'bad' | 'warn' | 'good'; text: string; go?: () => void }[] = [];
+  const dom = w.player.dominion;
+  if (dom?.emergency) alerts.push({ tone: 'bad', text: `Emergency: ${dom.emergency.title}. Pressure ${Math.round(dom.emergency.pressure)}/100.`, go: () => navigate({ name: 'dominion', tab: 'emergencies' }) });
+  for (const war of dom ? warsOf(w, 'player') : []) {
+    const ps = playerScore(war);
+    if (ps <= -30) alerts.push({ tone: 'bad', text: `You're losing the ${war.sector} war (${Math.round(ps)}). Use tactics or sue for peace.`, go: () => navigate({ name: 'dominion', tab: 'wars' }) });
+  }
+  const unhappy = dom?.execs.find((e) => e.loyalty < 30);
+  if (unhappy) alerts.push({ tone: 'warn', text: `${unhappy.name} (${unhappy.role.toUpperCase()}) is unhappy and could be poached.`, go: () => navigate({ name: 'dominion', tab: 'execs' }) });
   const runway = runwayMonths(w, c);
   if (runway < 3 && c.cash > 0) alerts.push({ tone: 'warn', text: `Cash runway is about ${runway.toFixed(1)} months at the current burn rate.`, go: () => navigate({ name: 'finance' }) });
   const ready = devGamesOf(w, c.id).filter((g) => g.workDone >= g.workRequired);

@@ -105,7 +105,7 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   Spend them on head starts for the next studio: savings, reputation, a garage, perk points or engine blueprints.
 - **Empire levels.** Your company's value sets your empire level: Indie Studio → Rising Studio ($100M) → Major
   Publisher ($1B) → Industry Giant ($10B) → Megacorp ($100B) → Trillion-Dollar Empire ($1T) → World Power ($10T)
-  → Galactic Conglomerate ($100T). Every level makes the game harder: monthly empire upkeep (a share of revenue and of
+  → Galactic Conglomerate ($100T) → Solar Dynasty ($1Q) → Cosmic Sovereign ($10Q). Every level makes the game harder: monthly empire upkeep (a share of revenue and of
   idle cash), antitrust investigations (settle, fight in court, or accept a consent decree), data breaches and union
   drives, critics who expect more, rival studios that make better games, and cheat makers, rival consoles and AI
   labs that improve faster. Each level has challenges; clearing them all pays perk points and XP and cuts upkeep by 10%.
@@ -120,6 +120,49 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   - *Film studio*: turn your games into movies, from indie films to $1B franchise events. Hits revive the game and
     its franchise; sequels wear audiences out.
   - *Theme parks*: build parks around the world (each costs 1.6× the last) and add lands for your franchises.
+- **The Dominion (late game).** From $1B up, a new screen opens one system at a time. Each one is tied into the
+  rest of the game, and bigger companies face harder versions of all of them, not just bigger bills:
+  - *Empire Wars* ($100B): six to ten AI megacorporations, each with a CEO and a personality (warlord, schemer,
+    visionary, showman, diplomat, tycoon), grow, buy studios, form alliances, merge, collapse and go to war over
+    seven markets (games, hardware, platforms, cloud, AI, media, space). They resent a dominant player and start
+    wars against you; at the top levels whole coalitions do. In a war you set the intensity, which sets the daily
+    cost, and play tactics (price wars, ad blitzes, exclusives, lobbying, talent raids, sabotage). Winning hurts
+    their market and earns you +20% there for two years, and may let you absorb them. You can also sue for peace,
+    join other corps' wars, form alliances, run joint ventures or buy out a smaller corp that likes you. Leading
+    a market pays up to +12% there and draws antitrust heat.
+  - *Executives* ($1B): six C-suite seats (COO, CFO, CTO, CMO, CSO, General Counsel) whose skill and loyalty
+    power other systems. They have traits and ambitions, feud with each other, get poached, pitch pet projects,
+    act on their own, sometimes plot a coup, and a star hired from a rival may still be working for them.
+  - *Espionage* ($10B): rivals plant moles, leak your projects (spoiling keynote surprises), poach your people,
+    hack your servers and steal tech. Buy security tiers and run audits, then go on the offence: steal roadmaps,
+    plant moles, poach executives, sabotage launches, run smear campaigns or hack systems, with real odds of
+    being exposed.
+  - *Ecosystem* ($10B): build an operating system, subscription, marketplace, cloud platform and devices, five
+    levels each. Users come from the same pool as rival platforms. Set the subscription price, store cut,
+    open/closed policy and day-one releases, sign studio exclusives, and handle developer revolts and regulators.
+  - *Keynotes* ($1B): book a venue (a livestream up to an orbital keynote), choose what to reveal and hold one
+    thing back for "one more thing". The show plays live, revealing items one by one, then the score, stock
+    move, hype, preorders and rival CEOs' reactions. Leaks, unfinished demos, rival keynotes the same week and
+    re-showing old news all cost you.
+  - *Universes* ($100B): persistent virtual worlds from Shard to Omniverse, with residents and a real economy:
+    coin drops, trade tax, prices and inflation (or a central-bank autopilot), land sales and bubbles,
+    moderation and toxicity, real-money trading, duplication exploits. Residents need your server capacity.
+  - *Space* ($1T): spaceports, orbital factories and stations, lunar bases, helium-3 mines, lunar resorts, a Mars
+    colony, asteroid mining and a Jovian outpost. Launches can fail and hazards knock assets offline; colonists
+    become a market for your games. Rival corps race you to every first.
+  - *Cities* ($1T): found company cities and fill their plots with nine district types. Campuses add desks,
+    research parks speed research, data districts add server capacity, industry cuts hardware costs and
+    energy cuts power bills. Balance tax, services, happiness and unrest, or riots break out.
+  - *Megaprojects* ($10T): nine projects from a $2T planetary neural network to a $150T interstellar starship.
+    Each takes years in three phases, and every phase ends in a hard call (overruns, protests, sabotage,
+    breakthroughs). Finished projects change the rules for good; rival corps race you for them.
+  - *Emergencies* ($100B): global outages, mega-breaches, whistleblowers, breakup orders, cash crunches, supply
+    shocks, rogue AI, world crashes, orbital disasters, city riots and boycotts. Each has three stages, a
+    pressure meter and three choices per stage: pay to fix it, gamble on the right executive, or cut corners and
+    carry a scar for years. Contain it and you come out stronger; let pressure reach 100 and it's a disaster.
+  The overview tracks market shares, a news feed of what the giants are doing, and every lasting effect on you.
+  Routine work runs itself (security, the world autopilot, city managers); wars, crises, deals and big builds
+  wait for you. Twenty-three new empire challenges cover levels 2 to 9.
 - **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (nine tiers,
   Shared Hosting → Hyperscale Edge → Planetary Mesh (4B players) → Orbital Server Ring (20B) → Dyson Swarm Cloud,
   which holds up to 100 billion players at $5B a node and $80M a month each) plus **data centers you own**. Buy a
@@ -186,6 +229,12 @@ actions.
 | `hr.ts` | HR autopilot: weekly hiring, pay grades and raises, skill training, replacing people who quit |
 | `empire.ts` | Empire levels: upkeep, antitrust and crises, critic expectations, rival pace, level challenges |
 | `ventures.ts` | Anti-cheat, consoles, AI lab, films and theme parks, and the rivals they race against |
+| `dominion.ts`, `dominionCore.ts` | The late game: unlocks, markets and shares, scars, hooks into the rest of the sim; runs the systems below |
+| `megacorps.ts`, `corpLines.ts` | AI megacorporations, alliances, wars, tactics, peace, annexation; their personas and lines |
+| `executives.ts`, `espionage.ts` | The C-suite and its politics; security, threats and spy operations |
+| `ecosystem.ts`, `keynotes.ts` | Platform ecosystems; keynote planning, the live show and rival keynotes |
+| `universes.ts`, `space.ts`, `cities.ts` | Virtual worlds and their economies; the space economy; company cities |
+| `megaprojects.ts`, `emergencies.ts` | Civilisation-scale projects; empire emergencies and corp crises |
 | `automation.ts` | Live-ops autopilot (update picks, ports, contract crews) and auto-assigning idle developers |
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales |
 | `rivalry.ts`, `launch.ts`, `skip.ts` | Rival bosses (personas, quotes, clones, launch clashes, overtakes); first-week reports; skip to the next event |
@@ -227,7 +276,11 @@ The simulation runs in small slices (a day or two every 50 ms) so no single tick
 the screen redraws five times a second, and charts redraw about once a second (staggered, and straight away when
 paused or when what they show changes). Autosave waits for both 30 game days and 45 real seconds, and pausing saves
 just after the paused screen has drawn. In the engine, the day loop works from cached game lists, AI studios share
-one genre-crowding count per day, and valuations share one franchise-fans count per day.
+one genre-crowding count per day, and valuations share one franchise-fans count per day. Old games that nothing is
+happening to (rival games after 120 days; yours after a year with no recent update, sale or viral moment) are
+simulated in weekly steps, and each game keeps daily history for four months, then weekly and monthly points, so
+late-game worlds with thousands of games stay fast. The Dominion's systems run mostly weekly and monthly and cost
+well under a millisecond a day, so 4× stays at about 60 frames a second in a $10T+ world.
 
 ## Tuning notes
 

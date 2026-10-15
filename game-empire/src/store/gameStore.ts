@@ -6,7 +6,7 @@ import { advanceDay } from '../engine/tick';
 import { skipStep, startSkip, type SkipWatch } from '../engine/skip';
 import { createWorld, type NewGameOptions } from '../engine/world';
 import { deserializeWorld, loadFromSlot, saveToSlot } from '../engine/save';
-import type { ActionResult, LaunchNote, NewsItem, NoticeCategory, NoticeLink, World } from '../engine/types';
+import type { ActionResult, KeynoteResult, LaunchNote, NewsItem, NoticeCategory, NoticeLink, World } from '../engine/types';
 
 export type Route =
   | { name: 'dashboard' }
@@ -27,6 +27,7 @@ export type Route =
   | { name: 'engine' }
   | { name: 'awards' }
   | { name: 'empire'; tab?: string }
+  | { name: 'dominion'; tab?: string }
   | { name: 'settings' };
 
 const SIMPLE_ROUTES = ['dashboard', 'projects', 'team', 'office', 'industry', 'competitors', 'stocks', 'finance', 'news', 'achievements', 'servers', 'goals', 'engine', 'awards', 'empire', 'settings'] as const;
@@ -83,6 +84,9 @@ interface GameStore {
   clearCelebration: (id: string) => void;
   /** Launch-day reveals waiting to be shown. */
   launches: LaunchNote[];
+  /** Keynotes waiting for their live show. */
+  keynoteShows: KeynoteResult[];
+  dismissKeynote: () => void;
   dismissLaunch: () => void;
   /** Fast-forwarding to the next event; how many days so far. */
   skipping: number | null;
@@ -135,6 +139,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearCelebration: (id) => set({ celebrations: get().celebrations.filter((c) => c.id !== id) }),
   launches: [],
   dismissLaunch: () => set({ launches: get().launches.slice(1) }),
+  keynoteShows: [],
+  dismissKeynote: () => set({ keynoteShows: get().keynoteShows.slice(1) }),
   skipping: null,
   skipToNext: () => {
     const s = get();
@@ -159,7 +165,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       try {
         const world = createWorld(opts);
         const slotId = `slot-${Date.now().toString(36)}`;
-        set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], skipping: null });
+        set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], keynoteShows: [], skipping: null });
         void get().saveNow(slotId);
       } catch (e) {
         set({ status: 'menu', error: e instanceof Error ? e.message : String(e) });
@@ -170,7 +176,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadSlot: async (id) => {
     try {
       const world = await loadFromSlot(id);
-      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId: id, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], skipping: null, error: null });
+      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId: id, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], keynoteShows: [], skipping: null, error: null });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
     }
@@ -180,7 +186,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const world = deserializeWorld(json);
       const slotId = `slot-${Date.now().toString(36)}`;
-      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], skipping: null, error: null });
+      set({ world, status: 'playing', paused: true, route: { name: 'dashboard' }, backStack: [], slotId, lastAutosaveDay: world.day, version: get().version + 1, toasts: [], launches: [], keynoteShows: [], skipping: null, error: null });
       void get().saveNow(slotId);
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
@@ -275,6 +281,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (link.route === 'game' && link.id) nav({ name: 'game', id: link.id });
     else if (link.route === 'company' && link.id) nav({ name: 'company', id: link.id });
     else if (link.route === 'empire') nav({ name: 'empire', tab: link.id });
+    else if (link.route === 'dominion') nav({ name: 'dominion', tab: link.id });
     else if ((SIMPLE_ROUTES as readonly string[]).includes(link.route)) nav({ name: link.route } as Route);
     set({ drawer: null });
   },
@@ -326,6 +333,10 @@ function drainWorldToasts() {
   if (w && w.launches?.length) {
     useGameStore.setState({ launches: [...useGameStore.getState().launches, ...w.launches].slice(-3) });
     w.launches = [];
+  }
+  if (w && w.keynoteShows?.length) {
+    useGameStore.setState({ keynoteShows: [...useGameStore.getState().keynoteShows, ...w.keynoteShows].slice(-2) });
+    w.keynoteShows = [];
   }
   if (w && w.celebrations?.length) {
     // only the latest few, so a fast-forward doesn't bury the screen in confetti

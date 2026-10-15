@@ -119,7 +119,6 @@ export function threatsWeekly(w: World): void {
     const c = corpById(w, t.corpId);
     if (c) c.intel = Math.min(100, c.intel + 0.8);
   }
-  void spy;
 }
 
 function attemptOdds(w: World, c: Megacorp): number {
