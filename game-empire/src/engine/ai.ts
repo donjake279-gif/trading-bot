@@ -204,7 +204,7 @@ export function chooseConcept(w: World, c: Company, scope: ScopeId): GameParams 
   else if (sIdx >= 2) engine = chance(w, 0.6) ? 'titan' : 'nimbus';
   else engine = artStyle === 'pixel' && multiplayer !== 'massive' ? 'pixelforge' : chance(w, 0.5) ? 'nimbus' : 'titan';
   if (w.player.engine && c.parentId === w.player.companyId) engine = 'inhouse';
-  else if (w.player.engine?.licensing && chance(w, adoptionChance(w, c, scope))) engine = 'inhouse';
+  else if (w.player.engine?.licensing && chance(w, adoptionChance(w, c, scope, genre))) engine = 'inhouse';
   const topic = aiPickTopic(w, genre);
 
   const price = MONETIZATIONS[monetization].upfront ? priceFor(scope, w) : 0;

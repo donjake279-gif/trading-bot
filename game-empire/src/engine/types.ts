@@ -693,12 +693,40 @@ export interface HrSettings {
 
 export type EngineModuleId = 'rendering' | 'physics' | 'tools' | 'networking' | 'platforms' | 'scripting';
 
+export interface EngineResearch {
+  feature: string;
+  work: number;
+  done: number;
+  cost: number;
+  /** Researched under crunch (more tech debt). */
+  crunched?: boolean;
+}
+
+/** Performance, usability and stability: where the engine's design effort goes (sums to 100). */
+export interface EngineArch {
+  performance: number;
+  usability: number;
+  stability: number;
+}
+
+export type EngineSource = 'closed' | 'sourceAvailable' | 'open';
+
+export interface EngineDeal {
+  companyId: string;
+  /** Yearly flat fee: unlimited projects, no royalties. */
+  annual: number;
+  start: number;
+  until: number;
+}
+
 export interface StudioEngine {
   name: string;
   foundedDay: number;
   /** Major version shipped (1..5). */
   version: number;
+  /** 1 + features researched in each module (up to 5). */
   modules: Record<EngineModuleId, number>;
+  /** Old saves only. */
   upgrade: { module: EngineModuleId; daysLeft: number; days: number } | null;
   licensing: boolean;
   /** Share of licensees' net revenue. */
@@ -711,6 +739,34 @@ export interface StudioEngine {
   feesTotal: number;
   /** Rival projects ever started on your engine. */
   gamesBuilt: number;
+  // ---- the tech tree
+  features: string[];
+  research: EngineResearch[];
+  queue: string[];
+  /** Features shipped in each major version (for release notes). */
+  versionLog: { version: number; day: number; features: string[] }[];
+  // ---- how it's built
+  arch: EngineArch;
+  /** Tech debt 0..100: slower research, buggier games, unhappy licensees. */
+  debt: number;
+  /** The engine team is refactoring (no research) until this day. */
+  refactorUntil: number;
+  crunch: boolean;
+  /** Genres the engine ships templates for (up to 3). */
+  focus: GenreId[];
+  focusDay: number;
+  source: EngineSource;
+  // ---- licensing
+  /** Royalties only after a game's first $1M. */
+  threshold: boolean;
+  /** Monthly developer-support budget. */
+  support: number;
+  /** How happy licensees are, 0..100. */
+  satisfaction: number;
+  deals: EngineDeal[];
+  /** An unpatched security hole is open until this day. */
+  vulnUntil: number;
+  log: { day: number; text: string; tone: 'good' | 'bad' | 'neutral' }[];
 }
 
 export type FacilityId = 'coffee' | 'arcade' | 'napPods' | 'gym' | 'testLab' | 'soundStage' | 'rooftop' | 'daycare' | 'mocap' | 'arena' | 'renderFarm';
@@ -1079,9 +1135,45 @@ export interface AiLab {
   dailyRevenue: number;
 }
 
+export type CheatType = 'aimbot' | 'wallhack' | 'speedhack' | 'bots' | 'exploits' | 'macros';
+export type AcLayerId = 'signatures' | 'heuristics' | 'ml' | 'kernel' | 'serverAuth' | 'hwid' | 'replay';
+export type BanMode = 'instant' | 'weekly' | 'monthly';
+export type BanPenalty = 'suspend' | 'permanent' | 'hardware';
+
+export interface AcPolicy {
+  banMode: BanMode;
+  /** 0..100: catch more cheaters, ban more innocent players. */
+  sensitivity: number;
+  penalty: BanPenalty;
+  /** Monthly budget for the appeals team. */
+  appeals: number;
+}
+
+export interface AcProject {
+  layer: AcLayerId;
+  /** The level it reaches. */
+  level: number;
+  work: number;
+  done: number;
+  cost: number;
+}
+
+export type AcOpKind = 'undercover' | 'lawsuit' | 'honeypot';
+
+export interface AcOp {
+  id: string;
+  kind: AcOpKind;
+  target: CheatType | null;
+  start: number;
+  days: number;
+  cost: number;
+}
+
 export interface AntiCheat {
   name: string;
+  /** Upgrades shipped so far. */
   version: number;
+  /** Old saves only. */
   strength: number;
   mode: 'standard' | 'kernel';
   building: { version: number; start: number; days: number; cost: number; spent: number } | null;
@@ -1092,6 +1184,31 @@ export interface AntiCheat {
   revenue: number;
   /** A cheating wave is hitting your online games until this day. */
   breachUntil: number;
+  // ---- Anti-cheat 2.0
+  layers: Record<AcLayerId, { level: number; on: boolean }>;
+  project: AcProject | null;
+  queue: AcLayerId[];
+  /** Last day cheat signatures were pushed. */
+  sigDay: number;
+  /** Push signatures every week automatically (monthly subscription). */
+  autoSig: boolean;
+  policy: AcPolicy;
+  /** Share of players flagged and waiting for the next ban wave. */
+  pending: number;
+  nextWave: number;
+  /** Share of players in your online games who cheat. */
+  cheaters: number;
+  stats: { bans: number; falseBans: number; waves: number; lawsuitsWon: number };
+  /** Inside knowledge of a cheat type, valid until this day. */
+  intel: Partial<Record<CheatType, number>>;
+  ops: AcOp[];
+  /** Monthly bug bounty budget. */
+  bounty: number;
+  /** Training data for machine-learning detection, 0..100. */
+  data: number;
+  /** Monthly: [day, cheater share, effectiveness]. */
+  history: [number, number, number][];
+  log: { day: number; text: string; tone: 'good' | 'bad' | 'neutral' }[];
 }
 
 export interface Film {
@@ -1136,8 +1253,10 @@ export interface Ventures {
   /** Yearly AI market size. */
   aiMarket: number;
   antiCheat: AntiCheat | null;
-  /** How good cheat makers are. */
+  /** How good cheat makers are (on average). */
   cheatLevel: number;
+  /** How good cheat makers are at each kind of cheat. */
+  cheats?: Record<CheatType, number>;
   films: Film[];
   parks: ThemePark[];
 }

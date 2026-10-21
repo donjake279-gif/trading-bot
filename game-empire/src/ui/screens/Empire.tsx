@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { BrainCircuit, Check, Clapperboard, Crown, FerrisWheel, Gamepad, Lock, ShieldCheck, TrendingUp } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
+import { AntiCheatTab } from './AntiCheat';
 import { REGIONS, REGION_IDS } from '../../engine/constants';
 import { EMPIRE_CHALLENGES, EMPIRE_LEVELS, LEVEL_REWARD, courtOdds, decreeActive, empireLevel, empireUpkeep, strikeActive, upkeepDiscount } from '../../engine/empire';
 import {
@@ -11,8 +12,6 @@ import {
   PARK_TICKET,
   RESEARCHER_SALARY,
   VENTURES,
-  acBuildCost,
-  acBuildDays,
   acEffectiveness,
   addLand,
   aiLead,
@@ -30,7 +29,6 @@ import {
   consolesInstalled,
   designConsole,
   foundAiLab,
-  foundAntiCheat,
   greenlightFilm,
   hireResearchers,
   landCost,
@@ -41,9 +39,7 @@ import {
   parkVisitors,
   retireConsole,
   setAiLicensing,
-  setAntiCheat,
   setConsolePrice,
-  startAntiCheatVersion,
   startTraining,
   trainingOdds,
   ventureBlocker,
@@ -91,7 +87,7 @@ export function EmpireScreen({ tab: initial }: { tab?: string }) {
         />
       </div>
       {tab === 'overview' && <Overview onOpen={setTab} />}
-      {tab === 'antiCheat' && <AntiCheatTab />}
+      {tab === 'antiCheat' && <AntiCheatTab locked={<Locked id="antiCheat" />} />}
       {tab === 'consoles' && <ConsolesTab />}
       {tab === 'ai' && <AiTab />}
       {tab === 'films' && <FilmsTab />}
@@ -255,99 +251,6 @@ function Overview({ onOpen }: { onOpen: (t: Tab) => void }) {
           })}
         </div>
       </Card>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------ anti-cheat
-
-function AntiCheatTab() {
-  const w = useWorld();
-  const act = useGameStore((s) => s.act);
-  const [name, setName] = useState(`${playerCompany(w).name.split(' ')[0]} Shield`);
-  const ac = w.player.ventures.antiCheat;
-  if (!ac) {
-    if (ventureBlocker(w, 'antiCheat')) return <Locked id="antiCheat" />;
-    return (
-      <Card title="Build your own anti-cheat" subtitle={VENTURES.antiCheat.blurb}>
-        <div className="flex flex-wrap items-end gap-2">
-          <input aria-label="Anti-cheat name" className={cx(inputClass, 'w-56')} value={name} onChange={(e) => setName(e.target.value)} />
-          <Button variant="primary" onClick={() => act((world) => foundAntiCheat(world, name), `${name} 1.0 is in development`)}>
-            <ShieldCheck size={14} /> Start version 1 · {money(acBuildCost(1))} · {acBuildDays(1)} days
-          </Button>
-        </div>
-      </Card>
-    );
-  }
-  const e = acEffectiveness(w);
-  const cheat = w.player.ventures.cheatLevel;
-  const names = ac.licensees.map((id) => w.companies[id]?.name).filter(Boolean);
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Version" value={ac.version ? `${ac.name} ${ac.version}.0` : 'In development'} />
-        <Stat label="Stops cheaters" value={pct(e)} tone={e >= 0.6 ? 'good' : e >= 0.35 ? 'warn' : 'bad'} sub={`Cheat makers ${Math.round(cheat)} vs you ${Math.round(ac.strength + (ac.mode === 'kernel' ? 8 : 0))}`} />
-        <Stat label="Studios licensing it" value={ac.licensees.length} />
-        <Stat label="Licence income (lifetime)" value={money(ac.revenue)} />
-      </div>
-      {w.day < ac.breachUntil && <div className="rounded-lg border border-bad/30 bg-bad-soft/50 px-3 py-2 text-sm text-bad">Cheaters broke through. Your online games lose extra players until {date(ac.breachUntil)}. Ship a new version.</div>}
-      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <Card title="Development" subtitle="Cheat makers get better every day, faster the bigger your empire. Each version costs 2.4× the last.">
-          {ac.building ? (
-            <div>
-              <div className="flex justify-between text-sm">
-                <span>Version {ac.building.version}.0</span>
-                <span className="tabular text-muted">ships {date(ac.building.start + ac.building.days)}</span>
-              </div>
-              <Progress value={w.day - ac.building.start} max={ac.building.days} className="mt-2" />
-              <div className="mt-1 text-xs text-muted">{money(ac.building.spent)} of {money(ac.building.cost)} spent</div>
-            </div>
-          ) : (
-            <div>
-              <Button variant="primary" onClick={() => act((world) => startAntiCheatVersion(world), `Version ${ac.version + 1}.0 is in development`)}>
-                Build version {ac.version + 1}.0 · {money(acBuildCost(ac.version + 1))}
-              </Button>
-              <div className="mt-1 text-xs text-muted">{acBuildDays(ac.version + 1)} days</div>
-            </div>
-          )}
-          <div className="mt-4">
-            <div className="mb-1.5 text-xs font-medium text-sub">Driver</div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(['standard', 'kernel'] as const).map((m) => (
-                <button key={m} onClick={() => act((world) => setAntiCheat(world, { mode: m }))} className={cx('rounded-lg border px-2.5 py-2 text-left', ac.mode === m ? 'border-accent bg-accent-soft/40' : 'border-line bg-surface-2 hover:border-sub')}>
-                  <div className="text-xs font-semibold">{m === 'standard' ? 'Standard' : 'Kernel-level'}</div>
-                  <div className="text-[11px] text-muted">{m === 'standard' ? 'Respectful of players’ PCs.' : '+8 strength, but privacy backlash can hit your reputation.'}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </Card>
-        <Card
-          title="Sell it to rival studios"
-          subtitle="Studios with online games license it for a share of their online revenue. They drop it if cheaters get through."
-          actions={
-            <label className="flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={ac.licensing} onChange={(ev) => act((world) => setAntiCheat(world, { licensing: ev.target.checked }))} /> Licensing
-            </label>
-          }
-        >
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-sub">Fee</span>
-            <select aria-label="Licence fee" className={cx(inputClass, 'h-8 w-40 text-xs')} value={ac.fee} onChange={(ev) => act((world) => setAntiCheat(world, { fee: Number(ev.target.value) }))}>
-              {[0.01, 0.02, 0.03, 0.04, 0.05, 0.06].map((f) => (
-                <option key={f} value={f}>
-                  {pct(f)} of online revenue
-                </option>
-              ))}
-            </select>
-            <span className="text-xs text-muted">Lower fees win more studios.</span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-1">
-            {names.length ? names.slice(0, 24).map((n) => <Badge key={n}>{n}</Badge>) : <span className="text-xs text-muted">No licensees yet. Studios sign up month by month while your anti-cheat works well.</span>}
-            {names.length > 24 && <Badge>+{names.length - 24} more</Badge>}
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }

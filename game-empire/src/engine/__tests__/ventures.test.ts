@@ -32,7 +32,8 @@ import {
   ventureBlocker,
 } from '../ventures';
 import { playerSpeedMods } from '../development';
-import type { DecisionEvent, Game, World } from '../types';
+import type { AntiCheat, DecisionEvent, Game, World } from '../types';
+import { normalizeAntiCheat } from '../anticheat';
 import { playerCompany } from '../util';
 
 const opts = { seed: 'empire-1', companyName: 'Mega Corp', founderName: 'M', specialty: 'designer' as const, difficulty: 'normal' as const, rivals: 20 };
@@ -137,7 +138,8 @@ describe('empire levels', () => {
     w.player.empire.best = 1;
     const perks = w.player.progression.perkPoints;
     w.player.stats.gamesReleased = 10;
-    w.player.ventures.antiCheat = { name: 'X', version: 1, strength: 40, mode: 'standard', building: null, licensing: false, fee: 0.03, licensees: [], revenue: 0, breachUntil: 0 };
+    w.player.ventures.antiCheat = { name: 'X', version: 1, strength: 40, mode: 'standard', building: null, licensing: false, fee: 0.03, licensees: [], revenue: 0, breachUntil: 0 } as unknown as AntiCheat;
+    normalizeAntiCheat(w);
     w.awardsHistory.push({ year: 2026, category: 'Best Indie', gameId: 'g', companyId: w.player.companyId } as never);
     empireWeekly(w);
     expect(EMPIRE_CHALLENGES.filter((c) => c.level === 1).every((c) => w.player.empire.done.includes(c.id))).toBe(true);
@@ -147,18 +149,21 @@ describe('empire levels', () => {
 });
 
 describe('anti-cheat', () => {
-  it('ships versions, falls behind cheat makers, and costs more each time', () => {
+  it('ships layers, falls behind cheat makers, and each level costs more', () => {
     const w = rich(5e8);
     expect(acBuildCost(2)).toBeGreaterThan(acBuildCost(1) * 2);
     expect(foundAntiCheat(w, 'Iron Shield').ok).toBe(true);
     advanceDays(w, acBuildDays(1) + 1);
     const ac = w.player.ventures.antiCheat!;
     expect(ac.version).toBe(1);
+    expect(ac.layers.signatures.level).toBe(1);
     const fresh = acEffectiveness(w);
-    expect(fresh).toBeGreaterThan(0.5);
-    w.player.ventures.cheatLevel += 30; // two years of cheat makers
+    expect(fresh).toBeGreaterThan(0.1);
+    const cheats = w.player.ventures.cheats!;
+    for (const t of Object.keys(cheats) as (keyof typeof cheats)[]) cheats[t] += 30; // two years of cheat makers
     expect(acEffectiveness(w)).toBeLessThan(fresh);
-    expect(startAntiCheatVersion(w).ok).toBe(true);
+    // the queued behaviour-analysis layer started on its own
+    expect(ac.project?.layer).toBe('heuristics');
     expect(startAntiCheatVersion(w).ok).toBe(false);
   });
 
@@ -168,7 +173,7 @@ describe('anti-cheat', () => {
     expect(foundAntiCheat(w, 'Iron Shield').ok).toBe(true);
     advanceDays(w, acBuildDays(1) + 1);
     const ac = w.player.ventures.antiCheat!;
-    ac.strength = w.player.ventures.cheatLevel + 30;
+    for (const l of ['signatures', 'heuristics', 'kernel', 'serverAuth'] as const) ac.layers[l].level = 5;
     for (let m = 0; m < 24 && ac.revenue === 0; m++) venturesMonthly(w);
     expect(ac.licensees.length).toBeGreaterThan(0);
     expect(ac.revenue).toBeGreaterThan(0);

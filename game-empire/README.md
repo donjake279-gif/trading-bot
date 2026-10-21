@@ -99,11 +99,23 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
 - **Capital markets.** A simulated stock market with bull and bear regimes, crashes and quarterly earnings
   surprises. You can trade rivals' shares, acquire studios (they become AI-run subsidiaries you steer), and bid
   on bankrupt studios' IP at sealed-bid auctions.
-- **Build your own engine.** Research it, name it, then upgrade six modules (Rendering, Physics, Tools,
-  Networking, Platforms, AI & Scripting) and ship major versions from 1.0 to 5.0, with an optional tech-demo
-  launch. Your games get a higher quality ceiling and build faster. Open it for licensing, set the royalty and
-  upfront fee, and rival studios choose it over Titan and Apex when it's good and fairly priced. Your
-  subsidiaries use it for free, and if it takes off, Titan cuts its royalties to fight back.
+- **Build your own engine.** Research it, name it, then grow it through a tech tree of 41 features across six
+  modules (Rendering, Physics, Tools, Networking, Platforms, AI & Scripting): deferred lighting, path tracing,
+  destruction, rollback netcode, crossplay, shards, procedural worlds, a visual scripting marketplace, learning
+  NPCs and more. Each feature does something specific (a higher quality ceiling, faster builds, fewer bugs,
+  cheaper servers, cheaper ports, cheaper patches, lower churn, a boost for certain genres or platforms).
+  - *Engine team*: put people on the engine team from the Team screen; programmers count double. A bigger
+    team researches faster and runs more features at once (up to 3), with a queue of up to 12.
+  - *Architecture*: split 100 points between performance, usability and stability. Re-architecting a mature
+    engine adds tech debt. Crunch speeds research up but piles on debt; a refactor pays it down.
+  - *Genre focus*: tune the engine for up to three genres for extra quality and adoption.
+  - *Source model*: closed, source-available or open source (more adoption and hype, smaller royalties).
+  - *Ship versions*: features land in the next major version (1.0 to 5.0), with release notes, optional
+    tech-demo launch and a version history.
+  - *Licensing*: set the royalty and upfront fee, waive royalties until a game's first $1M, fund a support team
+    to keep licensees happy, and sign two-year enterprise deals. Unhappy licensees leave; tech debt causes
+    security holes. Rival studios choose your engine over Titan and Apex when it's good and fairly priced, and
+    commercial engines improve every year. Your subsidiaries use it for free.
 - **Pick topics and discover combos.** Every game has a topic (Zombies, Space, Cats, Pirates...). Each genre and
   topic pairing has a hidden grade, and a few secret legendary combos (dinosaur racing, anyone?) go viral.
   The combo book in the Trophy Room fills in as you ship games and watch rivals' hits.
@@ -132,9 +144,17 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   drives, critics who expect more, rival studios that make better games, and cheat makers, rival consoles and AI
   labs that improve faster. Each level has challenges; clearing them all pays perk points and XP and cuts upkeep by 10%.
 - **Ventures (Empire screen).** Businesses beyond games, each harder and pricier with every generation:
-  - *Anti-cheat*: ship versions that protect your online games and license them to rival studios for a share of
-    their online revenue. Cheat makers keep improving; fall behind and a cheating wave hits and licensees leave.
-    A kernel-level driver is stronger but risks privacy backlash.
+  - *Anti-cheat*: protect your online games and license the system to rival studios for a share of their online
+    revenue. Six cheat types (aimbots, wallhacks, speed hacks, bots, exploits, macros) each have their own skill
+    level, and you build seven detection layers (signature scanning, behaviour analysis, machine learning, kernel
+    driver, server authority, hardware bans, replay review), each good against different cheats.
+    - *Ban policy*: instant bans or weekly/monthly ban waves (waves teach cheat makers less but let cheaters play
+      longer), a detection sensitivity slider (catch more, ban more innocent players), suspensions, permanent or
+      hardware bans, and an appeals team that undoes false-ban damage.
+    - *Operations*: buy cheats undercover to learn their skill, sue cheat makers, run honeypots to feed the
+      machine-learning layer, push signature updates (or automate them) and fund a bug bounty.
+    - *Security team*: assign programmers and QA to build layers faster. Cheat makers adapt to whatever you catch
+      most; fall behind and a cheating wave hits, players leave and licensees walk.
   - *Consoles*: design handhelds, home consoles or powerhouses. Sell units, take your share of every console game's
     store fee, and launch the next generation (2.5× the R&D) before rival hardware leaves yours behind.
   - *AI lab*: train model generations (3× the compute each time, cheaper if you own data centers), hire researchers,
@@ -250,7 +270,7 @@ actions.
 | `progression.ts` | Studio XP and levels, perks, rotating goals |
 | `hr.ts` | HR autopilot: weekly hiring, pay grades and raises, skill training, replacing people who quit |
 | `empire.ts` | Empire levels: upkeep, antitrust and crises, critic expectations, rival pace, level challenges |
-| `ventures.ts` | Anti-cheat, consoles, AI lab, films and theme parks, and the rivals they race against |
+| `ventures.ts`, `anticheat.ts` | Consoles, AI lab, films and theme parks, and the rivals they race against; anti-cheat layers, cheat types, ban policy and operations |
 | `dominion.ts`, `dominionCore.ts` | The late game: unlocks, markets and shares, scars, hooks into the rest of the sim; runs the systems below |
 | `megacorps.ts`, `corpLines.ts` | AI megacorporations, alliances, wars, tactics, peace, annexation; their personas and lines |
 | `executives.ts`, `espionage.ts` | The C-suite and its politics; security, threats and spy operations |
@@ -262,7 +282,7 @@ actions.
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales |
 | `rivalry.ts`, `launch.ts`, `skip.ts` | Rival bosses (personas, quotes, clones, launch clashes, overtakes); first-week reports; skip to the next event |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |
-| `studioEngine.ts` | Your own engine: modules, versions, licensing, adoption by rivals, engine wars |
+| `studioEngine.ts`, `engineTech.ts` | Your own engine: the 41-feature tech tree, engine team, architecture and tech debt, source model, versions, licensing deals, adoption by rivals, engine wars |
 | `topics.ts`, `reviews.ts`, `memes.ts` | Topics and the combo book, generated player reviews, viral moments |
 | `fun.ts`, `legacy.ts` | Facilities, certifications, remasters, conventions, your store, legends; New Game+ |
 | `awards.ts`, `jam.ts` | The Game Awards season (nominations, campaigns, predictions, ceremony); the annual game jam |

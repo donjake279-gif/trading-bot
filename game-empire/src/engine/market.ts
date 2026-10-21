@@ -24,7 +24,7 @@ import {
 import { engineStats, hasResearch, bugDensity } from './development';
 import { ccuMult, saleActive, shopperMult } from './calendar';
 import { infraEffects } from './infra';
-import { collectRoyalty } from './studioEngine';
+import { collectRoyalty, engineChurn, royaltyWaived } from './studioEngine';
 import { facilityEffects } from './fun';
 import { addXp, perkRank } from './progression';
 import { rand } from './rng';
@@ -153,7 +153,7 @@ function churnMods(w: World, g: Game, c: Company): number {
   } else if (c.reputation > 60) {
     m *= 0.95;
   }
-  return m * antiCheatChurn(w, g, c) * (1 - 0.01 * contentLevelOf(g));
+  return m * antiCheatChurn(w, g, c) * engineChurn(w, g) * (1 - 0.01 * contentLevelOf(g));
 }
 
 export function serverCostMult(w: World, c: Company): number {
@@ -306,7 +306,7 @@ export function marketDay(w: World): void {
     const recurringGross = g.active * arpdau * dt;
     const net = (salesGross + recurringGross) * (1 - mix.storeCut);
     const eng = engineStats(w, g.engine, c.isPlayer, c);
-    const royalty = net * eng.royalty;
+    const royalty = royaltyWaived(w, g) ? 0 : net * eng.royalty;
     const pubCut = net * g.publisherCut;
 
     if (mix.console > 0) addConsoleGross(w, (salesGross + recurringGross) * mix.console);

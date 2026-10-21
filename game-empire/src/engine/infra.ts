@@ -9,6 +9,7 @@ import { SERVER_TIERS, RESEARCH } from './constants';
 import { hasResearch } from './development';
 import { perkRank } from './progression';
 import { engineServerDiscount } from './studioEngine';
+import { antiCheatServerMult } from './anticheat';
 import {
   autoscaleOwned,
   dataCentersDaily,
@@ -42,7 +43,7 @@ export function infraCostMult(w: World): number {
   let m = 1;
   if (hasResearch(w, 'netcode')) m *= 0.9;
   if (hasResearch(w, 'cloudInfra')) m *= 0.75;
-  return m * (1 - 0.06 * perkRank(w, 'lean')) * (1 - engineServerDiscount(w));
+  return m * (1 - 0.06 * perkRank(w, 'lean')) * (1 - engineServerDiscount(w)) * antiCheatServerMult(w);
 }
 
 /** Share of traffic on rented hosting (the rest runs on your own buildings). */

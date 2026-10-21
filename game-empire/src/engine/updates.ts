@@ -6,7 +6,7 @@ import { randNormal } from './rng';
 import type { Company, Game, MonetizationId, PlatformId, UpdateTypeId, World } from './types';
 import { clamp, earn, pushNews, toast } from './util';
 import { addXp, perkRank } from './progression';
-import { enginePortDiscount } from './studioEngine';
+import { enginePatchDiscount, enginePortDiscount } from './studioEngine';
 
 export function updateWork(w: World, g: Game, type: UpdateTypeId, isPlayer: boolean, platform?: PlatformId): number {
   const def = UPDATES[type];
@@ -16,6 +16,7 @@ export function updateWork(w: World, g: Game, type: UpdateTypeId, isPlayer: bool
   if (isPlayer && type === 'port' && hasResearch(w, 'crossplay')) work *= 0.5;
   if (isPlayer) work *= 1 - 0.12 * perkRank(w, 'patch');
   if (isPlayer && type === 'port') work *= 1 - enginePortDiscount(w, g.engine);
+  if (isPlayer && type !== 'port') work *= 1 - enginePatchDiscount(w, g.engine);
   return work;
 }
 

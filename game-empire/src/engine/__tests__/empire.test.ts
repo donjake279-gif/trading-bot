@@ -58,8 +58,8 @@ describe('studio engine', () => {
     expect(readyForVersion(e)).toBe(false);
     for (const m of ENGINE_MODULE_IDS) {
       expect(startModuleUpgrade(w, m).ok).toBe(true);
-      expect(startModuleUpgrade(w, 'tools').ok).toBe(false); // one at a time
-      while (e.upgrade) advanceDay(w);
+      expect(startModuleUpgrade(w, 'tools').ok).toBe(false); // one research slot without an engine team
+      while (e.research.length) advanceDay(w);
     }
     expect(ENGINE_MODULE_IDS.every((m) => e.modules[m] === 2)).toBe(true);
     // can't go past the next version before shipping it
@@ -70,7 +70,8 @@ describe('studio engine', () => {
     const after = engineStats(w, 'inhouse', true);
     expect(after.cap).toBeGreaterThan(before.cap);
     expect(after.workMult).toBeLessThan(before.workMult);
-    expect(engineScore(e)).toBe(64);
+    expect(engineScore(e)).toBeGreaterThanOrEqual(64);
+    expect(e.versionLog[0].features.length).toBe(6);
   });
 
   it('rival studios license a good engine and pay fees and royalties', () => {

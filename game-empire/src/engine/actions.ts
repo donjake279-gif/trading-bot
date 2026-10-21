@@ -2,6 +2,8 @@
 // here; each validates its preconditions and returns an ActionResult.
 import { deskCapacity } from './dominionCore';
 import { addPatchItems, clearBacklog, removePatchItem } from './patches';
+import { ENGINE_TEAM } from './studioEngine';
+import { AC_TEAM } from './anticheat';
 import { corpById, shiftRelation } from './megacorps';
 import { rivalReactToLaunch } from './rivalry';
 import {
@@ -93,6 +95,13 @@ export function createGame(w: World, p: GameParams, teamIds: string[]): ActionRe
 export function assignEmployee(w: World, employeeId: string, gameId: string | null): ActionResult {
   const e = w.player.employees.find((x) => x.id === employeeId);
   if (!e) return fail('Employee not found.');
+  if (gameId === ENGINE_TEAM || gameId === AC_TEAM) {
+    if (!ROLES[e.role].dev) return fail(`${ROLES[e.role].plural} work company-wide, not on projects.`);
+    if (gameId === ENGINE_TEAM && !w.player.engine) return fail('Found your engine first.');
+    if (gameId === AC_TEAM && !w.player.ventures.antiCheat) return fail('Found your anti-cheat first.');
+    e.assignment = gameId;
+    return ok();
+  }
   if (gameId) {
     const g = ownGame(w, gameId);
     if (!g) return fail('Game not found.');

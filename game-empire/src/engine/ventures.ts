@@ -3,6 +3,7 @@
 // on them, films and theme parks cash in on your franchises. Every generation
 // costs more than the last while rivals, cheat makers and AI labs keep
 // getting better, faster the bigger your empire grows.
+import { acSpeed, antiCheatDaily, antiCheatMonthly, cheatersDaily, signatureCost } from './anticheat';
 import { aiRevenueMult, aiTrainDiscount, ecoConsoleBoost, hardwareCostMult, trainingBonus } from './dominionCore';
 import { PLATFORMS, REGIONS } from './constants';
 import { ownedCapacity } from './datacenters';
@@ -17,7 +18,6 @@ const fail = (error: string): ActionResult => ({ ok: false, error });
 const ok = (): ActionResult => ({ ok: true });
 const money = (n: number) => (n >= 1e12 ? `$${(n / 1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1000)}K`);
 const vt = (w: World): Ventures => w.player.ventures;
-const online = (g: Game) => g.multiplayer === 'online' || g.multiplayer === 'massive';
 
 export type VentureId = 'antiCheat' | 'films' | 'consoles' | 'parks' | 'ai';
 
@@ -61,132 +61,9 @@ function releasedGamesOf(w: World, companyId: string): Game[] {
   return out;
 }
 
-// ================================================================ anti-cheat
+// ================================================================ anti-cheat (see anticheat.ts)
 
-export function acBuildCost(version: number): number {
-  return Math.round(4e6 * Math.pow(2.4, version - 1));
-}
-
-export function acBuildDays(version: number): number {
-  return 60 + 20 * version;
-}
-
-/** 0..1: how well your anti-cheat stops today's cheaters. */
-export function acEffectiveness(w: World): number {
-  const ac = vt(w).antiCheat;
-  if (!ac || ac.version === 0) return 0;
-  const strength = ac.strength + (ac.mode === 'kernel' ? 8 : 0);
-  return clamp(0.5 + (strength - vt(w).cheatLevel) / 25, 0, 1);
-}
-
-export function foundAntiCheat(w: World, name: string): ActionResult {
-  if (vt(w).antiCheat) return fail('You already make anti-cheat.');
-  const blocker = ventureBlocker(w, 'antiCheat');
-  if (blocker) return fail(blocker);
-  const clean = name.trim().slice(0, 24);
-  if (!clean) return fail('Give it a name.');
-  vt(w).antiCheat = { name: clean, version: 0, strength: 0, mode: 'standard', building: null, licensing: true, fee: 0.03, licensees: [], revenue: 0, breachUntil: 0 };
-  return startAntiCheatVersion(w);
-}
-
-export function startAntiCheatVersion(w: World): ActionResult {
-  const ac = vt(w).antiCheat;
-  if (!ac) return fail('Found your anti-cheat first.');
-  if (ac.building) return fail('A version is already in development.');
-  const version = ac.version + 1;
-  const cost = acBuildCost(version);
-  if (playerCompany(w).cash < cost * 0.25) return fail(`Needs at least ${money(cost * 0.25)} in the bank.`);
-  ac.building = { version, start: w.day, days: acBuildDays(version), cost, spent: 0 };
-  return ok();
-}
-
-export function setAntiCheat(w: World, patch: { licensing?: boolean; fee?: number; mode?: 'standard' | 'kernel' }): ActionResult {
-  const ac = vt(w).antiCheat;
-  if (!ac) return fail('Found your anti-cheat first.');
-  if (patch.fee !== undefined) ac.fee = clamp(patch.fee, 0.01, 0.06);
-  if (patch.licensing !== undefined) {
-    ac.licensing = patch.licensing;
-    if (!patch.licensing) ac.licensees = [];
-  }
-  if (patch.mode) ac.mode = patch.mode;
-  return ok();
-}
-
-function antiCheatDaily(w: World): void {
-  const ac = vt(w).antiCheat;
-  const p = playerCompany(w);
-  if (!ac?.building) return;
-  const b = ac.building;
-  const today = b.cost / b.days;
-  spend(p, 'ventures', today);
-  b.spent += today;
-  if (w.day - b.start < b.days) return;
-  ac.version = b.version;
-  ac.strength = vt(w).cheatLevel + 14 + randRange(w, -3, 5);
-  ac.building = null;
-  if (chance(w, 0.1)) {
-    ac.strength -= 8;
-    toast(w, `Cheat makers cracked ${ac.name} ${ac.version}.0 on day one`, 'bad', { category: 'studio', link: { route: 'empire', id: 'antiCheat' } });
-  } else {
-    toast(w, `${ac.name} ${ac.version}.0 is live`, 'good', { category: 'studio', link: { route: 'empire', id: 'antiCheat' }, body: 'Your online games are better protected and rival studios can license it.' });
-  }
-  if (ac.version === 1) celebrate(w, `${ac.name} launched`);
-}
-
-function antiCheatMonthly(w: World): void {
-  const ac = vt(w).antiCheat;
-  const p = playerCompany(w);
-  if (!ac || ac.version === 0) return;
-  const e = acEffectiveness(w);
-  // rival studios license it, and drop it when cheaters get through
-  if (ac.licensing) {
-    const lic = new Set(ac.licensees);
-    for (const c of rivalsOf(w)) {
-      const games = releasedGamesOf(w, c.id).filter(online);
-      if (lic.has(c.id)) {
-        const drop = e < 0.35 ? 0.15 : 0.01;
-        if (!games.length || chance(w, drop)) {
-          lic.delete(c.id);
-          if (e < 0.35) pushNews(w, { kind: 'industry', title: `${c.name} drops ${ac.name} after a cheating scandal`, companyId: c.id, tone: 'bad' });
-          continue;
-        }
-        const gross = games.reduce((s, g) => s + g.rev30, 0);
-        const fee = Math.min(c.cash * 0.2, gross * ac.fee) * decreeMult(w);
-        if (fee > 0) {
-          c.cash -= fee;
-          c.ledger.royalties += fee;
-          earn(p, 'tech', fee);
-          ac.revenue += fee;
-        }
-      } else if (games.length && chance(w, 0.08 * e * clamp((0.06 - ac.fee) / 0.03, 0, 1.7))) {
-        lic.add(c.id);
-        pushNews(w, { kind: 'industry', title: `${c.name} licenses ${ac.name} for its online games`, companyId: c.id, tone: 'good' });
-      }
-    }
-    ac.licensees = [...lic];
-  }
-  // when cheat makers are ahead, a cheating wave hits
-  if (e < 0.25 && chance(w, 0.25)) {
-    ac.breachUntil = w.day + 45;
-    p.reputation = Math.max(0, p.reputation - 2);
-    toast(w, `Cheaters broke through ${ac.name}`, 'bad', { category: 'game', link: { route: 'empire', id: 'antiCheat' }, body: 'Your online games are losing players for 45 days. Ship a new version.' });
-  }
-  if (ac.mode === 'kernel' && chance(w, 0.04)) {
-    p.reputation = Math.max(0, p.reputation - 3);
-    if (ac.licensees.length) ac.licensees.pop();
-    toast(w, `Privacy backlash over ${ac.name}'s kernel driver`, 'bad', { category: 'studio', link: { route: 'empire', id: 'antiCheat' } });
-  }
-}
-
-/** Churn multiplier for online games from anti-cheat (yours and your licensees'). */
-export function antiCheatChurn(w: World, g: Game, c: Company): number {
-  const ac = w.player.ventures?.antiCheat;
-  if (!ac || ac.version === 0 || !online(g)) return 1;
-  const e = acEffectiveness(w);
-  if (c.isPlayer) return (1 - 0.1 * e) * (w.day < ac.breachUntil ? 1.25 : 1);
-  if (ac.licensees.includes(c.id)) return 1 - 0.06 * e;
-  return 1;
-}
+export { acBuildCost, acBuildDays, acEffectiveness, antiCheatChurn, foundAntiCheat, setAntiCheat, startAntiCheatVersion } from './anticheat';
 
 // ================================================================ consoles
 
@@ -731,7 +608,7 @@ function parksMonthly(w: World): void {
 function frontiersDaily(w: World): void {
   const v = vt(w);
   const pace = 1 + rivalPace(w);
-  v.cheatLevel += (8 / 365) * pace;
+  cheatersDaily(w);
   v.rivalPower *= 1 + (0.1 / 365) * pace;
   v.aiFrontier += (6 / 365) * pace;
   v.aiMarket = Math.min(w.player.dominion?.megaprojects.some((m) => m.id === 'dysonCompute' && m.stage === 'done') ? 5e13 : 5e12, v.aiMarket * (1 + 0.25 / 365));
@@ -771,7 +648,9 @@ export function ventureRunRate(w: World): { revenue: number; cost: number } {
     cost += v.ai.dailyRevenue * 30 * 0.3 * (1 - computeDiscount(w) / 2) + v.ai.researchers * RESEARCHER_SALARY;
     if (v.ai.training) cost += (v.ai.training.cost / v.ai.training.days) * 30;
   }
-  if (v.antiCheat?.building) cost += (v.antiCheat.building.cost / v.antiCheat.building.days) * 30;
+  const acp = v.antiCheat?.project;
+  if (acp) cost += (acp.cost / acp.work) * acSpeed(w) * 30;
+  if (v.antiCheat) cost += v.antiCheat.bounty + v.antiCheat.policy.appeals + (v.antiCheat.autoSig ? signatureCost(v.antiCheat) * 4 : 0);
   for (const f of v.films) {
     if (f.stage === 'production') cost += (f.budget / FILM_TIERS[f.tier].days) * 30;
     else if (w.day - f.releaseDay < 90) revenue += Math.min(f.gross - f.earned, (f.gross * 2 * Math.max(0, 90 - (w.day - f.releaseDay)) * 30) / (90 * 91));

@@ -7,7 +7,8 @@ import type { HrSettings, World } from './types';
 import { newId, normalizeLedger, playerCompany } from './util';
 import { SAVE_VERSION, playerExtras } from './world';
 import { CERTIFICATIONS } from './constants';
-import { migrateEngine } from './studioEngine';
+import { migrateEngine, upgradeEngineSave } from './studioEngine';
+import { normalizeAntiCheat } from './anticheat';
 import { defaultTopic } from './topics';
 
 export interface SlotMeta {
@@ -177,6 +178,8 @@ function migrate(w: World): void {
   const hadRivalry = pl.rivalry !== undefined;
   for (const [k, v] of Object.entries(extras)) if (pl[k] === undefined) pl[k] = v;
   if ((w.version ?? 0) < 4) migrateEngine(w);
+  upgradeEngineSave(w);
+  normalizeAntiCheat(w);
   // an older save keeps its rival; record where you stand so loading isn't a free "overtook" reward
   const oldRival = w.player.rivalId ? w.companies[w.player.rivalId] : null;
   if (!hadRivalry && oldRival) w.player.rivalry.ahead = (w.companies[w.player.companyId]?.valuation ?? 0) > oldRival.valuation;

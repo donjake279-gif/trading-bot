@@ -10,6 +10,8 @@ import { date, money } from '../lib/format';
 import { Badge, Button, Card, ConfirmButton, Progress, SectionTitle, Stat, Td, Th, cx, inputClass } from '../components/ui';
 import { recruitFee } from '../../engine/staff';
 import { liveLevel } from '../../engine/patches';
+import { ENGINE_TEAM } from '../../engine/studioEngine';
+import { AC_TEAM } from '../../engine/anticheat';
 import { BENEFITS, HOURS, QA_POLICIES, retainerCost } from '../../engine/constants';
 import { policyMonthlyCost, setPolicies } from '../../engine/business';
 import { HR_SPENDING, fixAllPay, needsRaise, payFairly, payGrade, payReview, payStatus, hireStatus, setHr, trainingFloor, trainingQueue, trainingWait } from '../../engine/hr';
@@ -122,6 +124,8 @@ export function Team() {
                           onChange={(ev) => act((world) => assignEmployee(world, e.id, ev.target.value || null))}
                         >
                           <option value="">— idle —</option>
+                          {w.player.engine && <option value={ENGINE_TEAM}>Engine team: {w.player.engine.name}</option>}
+                          {w.player.ventures.antiCheat && <option value={AC_TEAM}>Security team: {w.player.ventures.antiCheat.name}</option>}
                           {projects.map((g) => (
                             <option key={g.id} value={g.id}>
                               {g.title} {g.status === 'released' ? '(update)' : ''}
