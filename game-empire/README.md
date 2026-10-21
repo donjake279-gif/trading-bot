@@ -155,6 +155,12 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
       machine-learning layer, push signature updates (or automate them) and fund a bug bounty.
     - *Security team*: assign programmers and QA to build layers faster. Cheat makers adapt to whatever you catch
       most; fall behind and a cheating wave hits, players leave and licensees walk.
+    - *Easy to read*: the screen walks through it in five numbers (players protected, share cheating, your catch
+      rate, bans last week, payoff in player churn and licence income), says in plain words why a number is still
+      zero (first layer still building, no online players yet, ban wave not out yet), and a "Do this next" panel
+      suggests the best next layer, stale signatures, weak spots and free staff, each with a one-click button.
+      Every layer card shows how much the next level would raise your catch rate. Your licensees' players count
+      too, so bans and training data start even before you have an online game of your own.
   - *Consoles*: design handhelds, home consoles or powerhouses. Sell units, take your share of every console game's
     store fee, and launch the next generation (2.5× the R&D) before rival hardware leaves yours behind.
   - *AI lab*: train model generations (3× the compute each time, cheaper if you own data centers), hire researchers,
@@ -205,14 +211,18 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   The overview tracks market shares, a news feed of what the giants are doing, and every lasting effect on you.
   Routine work runs itself (security, the world autopilot, city managers); wars, crises, deals and big builds
   wait for you. Twenty-three new empire challenges cover levels 2 to 9.
-- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (nine tiers,
-  Shared Hosting → Hyperscale Edge → Planetary Mesh (4B players) → Orbital Server Ring (20B) → Dyson Swarm Cloud,
-  which holds up to 100 billion players at $5B a node and $80M a month each) plus **data centers you own**. Buy a
+- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (twelve tiers,
+  Shared Hosting → Hyperscale Edge → Planetary Mesh (4B players) → Orbital Server Ring (20B) → Dyson Swarm Cloud
+  (100B) → Matrioshka Brain (1 trillion) → Interstellar Relay Grid (10 trillion) → Galactic Core Cloud, which holds
+  up to 100 trillion players on 1,000 nodes at $600B each) plus up to twelve **data centers you own**. Buy a
   building (Server Closet → Small Warehouse → Warehouse → Large Warehouse → Data Hall → Hyperscale Campus → Arctic
-  Megaplex → Orbital Data Station) in any of five regions, wait for construction,
+  Megaplex → Orbital Data Station → Lunar Data Vault → Dyson Ring Station → Planet-Brain Sphere, with 600,000 rack
+  slots and 8 GW of power) in any of five regions, wait for construction,
   grow it into the next size, and upgrade six systems: floor space, power, cooling, network uplink, backup
-  generators and security. Fill the racks with seven server models (Budget Server up to Quantum Racks and 30-million-player Photonic Cores), each with its own capacity, slots, power draw
-  and smoothness. Owning costs more up front but much less per month than renting; hardware wears out and can be
+  generators and security. Fill the racks with ten server models (Budget Server up to Photonic Cores,
+  Neuromorphic Mainframes, Singularity Cores and 25-billion-player Planck Processors), each with its own capacity,
+  slots, power draw and smoothness. Autoscaling never buys a machine more than twice the size of your whole player
+  base. Owning costs more up front but much less per month than renting; hardware wears out and can be
   refreshed; covering more regions helps growth and reviews. Overloaded servers turn new players away, raise
   churn and hurt reviews. A cloud or building outage only removes its share of capacity; if nothing is left
   running, every online game goes down. Autoscaling fills your own buildings first, then rents cloud nodes.

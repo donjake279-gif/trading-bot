@@ -911,6 +911,9 @@ export const SERVER_TIERS: ServerTierDef[] = [
   { name: 'Planetary Mesh', blurb: 'A private fibre backbone through every country on Earth. Built for games the whole planet plays at once.', nodeCapacity: 25_000_000, nodeCost: 300_000_000, nodeMaintenance: 5_500_000, bandwidth: 0.0016, outage: 0.0001, performance: 1, upgradeCost: 1_500_000_000, maxNodes: 160, minRep: 70, research: 'cloudInfra' },
   { name: 'Orbital Server Ring', blurb: 'Server satellites in low orbit. Room for 20 billion players, more people than live on Earth. Eye-wateringly expensive.', nodeCapacity: 100_000_000, nodeCost: 1_200_000_000, nodeMaintenance: 20_000_000, bandwidth: 0.0014, outage: 0.00005, performance: 1, upgradeCost: 8_000_000_000, maxNodes: 200, minRep: 80, research: 'cloudInfra' },
   { name: 'Dyson Swarm Cloud', blurb: 'A swarm of solar-powered server satellites circling the Sun. Room for 100 billion players. Costs about as much as a small planet.', nodeCapacity: 500_000_000, nodeCost: 5_000_000_000, nodeMaintenance: 80_000_000, bandwidth: 0.0012, outage: 0.00003, performance: 1, upgradeCost: 40_000_000_000, maxNodes: 200, minRep: 90, research: 'cloudInfra' },
+  { name: 'Matrioshka Brain', blurb: 'Shell after shell of servers wrapped around a star, each one running on the waste heat of the last. Room for 1 trillion players.', nodeCapacity: 2_500_000_000, nodeCost: 25_000_000_000, nodeMaintenance: 300_000_000, bandwidth: 0.001, outage: 0.00002, performance: 1, upgradeCost: 250_000_000_000, maxNodes: 400, minRep: 92, research: 'cloudInfra' },
+  { name: 'Interstellar Relay Grid', blurb: 'Server stars in a dozen solar systems, linked by entangled relays with zero lag. Room for 10 trillion players.', nodeCapacity: 20_000_000_000, nodeCost: 150_000_000_000, nodeMaintenance: 1_500_000_000, bandwidth: 0.0008, outage: 0.00001, performance: 1, upgradeCost: 1_500_000_000_000, maxNodes: 500, minRep: 95, research: 'cloudInfra' },
+  { name: 'Galactic Core Cloud', blurb: 'Powered by the black hole at the centre of the galaxy. Room for 100 trillion players. There are not that many players. Yet.', nodeCapacity: 100_000_000_000, nodeCost: 600_000_000_000, nodeMaintenance: 6_000_000_000, bandwidth: 0.0006, outage: 0.000005, performance: 1, upgradeCost: 8_000_000_000_000, maxNodes: 1000, minRep: 98, research: 'cloudInfra' },
 ];
 
 // ---------------------------------------------------------------- progression
@@ -1216,6 +1219,9 @@ export const DC_BUILDINGS: DcBuildingDef[] = [
   { name: 'Hyperscale Campus', slots: 1200, power: 3000, cost: 90000000, rent: 600000, build: 150, minRep: 60 },
   { name: 'Arctic Megaplex', slots: 4000, power: 15000, cost: 800_000_000, rent: 4_000_000, build: 240, minRep: 70 },
   { name: 'Orbital Data Station', slots: 12000, power: 60000, cost: 6_000_000_000, rent: 25_000_000, build: 365, minRep: 80 },
+  { name: 'Lunar Data Vault', slots: 40000, power: 250_000, cost: 40_000_000_000, rent: 150_000_000, build: 450, minRep: 85 },
+  { name: 'Dyson Ring Station', slots: 150_000, power: 1_500_000, cost: 300_000_000_000, rent: 1_000_000_000, build: 540, minRep: 90 },
+  { name: 'Planet-Brain Sphere', slots: 600_000, power: 8_000_000, cost: 2_500_000_000_000, rent: 8_000_000_000, build: 730, minRep: 95 },
 ];
 
 export const DC_UPGRADE_IDS: DcUpgradeId[] = ['space', 'power', 'cooling', 'network', 'backup', 'security'];
@@ -1255,7 +1261,7 @@ export interface ServerModelDef {
   research?: ResearchId;
 }
 
-export const SERVER_MODEL_IDS: ServerModelId[] = ['budget', 'rack', 'blade', 'pod', 'supercluster', 'quantum', 'photonic'];
+export const SERVER_MODEL_IDS: ServerModelId[] = ['budget', 'rack', 'blade', 'pod', 'supercluster', 'quantum', 'photonic', 'neuromorphic', 'singularity', 'planck'];
 
 export const SERVER_MODELS: Record<ServerModelId, ServerModelDef> = {
   budget: { name: 'Budget Server', blurb: 'A refurbished tower. It works. Mostly.', slots: 1, capacity: 500, cost: 2500, upkeep: 40, power: 0.5, perf: 0.1, minRep: 0 },
@@ -1265,6 +1271,9 @@ export const SERVER_MODELS: Record<ServerModelId, ServerModelDef> = {
   supercluster: { name: 'Edge Supercluster', blurb: 'Custom silicon. Your players will feel the difference.', slots: 8, capacity: 400000, cost: 1200000, upkeep: 16000, power: 70, perf: 0.95, minRep: 40, research: 'cloudInfra' },
   quantum: { name: 'Quantum Rack', blurb: 'Error-corrected quantum matchmaking. Nobody fully understands it.', slots: 8, capacity: 4_000_000, cost: 12_000_000, upkeep: 150_000, power: 160, perf: 1, minRep: 60, research: 'cloudInfra' },
   photonic: { name: 'Photonic Core', blurb: 'Computing with light: a whole country of players in one box.', slots: 16, capacity: 30_000_000, cost: 120_000_000, upkeep: 1_200_000, power: 450, perf: 1, minRep: 75, research: 'cloudInfra' },
+  neuromorphic: { name: 'Neuromorphic Mainframe', blurb: 'Chips wired like a brain. A whole continent of players in one machine.', slots: 32, capacity: 250_000_000, cost: 1_200_000_000, upkeep: 10_000_000, power: 1600, perf: 1, minRep: 85, research: 'cloudInfra' },
+  singularity: { name: 'Singularity Core', blurb: 'Runs on a black hole the size of a grain of sand. Do not drop it.', slots: 64, capacity: 2_500_000_000, cost: 10_000_000_000, upkeep: 80_000_000, power: 6000, perf: 1, minRep: 92, research: 'cloudInfra' },
+  planck: { name: 'Planck Processor', blurb: 'Computes at the smallest scale physics allows. Everyone who ever lived could play at once.', slots: 128, capacity: 25_000_000_000, cost: 90_000_000_000, upkeep: 700_000_000, power: 25000, perf: 1, minRep: 97, research: 'cloudInfra' },
 };
 
 /** Electricity per kW per month. */

@@ -824,7 +824,7 @@ export interface ServerIncident {
 
 export type RegionId = 'na' | 'eu' | 'asia' | 'sa' | 'oce';
 export type DcUpgradeId = 'space' | 'power' | 'cooling' | 'network' | 'backup' | 'security';
-export type ServerModelId = 'budget' | 'rack' | 'blade' | 'pod' | 'supercluster' | 'quantum' | 'photonic';
+export type ServerModelId = 'budget' | 'rack' | 'blade' | 'pod' | 'supercluster' | 'quantum' | 'photonic' | 'neuromorphic' | 'singularity' | 'planck';
 
 /** A building you own and fill with your own servers. */
 export interface DataCenter {
@@ -1209,6 +1209,24 @@ export interface AntiCheat {
   /** Monthly: [day, cheater share, effectiveness]. */
   history: [number, number, number][];
   log: { day: number; text: string; tone: 'good' | 'bad' | 'neutral' }[];
+  /** What happened in the last weekly check. */
+  report?: AcWeekReport | null;
+  /** Licence fees collected last month. */
+  monthRevenue?: number;
+}
+
+/** One week of anti-cheat work, in players. */
+export interface AcWeekReport {
+  day: number;
+  /** Online players protected: yours and your licensees'. */
+  players: number;
+  /** Cheaters detected this week. */
+  flagged: number;
+  /** Accounts banned this week (all at once in a ban wave). */
+  banned: number;
+  /** Innocent players banned this week. */
+  falseBans: number;
+  wave: boolean;
 }
 
 export interface Film {

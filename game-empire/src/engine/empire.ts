@@ -291,9 +291,11 @@ export const EMPIRE_CHALLENGES: EmpireChallenge[] = [
   { id: 'l8_colonists', level: 8, name: '100 million colonists off Earth', progress: (w) => [playerColonists(w), 1e8] },
   { id: 'l8_annex', level: 8, name: 'Absorb 3 megacorps', progress: (w) => [dom(w).stats.annexed, 3] },
   { id: 'l8_lead', level: 8, name: 'Lead every market', progress: (w) => [leadCount(w), SECTOR_IDS.length] },
+  { id: 'l8_servers', level: 8, name: 'Room for 1 trillion players on your servers', progress: (w) => [infraCapacity(w), 1e12] },
   { id: 'l9_starship', level: 9, name: 'Launch the Interstellar Starship', progress: (w) => [dom(w).victory ? 1 : 0, 1] },
   { id: 'l9_worlds', level: 9, name: '5 billion residents in your universes', progress: (w) => [dom(w).universes.reduce((s, u) => s + u.population, 0), 5e9] },
   { id: 'l9_half', level: 9, name: 'Own half of every market', progress: (w) => [halfCount(w), SECTOR_IDS.length] },
+  { id: 'l9_servers', level: 9, name: 'Room for 10 trillion players on your servers', progress: (w) => [infraCapacity(w), 1e13] },
 ];
 
 function dom(w: World) {

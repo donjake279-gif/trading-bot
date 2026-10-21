@@ -13,7 +13,7 @@ import { aiLead, ventureBlocker } from './ventures';
 import { empireLevel, rivalPace, decreeActive } from './empire';
 import { execPower } from './dominionCore';
 import { pushDecision } from './events';
-import { GENRES } from './constants';
+import { GENRES, ROLES } from './constants';
 import { chance, pick } from './rng';
 import type { AcLayerId, AcOp, AcOpKind, AcPolicy, ActionResult, AntiCheat, BanMode, BanPenalty, CheatType, Company, DecisionEvent, Game, World } from './types';
 import { celebrate, clamp, earn, isPlayerGroup, newId, playerCompany, pushNews, spend, toast } from './util';
@@ -22,6 +22,8 @@ const fail = (error: string): ActionResult => ({ ok: false, error });
 const ok = (): ActionResult => ({ ok: true });
 const fmt = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1000)}K`);
 const online = (g: Game) => g.multiplayer === 'online' || g.multiplayer === 'massive';
+const count = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.round(n / 1000)}K` : Math.round(n).toLocaleString('en-US'));
+const pctText = (n: number) => `${Math.round(n * 100)}%`;
 
 /** Employees on the security team carry this assignment. */
 export const AC_TEAM = 'team:anticheat';
@@ -139,8 +141,8 @@ function aclog(ac: AntiCheat, w: World, text: string, tone: 'good' | 'bad' | 'ne
 export function layerPower(w: World, ac: AntiCheat, l: AcLayerId, t: CheatType): number {
   const L = ac.layers[l];
   if (!L || !L.on || L.level === 0) return 0;
-  let pw = 15 * L.level + 5;
-  if (l === 'signatures') pw -= Math.min(30, (w.day - ac.sigDay) * 0.35);
+  let pw = 15 * L.level + 15;
+  if (l === 'signatures') pw -= Math.min(25, (w.day - ac.sigDay) * 0.25);
   if (l === 'ml') pw += Math.min(20, ac.data / 5) + Math.min(10, aiLead(w) * 8);
   if ((ac.intel[t] ?? 0) > w.day) pw += 12;
   return pw;
@@ -163,14 +165,35 @@ export function catchRate(w: World, ac: AntiCheat, t: CheatType): number {
   return Math.min(0.98, detectionOf(w, ac, t) * (0.7 + (0.6 * ac.policy.sensitivity) / 100));
 }
 
+function stackEffectiveness(w: World, ac: AntiCheat): number {
+  let e = 0;
+  for (const t of CHEAT_IDS) e += CHEAT_TYPES[t].share * catchRate(w, ac, t);
+  return clamp(e, 0, 1);
+}
+
 /** 0..1: how well your anti-cheat stops today's cheaters. */
 export function acEffectiveness(w: World): number {
   const ac = vt(w)?.antiCheat;
   if (!ac || ac.version === 0) return 0;
   if (!(ac as Partial<AntiCheat>).layers) normalizeAntiCheat(w);
-  let e = 0;
-  for (const t of CHEAT_IDS) e += CHEAT_TYPES[t].share * catchRate(w, ac, t);
-  return clamp(e, 0, 1);
+  return stackEffectiveness(w, ac);
+}
+
+/** How much the overall catch rate would rise with the next level of a layer (switched on). */
+export function layerGain(w: World, l: AcLayerId): number {
+  const ac = vt(w)?.antiCheat;
+  if (!ac || ac.layers[l].level >= AC_MAX_LEVEL) return 0;
+  const L = ac.layers[l];
+  const saved = { level: L.level, on: L.on, sigDay: ac.sigDay };
+  const before = stackEffectiveness(w, ac);
+  L.level += 1;
+  L.on = true;
+  if (l === 'signatures') ac.sigDay = w.day;
+  const after = stackEffectiveness(w, ac);
+  L.level = saved.level;
+  L.on = saved.on;
+  ac.sigDay = saved.sigDay;
+  return Math.max(0, after - before);
 }
 
 /** Share of bans that hit innocent players. */
@@ -185,13 +208,18 @@ export function appealsCover(ac: AntiCheat, players: number): number {
   return clamp(ac.policy.appeals / Math.max(20000, players * 0.02), 0, 1);
 }
 
-function protectedPlayers(w: World): number {
-  let t = 0;
+/** Online players your anti-cheat protects: in your own games and in your licensees' games. */
+export function coveredPlayers(w: World): { own: number; licensed: number; total: number } {
+  const lic = new Set(vt(w)?.antiCheat?.licensees ?? []);
+  let own = 0;
+  let licensed = 0;
   for (const id in w.games) {
     const g = w.games[id];
-    if (g.companyId === w.player.companyId && g.status === 'released' && online(g)) t += g.active;
+    if (g.status !== 'released' || !online(g)) continue;
+    if (g.companyId === w.player.companyId) own += g.active;
+    else if (lic.has(g.companyId)) licensed += g.active;
   }
-  return t;
+  return { own, licensed, total: own + licensed };
 }
 
 /** Churn multiplier for online games from anti-cheat (yours and your licensees'). */
@@ -314,7 +342,7 @@ export function foundAntiCheat(w: World, name: string): ActionResult {
     project: null,
     queue: ['heuristics'],
     sigDay: w.day,
-    autoSig: false,
+    autoSig: true,
     policy: defaultPolicy(),
     pending: 0,
     nextWave: w.day + 7,
@@ -520,7 +548,7 @@ function finishLayer(w: World, ac: AntiCheat): void {
 
 /** Weekly: cheaters come, get caught, get banned (now or in a wave), and some innocents too. */
 function acWeekly(w: World, ac: AntiCheat): void {
-  const players = protectedPlayers(w);
+  const players = coveredPlayers(w).total;
   const eff = acEffectiveness(w);
   const pen = PENALTIES[ac.policy.penalty === 'hardware' && !(ac.layers.hwid.level && ac.layers.hwid.on) ? 'permanent' : ac.policy.penalty];
   const hwid = ac.layers.hwid.on ? ac.layers.hwid.level : 0;
@@ -535,6 +563,7 @@ function acWeekly(w: World, ac: AntiCheat): void {
   const caught = Math.max(0, ac.cheaters - ac.pending) * eff * 0.6;
   const mode = BAN_MODES[ac.policy.banMode];
   let banned = 0;
+  let wave = false;
   if (mode.every === 0) {
     banned = caught;
     ac.cheaters = Math.max(0, ac.cheaters - caught * (1 - comeback));
@@ -546,6 +575,7 @@ function acWeekly(w: World, ac: AntiCheat): void {
       ac.pending = 0;
       ac.nextWave = w.day + mode.every;
       ac.stats.waves += 1;
+      wave = true;
       const n = Math.round(banned * players);
       if (n > 0) {
         for (const id in w.games) {
@@ -562,6 +592,7 @@ function acWeekly(w: World, ac: AntiCheat): void {
   // innocent players caught in the net
   const fp = bans * falsePositiveRate(ac) * (hwid ? 1.3 : 1);
   ac.stats.falseBans += Math.round(fp);
+  ac.report = { day: w.day, players, flagged: Math.round(caught * players), banned: Math.round(bans), falseBans: Math.round(fp), wave };
   if (players > 0 && fp > 0) {
     const hurt = Math.min(2, (fp / players) * 1000) * (1 - 0.7 * appealsCover(ac, players));
     for (const id in w.games) {
@@ -612,23 +643,24 @@ export function antiCheatMonthly(w: World): void {
   if (ac.version === 0) return;
   const e = acEffectiveness(w);
   // machine-learning data from everyone you protect
-  const players = protectedPlayers(w);
-  ac.data = clamp(ac.data * 0.97 + Math.log10(1 + players / 1e4) * 2 + ac.licensees.length * 0.5, 0, 100);
+  const players = coveredPlayers(w).own;
+  ac.data = clamp(ac.data * 0.97 + Math.log10(1 + coveredPlayers(w).total / 1e4) * 2 + ac.licensees.length * 0.5, 0, 100);
   // the bug bounty turns up exploits
   if (ac.bounty > 0 && chance(w, Math.min(0.5, ac.bounty / 1e6))) {
     cheatsOf(w).exploits = Math.max(5, cheatsOf(w).exploits - 3);
     aclog(ac, w, 'A bug-bounty hunter reported an exploit before cheaters found it.', 'good');
   }
   // rival studios license it, and drop it when cheaters get through
+  ac.monthRevenue = 0;
   if (ac.licensing) {
     const lic = new Set(ac.licensees);
     for (const c of rivalsOf(w)) {
       const games = Object.values(w.games).filter((g) => g.companyId === c.id && g.status === 'released' && online(g));
       if (lic.has(c.id)) {
-        const drop = e < 0.35 ? 0.15 : 0.01;
+        const drop = e < 0.2 ? 0.12 : e < 0.3 ? 0.04 : 0.01;
         if (!games.length || chance(w, drop)) {
           lic.delete(c.id);
-          if (e < 0.35) pushNews(w, { kind: 'industry', title: `${c.name} drops ${ac.name} after a cheating scandal`, companyId: c.id, tone: 'bad' });
+          if (e < 0.3) pushNews(w, { kind: 'industry', title: `${c.name} drops ${ac.name} after a cheating scandal`, companyId: c.id, tone: 'bad' });
           continue;
         }
         const gross = games.reduce((s, g) => s + g.rev30, 0);
@@ -638,8 +670,9 @@ export function antiCheatMonthly(w: World): void {
           c.ledger.royalties += fee;
           earn(p, 'tech', fee);
           ac.revenue += fee;
+          ac.monthRevenue += fee;
         }
-      } else if (games.length && chance(w, 0.08 * e * clamp((0.06 - ac.fee) / 0.03, 0, 1.7))) {
+      } else if (games.length && e >= 0.1 && chance(w, 0.06 * (0.3 + e) * clamp((0.06 - ac.fee) / 0.03, 0, 1.7))) {
         lic.add(c.id);
         pushNews(w, { kind: 'industry', title: `${c.name} licenses ${ac.name} for its online games`, companyId: c.id, tone: 'good' });
       }
@@ -746,9 +779,170 @@ export function cheatEstimate(w: World, t: CheatType): { value: number; exact: b
 /** Rough weekly ban rate, for the UI. */
 export function weeklyBanEstimate(w: World): { cheaters: number; bans: number; falseBans: number; players: number } {
   const ac = vt(w).antiCheat;
-  const players = protectedPlayers(w);
+  const players = coveredPlayers(w).total;
   if (!ac || ac.version === 0) return { cheaters: 0, bans: 0, falseBans: 0, players };
   const bans = Math.max(0, ac.cheaters - ac.pending) * acEffectiveness(w) * 0.6 * players;
   return { cheaters: ac.cheaters * players, bans, falseBans: bans * falsePositiveRate(ac), players };
 }
 
+
+// ------------------------------------------------------------ plain-language guidance for the UI
+
+/** The day the next ban wave actually goes out (waves happen on the weekly check). */
+export function nextWaveDay(w: World): number {
+  const ac = vt(w).antiCheat;
+  const next7 = (Math.floor(w.day / 7) + 1) * 7;
+  return Math.ceil(Math.max(ac?.nextWave ?? next7, next7) / 7) * 7;
+}
+
+/** Weighted churn multiplier your anti-cheat puts on your own online games (below 1 = players stay longer). */
+export function acChurnEffect(w: World): number | null {
+  const p = playerCompany(w);
+  let sum = 0;
+  let tot = 0;
+  for (const id in w.games) {
+    const g = w.games[id];
+    if (g.companyId !== p.id || g.status !== 'released' || !online(g)) continue;
+    const a = Math.max(1, g.active);
+    sum += a * antiCheatChurn(w, g, p);
+    tot += a;
+  }
+  return tot ? sum / tot : null;
+}
+
+export interface AcNote {
+  tone: 'good' | 'warn' | 'bad' | 'neutral';
+  text: string;
+}
+
+/** What is going on right now, and why a number might still be zero. */
+export function acStatus(w: World): AcNote[] {
+  const ac = vt(w).antiCheat;
+  if (!ac) return [];
+  const out: AcNote[] = [];
+  const cov = coveredPlayers(w);
+  const pr = ac.project;
+  if (ac.version === 0) {
+    out.push(
+      pr
+        ? { tone: 'warn', text: `Your first layer, ${AC_LAYERS[pr.layer].name}, is being built: ${Math.ceil((pr.work - pr.done) / acSpeed(w))} days left. Nothing is protected until it is live, so the catch rate and bans stay at 0 until then.` }
+        : { tone: 'bad', text: 'Nothing is being built. Pick a detection layer below to get started.' },
+    );
+  }
+  if (cov.total === 0) {
+    out.push({ tone: 'warn', text: `No players to protect yet. Anti-cheat only works in online and MMO games, and none of yours are out${ac.licensing ? ', and no studio has licensed it yet' : ''}. Bans start as soon as there are online players.` });
+  } else if (cov.own === 0) {
+    out.push({ tone: 'neutral', text: `None of your own games are online, but ${ac.licensees.length} studio${ac.licensees.length === 1 ? '' : 's'} use ${ac.name}: it protects ${count(cov.licensed)} of their players.` });
+  }
+  if (ac.version > 0 && cov.total > 0) {
+    const r = ac.report;
+    if (r && r.players > 0) {
+      const what = r.wave ? `Ban wave last week: ${count(r.banned)} cheaters banned` : r.banned > 0 ? `Last week: ${count(r.banned)} cheaters banned` : `Last week: ${count(r.flagged)} cheaters caught (banned in the next wave)`;
+      out.push({ tone: r.banned > 0 || r.flagged > 0 ? 'good' : 'neutral', text: `${what}${r.falseBans > 0 ? `, ${count(r.falseBans)} innocent players hit by mistake` : ''}.` });
+    }
+    if (ac.policy.banMode !== 'instant') {
+      const d = nextWaveDay(w) - w.day;
+      const waiting = ac.pending * cov.total;
+      out.push({ tone: 'neutral', text: `Next ban wave in ${d} day${d === 1 ? '' : 's'}${waiting >= 1 ? `: ${count(waiting)} cheaters caught and waiting for it` : ''}.` });
+    }
+  }
+  return out;
+}
+
+export interface AcAdvice {
+  id: string;
+  title: string;
+  why: string;
+  /** Button text; no button when there is nothing to click. */
+  label?: string;
+  run?: (w: World) => ActionResult;
+  /** A screen to open instead. */
+  route?: 'create';
+}
+
+function bestNextLayer(w: World, ac: AntiCheat, only?: CheatType): { l: AcLayerId; gain: number } | null {
+  let best: { l: AcLayerId; gain: number; score: number } | null = null;
+  for (const l of AC_LAYER_IDS) {
+    if (ac.layers[l].level >= AC_MAX_LEVEL || ac.project?.layer === l || ac.queue.includes(l)) continue;
+    const req = AC_LAYERS[l].requires;
+    if (req && ac.layers[req].level < 1) continue;
+    const gain = layerGain(w, l);
+    const score = only ? COVERAGE[l][only] * (1 + gain) : gain / Math.sqrt(layerCost(l, ac.layers[l].level));
+    if (gain <= 0.005 && !only) continue;
+    if (!best || score > best.score) best = { l, gain, score };
+  }
+  return best;
+}
+
+function joinSecurityTeam(w: World, id: string): ActionResult {
+  const e = w.player.employees.find((x) => x.id === id);
+  if (!e || !ROLES[e.role].dev) return fail('They cannot join the security team.');
+  e.assignment = AC_TEAM;
+  return ok();
+}
+
+/** Up to four concrete next steps, most useful first. */
+export function acAdvice(w: World): AcAdvice[] {
+  const ac = vt(w).antiCheat;
+  if (!ac) return [];
+  const out: AcAdvice[] = [];
+  const cov = coveredPlayers(w);
+  const eff = stackEffectiveness(w, ac);
+  // 1. always have something building
+  if (!ac.project || !ac.queue.length) {
+    const b = bestNextLayer(w, ac);
+    if (b) {
+      const lvl = ac.layers[b.l].level + 1;
+      out.push({
+        id: 'layer',
+        title: `${ac.project ? 'Queue' : 'Build'} ${AC_LAYERS[b.l].name}${lvl > 1 ? ` level ${lvl}` : ''}`,
+        why: `Best value right now: catches ${pctText(eff)} → ${pctText(eff + b.gain)} of cheaters. ${fmt(layerCost(b.l, lvl - 1))}, paid while it builds.`,
+        label: ac.project ? 'Queue it' : 'Build it',
+        run: (x) => queueLayer(x, b.l),
+      });
+    }
+  }
+  if (ac.licensing === false) {
+    out.push({ id: 'licensing', title: 'Turn on licensing', why: `Rival studios would pay ${pctText(ac.fee)} of their online revenue to use ${ac.name}, and their players count towards your bans and training data.`, label: 'Turn on', run: (x) => setAntiCheat(x, { licensing: true }) });
+  }
+  if (cov.own === 0) {
+    out.push({ id: 'online', title: 'Make an online game', why: 'Anti-cheat only protects online and MMO games. With one of your own, fewer cheaters means players stay longer.', label: 'New game', route: 'create' });
+  }
+  // 2. stale signatures
+  const sigAge = w.day - ac.sigDay;
+  if (ac.layers.signatures.level > 0 && !ac.autoSig && sigAge > 30) {
+    out.push({ id: 'sig', title: 'Your cheat signatures are going stale', why: `Last update ${sigAge} days ago, so signature scanning has lost strength. Auto-push weekly for ${fmt(signatureCost(ac) * 4)}/mo and forget about it.`, label: 'Auto-push weekly', run: (x) => setAntiCheat(x, { autoSig: true }) });
+  }
+  // 3. the weakest kind of cheat
+  if (ac.version > 0) {
+    let weak: CheatType | null = null;
+    for (const t of CHEAT_IDS) if (!weak || catchRate(w, ac, t) < catchRate(w, ac, weak)) weak = t;
+    const r = weak ? catchRate(w, ac, weak) : 1;
+    if (weak && r < 0.3) {
+      const b = bestNextLayer(w, ac, weak);
+      if (b && !out.some((a) => a.id === 'layer' && a.title.includes(AC_LAYERS[b.l].name))) {
+        out.push({ id: 'weak', title: `Weak spot: ${CHEAT_TYPES[weak].name.toLowerCase()}`, why: `You catch only ${pctText(r)} of them. ${AC_LAYERS[b.l].name} is the best counter you can build.`, label: ac.project ? 'Queue it' : 'Build it', run: (x) => queueLayer(x, b.l) });
+      }
+    }
+  }
+  // 4. a security team
+  if (!securityTeam(w).length) {
+    const idle = w.player.employees.filter((e) => ROLES[e.role].dev && !e.assignment).sort((a, b) => Number(b.role === 'programmer' || b.role === 'qa') - Number(a.role === 'programmer' || a.role === 'qa') || b.skill - a.skill)[0];
+    if (idle) out.push({ id: 'team', title: 'Nobody is on the security team', why: `${idle.name} (${ROLES[idle.role].name}, skill ${Math.round(idle.skill)}) is free. Security staff build layers faster; programmers and QA count double.`, label: `Add ${idle.name.split(' ')[0]}`, run: (x) => joinSecurityTeam(x, idle.id) });
+  }
+  // 5. too many innocent players banned
+  const est = weeklyBanEstimate(w);
+  if (falsePositiveRate(ac) > 0.012 && est.falseBans > 30) {
+    const to = Math.max(0, ac.policy.sensitivity - 15);
+    out.push({ id: 'fp', title: 'Too many innocent players are banned', why: `About ${count(est.falseBans)} a week. Lowering sensitivity to ${to} bans fewer innocents but lets a few more cheaters through.`, label: `Sensitivity ${to}`, run: (x) => setAcPolicy(x, { sensitivity: to }) });
+  }
+  // 6. hardware bans built but not used
+  if (ac.layers.hwid.level > 0 && ac.layers.hwid.on && ac.policy.penalty !== 'hardware') {
+    out.push({ id: 'hwid', title: 'Use hardware bans', why: 'You built the hardware-ban layer: banned cheaters would rarely come back.', label: 'Switch penalty', run: (x) => setAcPolicy(x, { penalty: 'hardware' }) });
+  }
+  // 7. cheaters broke through
+  if (w.day < ac.breachUntil && ac.ops.length < AC_MAX_OPS && !ac.ops.some((o) => o.kind === 'honeypot')) {
+    out.push({ id: 'breach', title: 'Cheaters broke through', why: `A honeypot (${fmt(opCost(w, 'honeypot'))}) floods machine learning with fresh data and helps you catch bots and exploits fast.`, label: 'Run a honeypot', run: (x) => startAcOp(x, 'honeypot', null) });
+  }
+  return out.slice(0, 4);
+}

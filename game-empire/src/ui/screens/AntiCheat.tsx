@@ -1,7 +1,7 @@
 // The anti-cheat operation: threats, detection layers, ban policy,
 // operations against cheat makers, the security team and licensing.
 import { useState } from 'react';
-import { Eye, Gavel, Radar, ShieldAlert, ShieldCheck, Users, X } from 'lucide-react';
+import { ArrowRight, Eye, Gavel, Info, Lightbulb, Radar, ShieldAlert, ShieldCheck, Users, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import { ROLES } from '../../engine/constants';
 import { VENTURES, ventureBlocker } from '../../engine/ventures';
@@ -19,17 +19,22 @@ import {
   OPS,
   PENALTIES,
   acBuildCost,
+  acAdvice,
   acBuildDays,
+  acChurnEffect,
   acEffectiveness,
+  acStatus,
   acSpeed,
   appealsCover,
   catchRate,
   cheatEstimate,
+  coveredPlayers,
   falsePositiveRate,
   foundAntiCheat,
   lawsuitOdds,
   layerBlocker,
   layerCost,
+  layerGain,
   layerPower,
   layerWork,
   opCost,
@@ -47,6 +52,7 @@ import {
 import { assignEmployee } from '../../engine/actions';
 import { playerCompany } from '../../engine/util';
 import type { AcLayerId, BanMode, BanPenalty, CheatType } from '../../engine/types';
+import type { AcNote } from '../../engine/anticheat';
 import { date, money, num, pct } from '../lib/format';
 import { TimeChart } from '../components/charts';
 import { Badge, Button, Card, Progress, Stat, cx, inputClass } from '../components/ui';
@@ -64,8 +70,12 @@ export function AntiCheatTab({ locked }: { locked: React.ReactNode }) {
     if (ventureBlocker(w, 'antiCheat')) return <>{locked}</>;
     return (
       <Card title="Build your own anti-cheat" subtitle={VENTURES.antiCheat.blurb}>
-        <p className="mb-3 text-sm text-sub">
+        <p className="mb-2 text-sm text-sub">
           You'll run a whole security operation: seven detection layers against six kinds of cheats, your own ban policy, a security team, and operations against cheat makers. You start with signature scanning; behaviour analysis is queued next.
+        </p>
+        <p className="mb-3 text-sm text-sub">
+          It protects online and MMO games: yours, and those of rival studios that license it.{' '}
+          {coveredPlayers(w).own > 0 ? <span className="text-good">Your online games have {num(coveredPlayers(w).own)} players right now.</span> : <span className="text-warn">You have no online games out yet, so at first it only earns money from licences.</span>}
         </p>
         <div className="flex flex-wrap items-end gap-2">
           <input aria-label="Anti-cheat name" className={cx(inputClass, 'w-56')} value={name} onChange={(e) => setName(e.target.value)} />
@@ -77,18 +87,45 @@ export function AntiCheatTab({ locked }: { locked: React.ReactNode }) {
     );
   }
   const eff = acEffectiveness(w);
-  const est = weeklyBanEstimate(w);
+  const cov = coveredPlayers(w);
+  const churn = acChurnEffect(w);
   const history = ac.history ?? [];
+  const live = AC_LAYER_IDS.filter((l) => ac.layers[l].level > 0 && ac.layers[l].on).length;
+  const report = ac.report;
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <ShieldCheck size={16} className="text-accent" />
+        <span className="font-semibold">{ac.name}</span>
+        <Badge tone={ac.version ? 'accent' : 'warn'}>{ac.version ? `v${ac.version}` : 'In development'}</Badge>
+        <span className="text-xs text-muted">
+          {live} of {AC_LAYER_IDS.length} detection layers live
+        </span>
+      </div>
+      <div className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs text-sub">
+        <span className="font-semibold text-ink">How it works: </span>
+        cheaters join online games <ArrowRight size={11} className="inline" /> your detection layers catch some of them <ArrowRight size={11} className="inline" /> your ban policy bans them <ArrowRight size={11} className="inline" /> fewer cheaters means players stay longer and studios pay to use it.
+      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat label="Version" value={ac.version ? `${ac.name} v${ac.version}` : 'In development'} />
-        <Stat label="Catches cheaters" value={pct(eff)} tone={eff >= 0.6 ? 'good' : eff >= 0.35 ? 'warn' : 'bad'} />
-        <Stat label="Cheaters in your games" value={pct(ac.cheaters, 1)} tone={ac.cheaters <= BASE_CHEATERS * 0.6 ? 'good' : ac.cheaters > BASE_CHEATERS * 1.3 ? 'bad' : 'warn'} sub={`${num(est.cheaters)} players · industry ${pct(BASE_CHEATERS)}`} />
-        <Stat label="Banned (all time)" value={num(ac.stats.bans)} sub={`${num(ac.stats.falseBans)} innocent · ${ac.stats.waves} waves`} />
-        <Stat label="Licensees" value={ac.licensees.length} sub={`${money(ac.revenue)} earned`} />
+        <Stat label="1 · Players protected" value={cov.total ? num(cov.total) : 'None yet'} tone={cov.total ? undefined : 'warn'} sub={`${num(cov.own)} in your games · ${num(cov.licensed)} at licensees`} />
+        <Stat
+          label="2 · Of them cheating"
+          value={pct(ac.version ? ac.cheaters : BASE_CHEATERS, 1)}
+          tone={!ac.version ? 'bad' : ac.cheaters <= BASE_CHEATERS * 0.6 ? 'good' : ac.cheaters > BASE_CHEATERS * 1.3 ? 'bad' : 'warn'}
+          sub={cov.total ? `~${num((ac.version ? ac.cheaters : BASE_CHEATERS) * cov.total)} players · industry ${pct(BASE_CHEATERS)}` : `Industry average ${pct(BASE_CHEATERS)}`}
+        />
+        <Stat label="3 · You catch" value={pct(eff)} tone={eff >= 0.6 ? 'good' : eff >= 0.35 ? 'warn' : 'bad'} sub={ac.version ? `${grade(eff)} protection` : 'Nothing live yet'} />
+        <Stat label="4 · Banned last week" value={report ? num(report.banned) : '—'} sub={report ? `${num(ac.stats.bans)} all time · ${num(ac.stats.falseBans)} innocent` : `First report at the next weekly check · ${num(ac.stats.bans)} so far`} />
+        <Stat
+          label="5 · Payoff"
+          value={churn === null ? (ac.monthRevenue === undefined ? '—' : money(ac.monthRevenue)) : churn <= 1 ? `${pct(1 - churn)} fewer quit` : `${pct(churn - 1)} more quit`}
+          tone={churn === null ? undefined : churn < 0.99 ? 'good' : churn > 1.01 ? 'bad' : undefined}
+          sub={`${churn === null ? 'a month' : `${ac.monthRevenue === undefined ? '—' : money(ac.monthRevenue)}/mo`} from ${ac.licensees.length} licensee${ac.licensees.length === 1 ? '' : 's'}`}
+        />
       </div>
       {w.day < ac.breachUntil && <div className="rounded-lg border border-bad/30 bg-bad-soft/50 px-3 py-2 text-sm text-bad">Cheaters broke through. Twice as many new cheaters until {date(ac.breachUntil)}. Strengthen your layers or run operations.</div>}
+      <StatusNotes />
+      <NextSteps />
 
       <Threats />
       <Layers />
@@ -149,6 +186,70 @@ export function AntiCheatTab({ locked }: { locked: React.ReactNode }) {
   );
 }
 
+function grade(e: number): string {
+  return e >= 0.8 ? 'Elite' : e >= 0.6 ? 'Strong' : e >= 0.4 ? 'Decent' : e >= 0.2 ? 'Basic' : 'Weak';
+}
+
+const NOTE_TONE: Record<AcNote['tone'], string> = {
+  good: 'border-good/30 bg-good-soft/40 text-good',
+  warn: 'border-warn/30 bg-warn-soft/40 text-warn',
+  bad: 'border-bad/30 bg-bad-soft/50 text-bad',
+  neutral: 'border-line bg-surface-2 text-sub',
+};
+
+function StatusNotes() {
+  const w = useWorld();
+  const notes = acStatus(w);
+  if (!notes.length) return null;
+  return (
+    <div className="space-y-1.5">
+      {notes.map((n, i) => (
+        <div key={i} className={cx('flex items-start gap-2 rounded-lg border px-3 py-2 text-sm', NOTE_TONE[n.tone])}>
+          <Info size={14} className="mt-0.5 shrink-0" />
+          <span>{n.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NextSteps() {
+  const w = useWorld();
+  const act = useGameStore((s) => s.act);
+  const navigate = useGameStore((s) => s.navigate);
+  const advice = acAdvice(w);
+  return (
+    <Card
+      title={
+        <span className="flex items-center gap-1.5">
+          <Lightbulb size={14} /> Do this next
+        </span>
+      }
+      subtitle="Suggestions from your security lead, based on your setup right now. Everything below can also be tuned by hand."
+    >
+      {advice.length ? (
+        <div className="grid gap-2 md:grid-cols-2">
+          {advice.map((a) => (
+            <div key={a.id} className="flex flex-col gap-2 rounded-lg border border-line bg-surface-2 p-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold">{a.title}</div>
+                <div className="text-xs text-muted">{a.why}</div>
+              </div>
+              {a.label && (
+                <Button size="sm" variant="primary" className="shrink-0" onClick={() => (a.route ? navigate({ name: a.route }) : a.run && act((world) => a.run!(world), a.title))}>
+                  {a.label}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-sub">Nothing urgent. Your layers are building, signatures are fresh and the policy looks sensible.</p>
+      )}
+    </Card>
+  );
+}
+
 function Threats() {
   const w = useWorld();
   const act = useGameStore((s) => s.act);
@@ -162,7 +263,7 @@ function Threats() {
           <Radar size={14} /> Threat board
         </span>
       }
-      subtitle="Cheat makers put their effort into whatever you catch most. Their skill is a rough guess unless you have inside intel."
+      subtitle="Six kinds of cheats. Cheat skill is how advanced the cheat makers are: the higher it is, the stronger your layers need to be. It is a rough guess unless you buy their cheats undercover. Cheat makers work hardest on whatever you catch most."
     >
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {CHEAT_IDS.map((t) => {
@@ -183,7 +284,7 @@ function Threats() {
                 {CHEAT_TYPES[t].blurb} {pct(CHEAT_TYPES[t].share)} of cheating.
               </div>
               <div className="mt-2 flex justify-between text-xs">
-                <span className="text-muted">Their skill</span>
+                <span className="text-muted">Cheat skill</span>
                 <span className="tabular">{e.exact ? Math.round(e.value) : `~${e.value}`}</span>
               </div>
               <div className="mt-1 flex justify-between text-xs">
@@ -213,6 +314,13 @@ function topTargets(l: AcLayerId): string {
   return CHEAT_IDS.filter((t) => COVERAGE[l][t] >= 0.6)
     .map((t) => CHEAT_TYPES[t].name.toLowerCase())
     .join(', ');
+}
+
+function nextLevelEffect(l: AcLayerId, gain: number, level: number): string {
+  const catchText = gain >= 0.005 ? `+${pct(gain)} catch rate` : '';
+  if (l === 'hwid') return ['Banned cheaters come back less', catchText].filter(Boolean).join(' · ');
+  if (l === 'replay' && level === 0) return ['Fewer innocent players banned', catchText].filter(Boolean).join(' · ');
+  return catchText ? `Next level: ${catchText}` : 'Next level: little extra catch rate right now';
 }
 
 function Layers() {
@@ -275,8 +383,9 @@ function Layers() {
               </div>
               <p className="mt-1 flex-1 text-[11px] leading-snug text-muted">{def.blurb}</p>
               <div className="mt-1 text-[10px] text-sub">Best against: {topTargets(l) || 'repeat offenders'}</div>
+              {L.level < AC_MAX_LEVEL && <div className="text-[10px] font-semibold text-good">{nextLevelEffect(l, layerGain(w, l), L.level)}</div>}
               {def.note && <div className="text-[10px] text-warn">{def.note}</div>}
-              {l === 'signatures' && L.level > 0 && <div className="text-[10px] text-muted">Freshness: {pw > 0 ? `${Math.max(0, 100 - Math.round((w.day - ac.sigDay) * 1.2))}%` : 'off'}</div>}
+              {l === 'signatures' && L.level > 0 && <div className="text-[10px] text-muted">Freshness: {pw > 0 ? `${Math.max(0, 100 - (w.day - ac.sigDay))}%` : 'off'}</div>}
               <div className="mt-2 flex items-center gap-1.5">
                 {L.level < AC_MAX_LEVEL && (
                   <Button size="sm" className="flex-1" variant={building || queued ? 'secondary' : 'primary'} disabled={building || queued || !!reqMissing} title={blocker ?? undefined} onClick={() => act((world) => queueLayer(world, l), pr ? `${def.name} queued` : `Building ${def.name}`)}>
@@ -388,7 +497,7 @@ function Operations() {
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2">
           <div className="min-w-0">
             <div className="text-xs font-semibold">Signature updates</div>
-            <div className="text-[11px] text-muted">{ac.layers.signatures.level ? `Last push ${sigAge} day${sigAge === 1 ? '' : 's'} ago. Signatures go stale in about two months.` : 'Build signature scanning first.'}</div>
+            <div className="text-[11px] text-muted">{ac.layers.signatures.level ? `Last push ${sigAge} day${sigAge === 1 ? '' : 's'} ago. Signatures lose strength every day and are stale after about three months.` : 'Build signature scanning first.'}</div>
             <label className="mt-1 flex items-center gap-1.5 text-[11px]">
               <input type="checkbox" checked={ac.autoSig} disabled={!ac.layers.signatures.level} onChange={(ev) => act((world) => setAntiCheat(world, { autoSig: ev.target.checked }))} /> Push weekly automatically ({money(signatureCost(ac) * 4)}/mo)
             </label>

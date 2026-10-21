@@ -7,6 +7,7 @@ import { createGame, releasePlayerGame } from '../actions';
 import { deserializeWorld, serializeWorld } from '../save';
 import { DC_BUILDINGS, SERVER_MODELS, SERVER_TIERS, focus } from '../constants';
 import {
+  autoscaleOwned,
   buyDataCenter,
   buyServers,
   closeDataCenter,
@@ -225,7 +226,6 @@ describe('mega cloud tiers', () => {
     const dyson = SERVER_TIERS[tierIndex('Dyson Swarm Cloud')];
     expect(orbit.nodeCapacity * orbit.maxNodes).toBe(20_000_000_000);
     expect(dyson.nodeCapacity * dyson.maxNodes).toBe(100_000_000_000);
-    expect(SERVER_TIERS[SERVER_TIERS.length - 1]).toBe(dyson);
     expect(dyson.nodeCost).toBeGreaterThan(orbit.nodeCost);
     expect(dyson.upgradeCost).toBeGreaterThan(orbit.upgradeCost);
   });
@@ -274,10 +274,91 @@ describe('mega cloud tiers', () => {
     for (const dc of old.player.infra.dataCenters) {
       delete dc.servers.quantum;
       delete dc.servers.photonic;
+      delete dc.servers.planck;
     }
     const m = deserializeWorld(JSON.stringify(old));
     expect(m.player.infra.dataCenters[0].servers.photonic).toBe(0);
+    expect(m.player.infra.dataCenters[0].servers.planck).toBe(0);
     advanceDays(m, 10);
     expect(Number.isFinite(dcCapacity(m.player.infra.dataCenters[0]))).toBe(true);
+  });
+});
+
+describe('beyond the Dyson Swarm', () => {
+  const tierIndex = (name: string) => SERVER_TIERS.findIndex((t) => t.name === name);
+
+  it('three bigger cloud tiers: 1 trillion, 10 trillion and 100 trillion players', () => {
+    const caps = ['Matrioshka Brain', 'Interstellar Relay Grid', 'Galactic Core Cloud'].map((n) => {
+      const t = SERVER_TIERS[tierIndex(n)];
+      expect(t).toBeDefined();
+      return t.nodeCapacity * t.maxNodes;
+    });
+    expect(caps).toEqual([1e12, 1e13, 1e14]);
+    expect(SERVER_TIERS[SERVER_TIERS.length - 1].name).toBe('Galactic Core Cloud');
+    for (let k = 1; k < SERVER_TIERS.length; k++) {
+      expect(SERVER_TIERS[k].nodeCapacity).toBeGreaterThan(SERVER_TIERS[k - 1].nodeCapacity);
+      expect(SERVER_TIERS[k].upgradeCost).toBeGreaterThan(SERVER_TIERS[k - 1].upgradeCost);
+      expect(SERVER_TIERS[k].minRep).toBeGreaterThanOrEqual(SERVER_TIERS[k - 1].minRep);
+    }
+  });
+
+  it('the Galactic Core Cloud needs top reputation and trillions to move to', () => {
+    const w = createWorld({ seed: 'galaxy', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    const p = playerCompany(w);
+    const tier = tierIndex('Galactic Core Cloud');
+    w.player.research.completed.push('cloudInfra');
+    p.reputation = 97;
+    p.cash = 1e16;
+    expect(setServerTier(w, tier).ok).toBe(false); // reputation 98
+    p.reputation = 99;
+    p.cash = 1e12;
+    expect(setServerTier(w, tier).ok).toBe(false); // $8T to move
+    p.cash = 1e16;
+    expect(setServerTier(w, tier).ok).toBe(true);
+    expect(buyNodes(w, 1000).ok).toBe(true);
+    expect(infraCapacity(w)).toBeGreaterThanOrEqual(1e14);
+  });
+
+  it('a Planet-Brain Sphere full of Planck Processors holds trillions of players', () => {
+    const w = createWorld({ seed: 'planet-brain', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    const p = playerCompany(w);
+    w.player.research.completed.push('cloudInfra', 'netcode');
+    p.reputation = 99;
+    p.cash = 1e16;
+    const sphere = DC_BUILDINGS.findIndex((b) => b.name === 'Planet-Brain Sphere');
+    expect(sphere).toBe(DC_BUILDINGS.length - 1);
+    expect(buyDataCenter(w, sphere, 'eu').ok).toBe(true);
+    const dc = w.player.infra.dataCenters[0];
+    advanceDays(w, DC_BUILDINGS[sphere].build + 1);
+    const fit = serversThatFit(dc, 'planck');
+    expect(fit).toBeGreaterThan(100);
+    expect(buyServers(w, dc.id, 'planck', fit).ok).toBe(true);
+    expect(dcCapacity(dc)).toBeGreaterThan(1e12);
+    expect(SERVER_MODELS.planck.capacity).toBeGreaterThan(SERVER_MODELS.singularity.capacity);
+    expect(SERVER_MODELS.singularity.capacity).toBeGreaterThan(SERVER_MODELS.neuromorphic.capacity);
+    expect(SERVER_MODELS.neuromorphic.capacity).toBeGreaterThan(SERVER_MODELS.photonic.capacity);
+  });
+
+  it('you can run up to 12 data centers', () => {
+    const w = createWorld({ seed: 'twelve', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    playerCompany(w).cash = 1e7;
+    for (let k = 0; k < 12; k++) expect(buyDataCenter(w, 0, 'na').ok).toBe(true);
+    expect(buyDataCenter(w, 0, 'na').ok).toBe(false);
+  });
+
+  it('autoscaling never buys a machine twice the size of your whole player base', () => {
+    const w = createWorld({ seed: 'autoscale-size', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    const p = playerCompany(w);
+    w.player.research.completed.push('cloudInfra', 'netcode');
+    p.reputation = 99;
+    p.cash = 1e15;
+    const vault = DC_BUILDINGS.findIndex((b) => b.name === 'Lunar Data Vault');
+    expect(buyDataCenter(w, vault, 'na').ok).toBe(true);
+    const dc = w.player.infra.dataCenters[0];
+    advanceDays(w, DC_BUILDINGS[vault].build + 1);
+    w.player.infra.demand = 2_000_000;
+    expect(autoscaleOwned(w, 500_000)).toBeGreaterThanOrEqual(500_000);
+    expect(dc.servers.planck + dc.servers.singularity + dc.servers.neuromorphic + dc.servers.photonic).toBe(0);
+    expect(dcCapacity(dc)).toBeLessThan(10_000_000);
   });
 });

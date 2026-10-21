@@ -97,7 +97,7 @@ function Alerts() {
   if (!w.player.engine && w.player.research.completed.includes('engine1')) alerts.push({ tone: 'good', text: 'Your engine research is done. Give your engine a name and found it.', go: () => navigate({ name: 'engine' }) });
   if (w.player.engine && readyForVersion(w.player.engine)) alerts.push({ tone: 'good', text: `${w.player.engine.name} ${w.player.engine.version + 1}.0 is ready to ship.`, go: () => navigate({ name: 'engine' }) });
   const ac = w.player.ventures.antiCheat;
-  if (ac && ac.version > 0 && !ac.project && acEffectiveness(w) < 0.4) alerts.push({ tone: 'warn', text: `Cheat makers are beating ${ac.name}. Strengthen a detection layer before your licensees leave.`, go: () => navigate({ name: 'empire', tab: 'antiCheat' }) });
+  if (ac && ac.version > 0 && !ac.project && acEffectiveness(w) < 0.3) alerts.push({ tone: 'warn', text: `${ac.name} only catches ${Math.round(acEffectiveness(w) * 100)}% of cheaters. Build another detection layer before your licensees leave.`, go: () => navigate({ name: 'empire', tab: 'antiCheat' }) });
   if (ac?.layers?.signatures.level && !ac.autoSig && w.day - ac.sigDay > 45) alerts.push({ tone: 'warn', text: `${ac.name}'s cheat signatures are going stale. Push an update or switch on weekly updates.`, go: () => navigate({ name: 'empire', tab: 'antiCheat' }) });
   const eng = w.player.engine;
   if (eng && eng.debt > 60 && w.day >= eng.refactorUntil) alerts.push({ tone: 'warn', text: `${eng.name} has heavy tech debt (${Math.round(eng.debt)}). Games on it get buggier: consider a refactor sprint.`, go: () => navigate({ name: 'engine' }) });

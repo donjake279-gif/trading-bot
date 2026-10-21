@@ -29,7 +29,11 @@ import {
 } from '../studioEngine';
 import {
   AC_TEAM,
+  acAdvice,
   acEffectiveness,
+  acStatus,
+  coveredPlayers,
+  layerGain,
   acSpeed,
   antiCheatChurn,
   catchRate,
@@ -225,8 +229,9 @@ describe('anti-cheat layers and policy', () => {
   it('signatures go stale unless pushed', () => {
     const { w, ac } = withAc();
     ac.layers.signatures.level = 3;
+    ac.autoSig = false;
     const fresh = layerPower(w, ac, 'signatures', 'aimbot');
-    advanceDays(w, 60);
+    advanceDays(w, 80);
     expect(layerPower(w, ac, 'signatures', 'aimbot')).toBeLessThan(fresh - 15);
     expect(pushSignatures(w).ok).toBe(true);
     expect(layerPower(w, ac, 'signatures', 'aimbot')).toBe(fresh);
@@ -309,5 +314,73 @@ describe('anti-cheat layers and policy', () => {
     expect(old.version).toBe(3 + 2 + 3);
     expect(acEffectiveness(w)).toBeGreaterThan(0.3);
     void resolveDecision;
+  });
+});
+
+describe('anti-cheat you can understand', () => {
+  function fresh(): { w: World; ac: AntiCheat } {
+    const w = createWorld(opts);
+    w.player.research.completed.push('antiCheat');
+    playerCompany(w).cash = 1e9;
+    expect(foundAntiCheat(w, 'Iron Shield').ok).toBe(true);
+    return { w, ac: w.player.ventures.antiCheat! };
+  }
+
+  it('explains why everything is still zero', () => {
+    const { w, ac } = fresh();
+    expect(ac.autoSig).toBe(true); // signatures stay fresh by default
+    const notes = acStatus(w).map((n) => n.text).join(' ');
+    expect(notes).toMatch(/being built/);
+    expect(notes).toMatch(/No players to protect/);
+    expect(acAdvice(w).some((a) => a.route === 'create')).toBe(true);
+  });
+
+  it('a starter build already catches a real share of cheaters', () => {
+    const { w, ac } = fresh();
+    expect(layerGain(w, 'heuristics')).toBeGreaterThan(0.1);
+    advanceDays(w, 45);
+    expect(ac.version).toBe(1);
+    expect(acEffectiveness(w)).toBeGreaterThan(0.25);
+    advanceDays(w, 70);
+    expect(ac.layers.heuristics.level).toBe(1);
+    expect(acEffectiveness(w)).toBeGreaterThan(0.45);
+    ac.layers.replay.level = 5;
+    expect(layerGain(w, 'replay')).toBe(0);
+  });
+
+  it('licensees\' players are protected too, and every week is reported', () => {
+    const { w, ac } = fresh();
+    ac.project = null;
+    ac.queue = [];
+    ac.version = 2;
+    ac.layers.signatures.level = 2;
+    ac.layers.heuristics.level = 2;
+    const c = rival(w);
+    const g = Object.values(w.games).find((x) => x.companyId === c.id) ?? Object.values(w.games)[0];
+    g.companyId = c.id;
+    g.status = 'released';
+    g.multiplayer = 'online';
+    g.active = 1e6;
+    ac.licensees = [c.id];
+    expect(coveredPlayers(w).licensed).toBeGreaterThanOrEqual(1e6);
+    advanceDays(w, 21);
+    expect(ac.report?.players).toBeGreaterThan(1e5); // the market moves the player count
+    expect(ac.stats.bans).toBeGreaterThan(1000);
+    expect(acStatus(w).some((n) => /banned|caught/.test(n.text))).toBe(true);
+  });
+
+  it('suggestions can be followed with one click', () => {
+    const { w, ac } = fresh();
+    advanceDays(w, 45);
+    ac.queue = [];
+    hire(w, 1, 'programmer', null);
+    const advice = acAdvice(w);
+    const layer = advice.find((a) => a.id === 'layer')!;
+    expect(layer.run!(w).ok).toBe(true);
+    expect(ac.queue.length).toBe(1);
+    const team = advice.find((a) => a.id === 'team')!;
+    expect(team.run!(w).ok).toBe(true);
+    expect(w.player.employees.some((e) => e.assignment === AC_TEAM)).toBe(true);
+    expect(acAdvice(w).some((a) => a.id === 'team')).toBe(false);
   });
 });

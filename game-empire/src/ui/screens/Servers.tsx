@@ -257,6 +257,13 @@ function DataCenters() {
   );
 }
 
+/** Power in kW, MW or GW. */
+function watts(kw: number): string {
+  if (kw >= 1e6) return `${(kw / 1e6).toFixed(2)} GW`;
+  if (kw >= 1000) return `${(kw / 1000).toFixed(1).replace(/\.0$/, '')} MW`;
+  return `${kw.toFixed(1).replace(/\.0$/, '')} kW`;
+}
+
 function Meter({ label, value, max, unit, tone }: { label: string; value: number; max: number; unit?: string; tone?: 'good' | 'warn' | 'bad' | 'accent' }) {
   const frac = max > 0 ? value / max : 0;
   return (
@@ -264,7 +271,7 @@ function Meter({ label, value, max, unit, tone }: { label: string; value: number
       <div className="mb-1 flex justify-between text-[11px]">
         <span className="text-muted">{label}</span>
         <span className="tabular text-sub">
-          {unit === 'kW' ? value.toFixed(1) : num(value)} / {unit === 'kW' ? max.toFixed(1) : num(max)} {unit ?? ''}
+          {unit === 'kW' ? `${watts(value)} / ${watts(max)}` : `${num(value)} / ${num(max)} ${unit ?? ''}`}
         </span>
       </div>
       <Progress value={value} max={max} tone={tone ?? (frac > 0.9 ? 'warn' : 'accent')} />
@@ -350,7 +357,7 @@ function DataCenterCard({ dc }: { dc: DataCenter }) {
                         {n > 0 && <span className="text-accent">×{n}</span>}
                       </div>
                       <div className="text-[10px] text-muted">
-                        {num(def.capacity)} players · {def.slots} slot{def.slots > 1 ? 's' : ''} · {def.power} kW · {money(def.cost)}
+                        {num(def.capacity)} players · {def.slots} slot{def.slots > 1 ? 's' : ''} · {watts(def.power)} · {money(def.cost)}
                       </div>
                     </div>
                     <button onClick={() => act((world) => sellServers(world, dc.id, m, 1))} disabled={n === 0} className="flex h-6 w-6 items-center justify-center rounded border border-line text-sub disabled:opacity-30" aria-label={`Sell one ${def.name}`}>
@@ -446,7 +453,7 @@ function BuyDataCenter() {
                 <span className="text-muted">Rack slots</span>
                 <span className="text-right tabular">{num(b.slots)}</span>
                 <span className="text-muted">Power</span>
-                <span className="text-right tabular">{num(b.power)} kW</span>
+                <span className="text-right tabular">{watts(b.power)}</span>
                 <span className="text-muted">Rent</span>
                 <span className="text-right tabular">{money(b.rent)}/mo</span>
                 <span className="text-muted">Build time</span>
@@ -496,6 +503,17 @@ function CloudHosting() {
             </Button>
             <Button size="sm" onClick={() => act((world) => sellNodes(world, 5))} disabled={i.nodes <= (canDropAll ? 0 : 1)}>
               −5 nodes
+            </Button>
+            <Button size="sm" onClick={() => act((world) => buyNodes(world, 50))} disabled={i.nodes >= tier.maxNodes || p.cash < nodeCost * Math.min(50, tier.maxNodes - i.nodes)}>
+              +50 nodes
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => act((world) => buyNodes(world, Math.max(1, Math.min(tier.maxNodes - world.player.infra.nodes, Math.floor(playerCompany(world).cash / nodeCost)))))}
+              disabled={i.nodes >= tier.maxNodes || p.cash < nodeCost}
+              title="Rent as many nodes as you can afford, up to the tier's limit"
+            >
+              Max
             </Button>
           </div>
           <div className="mt-3 text-xs text-muted">{canDropAll ? 'You own servers, so you can drop rented hosting completely.' : 'Keep at least one node until you own servers.'}</div>

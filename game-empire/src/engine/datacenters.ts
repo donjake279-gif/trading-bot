@@ -23,7 +23,7 @@ import { chance, pick, randInt } from './rng';
 import type { ActionResult, DataCenter, DcUpgradeId, RegionId, ServerModelId, World } from './types';
 import { newId, playerCompany, pushNews, pushPoint, spend, toast } from './util';
 
-export const MAX_DATA_CENTERS = 8;
+export const MAX_DATA_CENTERS = 12;
 
 // ------------------------------------------------------------ measurements
 
@@ -137,7 +137,9 @@ export function buildingBlocker(w: World, building: number): string | null {
 }
 
 function emptyServers(): Record<ServerModelId, number> {
-  return { budget: 0, rack: 0, blade: 0, pod: 0, supercluster: 0, quantum: 0, photonic: 0 };
+  const out = {} as Record<ServerModelId, number>;
+  for (const m of SERVER_MODEL_IDS) out[m] = 0;
+  return out;
 }
 
 function emptyUpgrades(): Record<DcUpgradeId, number> {
@@ -390,12 +392,13 @@ export function dataCentersDaily(w: World, hasOnlineGames: boolean): number {
 export function autoscaleOwned(w: World, needed: number): number {
   const p = playerCompany(w);
   let added = 0;
-  const models = [...SERVER_MODEL_IDS].reverse();
+  const models = [...SERVER_MODEL_IDS].reverse().filter((m) => p.reputation >= SERVER_MODELS[m].minRep && (!SERVER_MODELS[m].research || hasResearch(w, SERVER_MODELS[m].research!)));
   for (const dc of w.player.infra.dataCenters ?? []) {
     if (!dcReady(w, dc) || added >= needed) continue;
-    for (const m of models) {
+    for (const [k, m] of models.entries()) {
       const def = SERVER_MODELS[m];
-      if (p.reputation < def.minRep || (def.research && !hasResearch(w, def.research))) continue;
+      // never buy a machine more than twice the size of your whole player base
+      if (k < models.length - 1 && def.capacity > 2 * Math.max(needed - added, w.player.infra.demand)) continue;
       while (added < needed && serversThatFit(dc, m) > 0 && p.cash - 5000 > def.cost) {
         spend(p, 'servers', def.cost);
         const before = dcServerCount(dc);
