@@ -1,10 +1,27 @@
 import { formatDate } from '../../engine/util';
 
+/** Short names for huge numbers: quintillion up to decillion. */
+const BIG: [number, string][] = [
+  [1e33, 'Dc'],
+  [1e30, 'No'],
+  [1e27, 'Oc'],
+  [1e24, 'Sp'],
+  [1e21, 'Sx'],
+  [1e18, 'Qi'],
+];
+
+function huge(a: number, digits: number): string | null {
+  if (a >= 0.9995e36) return a.toExponential(digits);
+  for (const [v, u] of BIG) if (a >= v * 0.9995) return `${(a / v).toFixed(digits)}${u}`;
+  return null;
+}
+
 export function money(n: number, digits?: number): string {
   if (!Number.isFinite(n)) return '—';
   const a = Math.abs(n);
   const sign = n < 0 ? '-' : '';
-  if (a >= 0.9995e18) return `${sign}$${(a / 1e18).toFixed(digits ?? 2)}Qi`;
+  const h = huge(a, digits ?? 2);
+  if (h) return `${sign}$${h}`;
   if (a >= 0.9995e15) return `${sign}$${(a / 1e15).toFixed(digits ?? 2)}Q`;
   if (a >= 0.9995e12) return `${sign}$${(a / 1e12).toFixed(digits ?? 2)}T`;
   if (a >= 0.9995e9) return `${sign}$${(a / 1e9).toFixed(digits ?? 2)}B`;
@@ -22,6 +39,8 @@ export function num(n: number, digits?: number): string {
   if (!Number.isFinite(n)) return '—';
   const a = Math.abs(n);
   const sign = n < 0 ? '-' : '';
+  const h = huge(a, digits ?? 2);
+  if (h) return `${sign}${h}`;
   if (a >= 1e15) return `${sign}${(a / 1e15).toFixed(digits ?? 2)}Q`;
   if (a >= 1e12) return `${sign}${(a / 1e12).toFixed(digits ?? 2)}T`;
   if (a >= 1e9) return `${sign}${(a / 1e9).toFixed(digits ?? 2)}B`;

@@ -481,6 +481,7 @@ function CloudHosting() {
   const tier = SERVER_TIERS[i.tier];
   const nodeCost = tier.nodeCost;
   const canDropAll = ownedCapacity(w, false) > 0;
+  const [showAll, setShowAll] = useState(false);
   return (
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-3">
@@ -527,9 +528,23 @@ function CloudHosting() {
           </ul>
         </Card>
       </div>
-      <Card title="Cloud tiers" subtitle="Better tiers carry more players per node, fail less, and make games feel smoother. Your rented capacity carries over when you move.">
+      <Card
+        title="Cloud tiers"
+        subtitle={`Tier ${i.tier + 1} of ${SERVER_TIERS.length}. Better tiers carry more players per node, fail less, and make games feel smoother. Your rented capacity carries over when you move. The biggest tiers unlock as your empire grows.`}
+        actions={
+          <Button size="sm" variant="ghost" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? 'Show fewer' : `Show all ${SERVER_TIERS.length} tiers`}
+          </Button>
+        }
+      >
+        <div className="mb-3 flex gap-0.5" aria-label={`Tier ${i.tier + 1} of ${SERVER_TIERS.length}`}>
+          {SERVER_TIERS.map((t, k) => (
+            <span key={t.name} title={t.name} className={cx('h-1.5 flex-1 rounded-full', k < i.tier ? 'bg-good' : k === i.tier ? 'bg-accent' : 'bg-surface-3')} />
+          ))}
+        </div>
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {SERVER_TIERS.map((t, idx) => {
+            if (!showAll && (idx < i.tier - 1 || idx > i.tier + 5)) return null;
             const current = idx === i.tier;
             const blocker = tierBlocker(w, idx);
             const lockedReason = blocker && !blocker.startsWith('Costs') ? blocker : null;
@@ -539,6 +554,7 @@ function CloudHosting() {
                   <div className="flex items-center gap-2 text-sm font-semibold">
                     <Cloud size={14} className={current ? 'text-accent' : 'text-muted'} />
                     {t.name}
+                    <span className="text-[10px] font-normal text-muted">#{idx + 1}</span>
                   </div>
                   {current ? <Badge tone="accent">Current</Badge> : idx < i.tier ? <Check size={14} className="text-good" /> : lockedReason ? <Lock size={13} className="text-muted" /> : null}
                 </div>
@@ -553,7 +569,7 @@ function CloudHosting() {
                   <span className="text-muted">Node upkeep</span>
                   <span className="text-right tabular">{money(t.nodeMaintenance)}/mo</span>
                   <span className="text-muted">Outage risk</span>
-                  <span className="text-right tabular">{pct(monthlyOutageRisk(t.outage))}/mo</span>
+                  <span className="text-right tabular">{monthlyOutageRisk(t.outage) < 0.001 ? '<0.1%' : pct(monthlyOutageRisk(t.outage), monthlyOutageRisk(t.outage) < 0.01 ? 1 : 0)}/mo</span>
                 </div>
                 {lockedReason && <div className="mt-2 text-[11px] text-warn">{lockedReason}</div>}
                 {!current && (
@@ -571,6 +587,11 @@ function CloudHosting() {
             );
           })}
         </div>
+        {!showAll && i.tier + 5 < SERVER_TIERS.length - 1 && (
+          <button onClick={() => setShowAll(true)} className="mt-2 w-full rounded-lg border border-dashed border-line py-2 text-xs text-sub hover:text-ink">
+            {SERVER_TIERS.length - i.tier - 6} bigger tiers above, all the way to the {SERVER_TIERS[SERVER_TIERS.length - 1].name} ({num(SERVER_TIERS[SERVER_TIERS.length - 1].nodeCapacity * SERVER_TIERS[SERVER_TIERS.length - 1].maxNodes)} players)
+          </button>
+        )}
       </Card>
     </div>
   );

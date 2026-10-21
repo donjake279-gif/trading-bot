@@ -2,6 +2,7 @@
 import { MAX_LEVEL, PERKS, SERVER_TIERS, xpForLevel } from './constants';
 import { shuffle } from './rng';
 import { ownedCapacity } from './datacenters';
+import { tierBlocker } from './infra';
 import type { ActionResult, Objective, ObjectiveKind, PerkId, World } from './types';
 import { celebrate, clamp, gamesOf, ledgerRevenue, newId, playerCompany, toast } from './util';
 
@@ -161,6 +162,7 @@ function makeObjective(w: World, kind: ObjectiveKind): Objective | null {
     case 'serverTier':
       if (w.player.infra.tier >= SERVER_TIERS.length - 1 || !live.some((g) => g.multiplayer === 'online' || g.multiplayer === 'massive')) return null;
       target = w.player.infra.tier + 1;
+      if (tierBlocker(w, target)?.startsWith('Needs empire')) return null;
       title = `Upgrade your servers to ${SERVER_TIERS[target].name}`;
       break;
     case 'dataCenter': {

@@ -10,6 +10,7 @@ import { hasResearch } from './development';
 import { perkRank } from './progression';
 import { engineServerDiscount } from './studioEngine';
 import { antiCheatServerMult } from './anticheat';
+import { EMPIRE_LEVELS, empireLevel } from './empire';
 import {
   autoscaleOwned,
   dataCentersDaily,
@@ -231,10 +232,17 @@ export function tierBlocker(w: World, tier: number): string | null {
   const def = SERVER_TIERS[tier];
   if (!def) return 'Unknown tier.';
   const p = playerCompany(w);
+  if (def.empire && empireLevel(w) < def.empire) return `Needs empire level ${def.empire} (${EMPIRE_LEVELS[def.empire].name}).`;
   if (p.reputation < def.minRep) return `Needs reputation ${def.minRep}.`;
   if (def.research && !hasResearch(w, def.research)) return `Needs ${RESEARCH[def.research].name} research.`;
-  if (tier > w.player.infra.tier && p.cash < def.upgradeCost) return `Costs $${def.upgradeCost.toLocaleString()}.`;
+  if (tier > w.player.infra.tier && p.cash < def.upgradeCost) return `Costs ${compactMoney(def.upgradeCost)}.`;
   return null;
+}
+
+function compactMoney(n: number): string {
+  const units: [number, string][] = [[1e15, 'Q'], [1e12, 'T'], [1e9, 'B'], [1e6, 'M']];
+  for (const [v, u] of units) if (n >= v) return `$${(n / v).toFixed(1).replace(/\.0$/, '')}${u}`;
+  return `$${Math.round(n).toLocaleString()}`;
 }
 
 /** Move the fleet to another tier; capacity carries over as equivalent nodes. */

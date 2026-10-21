@@ -211,10 +211,16 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   The overview tracks market shares, a news feed of what the giants are doing, and every lasting effect on you.
   Routine work runs itself (security, the world autopilot, city managers); wars, crises, deals and big builds
   wait for you. Twenty-three new empire challenges cover levels 2 to 9.
-- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (twelve tiers,
+- **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (32 tiers,
   Shared Hosting → Hyperscale Edge → Planetary Mesh (4B players) → Orbital Server Ring (20B) → Dyson Swarm Cloud
-  (100B) → Matrioshka Brain (1 trillion) → Interstellar Relay Grid (10 trillion) → Galactic Core Cloud, which holds
-  up to 100 trillion players on 1,000 nodes at $600B each) plus up to twelve **data centers you own**. Buy a
+  (100B) → Matrioshka Brain (1 trillion) → Interstellar Relay Grid (10 trillion) → Galactic Core Cloud (100
+  trillion), then twenty cosmic tiers, each ten times bigger than the last: Dark Matter Halo Net, Magellanic
+  Bridge, Andromeda Link, Local Group Grid, Virgo Supercluster Cloud, Laniakea Backbone, Great Attractor Hub,
+  Cosmic Web Fiber, Quasar Forge, Hypervoid Datacenters, Observable Universe Mesh, Hawking Radiation Farm,
+  Wormhole Exchange, Vacuum Energy Engine, Quantum Foam Lattice, Parallel Universe Cluster, Time Loop Servers,
+  Multiverse Mainframe, Big Bang Reactor and finally the Omniverse Core, with room for 10 decillion players. The
+  cosmic tiers unlock with your empire level (6 to 9) and the last move costs $27 quadrillion) plus up to twelve
+  **data centers you own**. Buy a
   building (Server Closet → Small Warehouse → Warehouse → Large Warehouse → Data Hall → Hyperscale Campus → Arctic
   Megaplex → Orbital Data Station → Lunar Data Vault → Dyson Ring Station → Planet-Brain Sphere, with 600,000 rack
   slots and 8 GW of power) in any of five regions, wait for construction,

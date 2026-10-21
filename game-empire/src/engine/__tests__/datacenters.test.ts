@@ -26,7 +26,7 @@ import {
   serversThatFit,
   upgradeDataCenter,
 } from '../datacenters';
-import { buyNodes, infraCapacity, infraDaily, infraEffects, infraMonthlyCost, sellNodes, setServerTier } from '../infra';
+import { buyNodes, infraCapacity, infraDaily, infraEffects, infraMonthlyCost, sellNodes, setServerTier, tierBlocker } from '../infra';
 import type { Game, World } from '../types';
 import { playerCompany } from '../util';
 
@@ -294,7 +294,6 @@ describe('beyond the Dyson Swarm', () => {
       return t.nodeCapacity * t.maxNodes;
     });
     expect(caps).toEqual([1e12, 1e13, 1e14]);
-    expect(SERVER_TIERS[SERVER_TIERS.length - 1].name).toBe('Galactic Core Cloud');
     for (let k = 1; k < SERVER_TIERS.length; k++) {
       expect(SERVER_TIERS[k].nodeCapacity).toBeGreaterThan(SERVER_TIERS[k - 1].nodeCapacity);
       expect(SERVER_TIERS[k].upgradeCost).toBeGreaterThan(SERVER_TIERS[k - 1].upgradeCost);
@@ -360,5 +359,47 @@ describe('beyond the Dyson Swarm', () => {
     expect(autoscaleOwned(w, 500_000)).toBeGreaterThanOrEqual(500_000);
     expect(dc.servers.planck + dc.servers.singularity + dc.servers.neuromorphic + dc.servers.photonic).toBe(0);
     expect(dcCapacity(dc)).toBeLessThan(10_000_000);
+  });
+});
+
+describe('twenty more tiers, all the way to the Omniverse', () => {
+  const tierIndex = (name: string) => SERVER_TIERS.findIndex((t) => t.name === name);
+
+  it('32 tiers, each ten times bigger than the last, up to 10 decillion players', () => {
+    expect(SERVER_TIERS).toHaveLength(32);
+    const galactic = tierIndex('Galactic Core Cloud');
+    expect(galactic).toBe(11);
+    for (let k = galactic + 1; k < SERVER_TIERS.length; k++) {
+      const t = SERVER_TIERS[k];
+      expect(t.nodeCapacity).toBeCloseTo(SERVER_TIERS[k - 1].nodeCapacity * 10, -Math.floor(Math.log10(t.nodeCapacity)) + 3);
+      expect(t.upgradeCost).toBeGreaterThan(SERVER_TIERS[k - 1].upgradeCost);
+      expect(t.empire).toBeGreaterThanOrEqual(SERVER_TIERS[k - 1].empire ?? 0);
+    }
+    const omni = SERVER_TIERS[31];
+    expect(omni.name).toBe('Omniverse Core');
+    expect(omni.nodeCapacity * omni.maxNodes).toBeGreaterThanOrEqual(1e34);
+    expect(omni.empire).toBe(9);
+    expect(omni.upgradeCost).toBeLessThan(1e17); // reachable for a Cosmic Sovereign
+  });
+
+  it('the cosmic tiers unlock with your empire level', () => {
+    const w = createWorld({ seed: 'omniverse', companyName: 'Sky High', founderName: 'S', specialty: 'programmer', difficulty: 'normal', rivals: 12 });
+    const p = playerCompany(w);
+    w.player.research.completed.push('cloudInfra');
+    p.reputation = 99;
+    p.cash = 1e17;
+    p.valuation = 5e12; // empire level 5
+    const halo = tierIndex('Dark Matter Halo Net');
+    expect(tierBlocker(w, halo)).toMatch(/empire level 6/);
+    expect(setServerTier(w, halo).ok).toBe(false);
+    p.valuation = 2e13; // level 6
+    expect(setServerTier(w, halo).ok).toBe(true);
+    expect(tierBlocker(w, 31)).toMatch(/empire level 9/);
+    p.valuation = 2e16; // level 9
+    expect(setServerTier(w, 31).ok).toBe(true);
+    expect(infraCapacity(w)).toBeGreaterThanOrEqual(1e31);
+    advanceDays(w, 8); // trophies are checked weekly
+    expect(Number.isFinite(p.cash)).toBe(true);
+    expect(w.player.achievements.omniverse).toBeDefined();
   });
 });
