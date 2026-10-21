@@ -11,7 +11,7 @@ import { hasResearch } from './development';
 import { platformUsers } from './market';
 import { decreeActive, empireLevel, rivalPace } from './empire';
 import type { ActionResult, AiModel, Company, ConsoleModel, ConsoleSize, Film, Game, RegionId, ThemePark, Ventures, World } from './types';
-import { celebrate, clamp, earn, isPlayerGroup, newId, playerCompany, pushNews, spend, toast } from './util';
+import { celebrate, clamp, earn, isPlayerGroup, needFans, newId, playerCompany, pushNews, spend, toast } from './util';
 import { chance, randNormal, randRange } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -34,7 +34,7 @@ export function ventureBlocker(w: World, id: VentureId): string | null {
   const p = playerCompany(w);
   if (def.research && !hasResearch(w, def.research)) return `Needs ${def.research === 'antiCheat' ? 'Anti-Cheat Systems' : 'AI-Assisted Tooling'} research.`;
   if (p.valuation < def.valuation) return `Needs a ${money(def.valuation)} valuation.`;
-  if (def.rep && p.reputation < def.rep) return `Needs reputation ${def.rep}.`;
+  if (def.rep && p.reputation < def.rep) return needFans(def.rep);
   return null;
 }
 

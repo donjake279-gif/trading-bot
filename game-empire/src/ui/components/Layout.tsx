@@ -1,9 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Award, Bell, Castle, ChartCandlestick, Cpu, Crown, FlaskConical, Gamepad2, Globe, Inbox, Landmark, LayoutDashboard, Menu, Newspaper, Pause, Play, Server, Settings, SkipForward, Star, Swords, Target, Trophy, Users, X } from 'lucide-react';
+import { Award, Bell, Castle, ChartCandlestick, Cpu, Crown, FlaskConical, Gamepad2, Globe, Inbox, Landmark, LayoutDashboard, Menu, Newspaper, Pause, Play, Server, Settings, SkipForward, Swords, Target, Trophy, Users, X } from 'lucide-react';
 import { SPEEDS, useGameStore, useWorld, type Route } from '../../store/gameStore';
-import { playerCompany } from '../../engine/util';
+import { fansOf, fmtFans, formatDate, playerCompany } from '../../engine/util';
 import { founderStake } from '../../engine/stocks';
-import { formatDate } from '../../engine/util';
 import { PLAYER_GRACE_DAYS, xpForLevel } from '../../engine/constants';
 import { fleetDown, isOnline } from '../../engine/infra';
 import { readyForVersion } from '../../engine/studioEngine';
@@ -184,6 +183,9 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
   const inbox = w.pendingEvents.length;
   const prevCash = c.cashHistory.length > 1 ? c.cashHistory[c.cashHistory.length - 2][1] : c.cash;
   const delta = c.cash - prevCash;
+  const fh = w.player.fanHistory ?? [];
+  const monthAgo = [...fh].reverse().find((pt) => pt[0] <= w.day - 28);
+  const fanTrend = monthAgo ? fansOf(c) - monthAgo[1] : 0;
   return (
     <header className="sticky z-30 border-b border-line bg-bg/90 backdrop-blur" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
@@ -203,15 +205,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
           <TopStat label="Cash" value={money(c.cash)} tone={c.cash < 0 ? 'text-bad' : 'text-ink'} sub={delta !== 0 ? `${delta > 0 ? '+' : ''}${money(delta)}/day` : undefined} subTone={delta >= 0 ? 'text-good' : 'text-bad'} />
           <TopStat label="Valuation" value={money(c.isPublic ? c.price * c.shares : c.valuation)} />
           <TopStat label="Your stake" value={pct(founderStake(c), founderStake(c) < 1 ? 1 : 0)} tone={founderStake(c) < 0.5 ? 'text-warn' : 'text-ink'} />
-          <div className="hidden sm:block">
-            <div className="text-[10px] uppercase tracking-wide text-muted">Reputation</div>
-            <div className="flex items-center gap-0.5">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Star key={i} size={12} className={c.reputation >= (i + 1) * 20 - 10 ? 'fill-warn text-warn' : 'text-line'} />
-              ))}
-              <span className="ml-1 text-xs tabular text-sub">{Math.round(c.reputation)}</span>
-            </div>
-          </div>
+          <TopStat label="Fans" value={fmtFans(fansOf(c))} sub={fanTrend ? `${fanTrend > 0 ? '+' : '-'}${fmtFans(Math.abs(fanTrend))}/mo` : undefined} subTone={fanTrend >= 0 ? 'text-good' : 'text-bad'} />
           <div className="flex items-center gap-0.5">
             <button onClick={() => openDrawer('inbox')} className="relative rounded-md p-1.5 text-sub hover:bg-surface-2 hover:text-ink" aria-label={`Inbox (${inbox})`} title="Inbox: offers and decisions">
               <Inbox size={17} />

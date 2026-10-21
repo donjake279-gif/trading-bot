@@ -741,7 +741,7 @@ export function endWar(w: World, war: War, result: 'attackers' | 'defenders' | '
       toast(w, `You won the ${sname} war`, 'good', { category: 'industry', link: { route: 'dominion', id: 'wars' }, body: `+20% ${sname} income for two years${reparations ? `, ${fmtMoney(reparations)} in reparations` : ''}.` });
       if (main && main.status === 'active' && main.valuation < p.valuation * 0.6) offerAnnex(w, main, 0.35, 'conquest');
     } else if (playerResult === 'lost') {
-      toast(w, `You lost the ${sname} war`, 'bad', { category: 'industry', link: { route: 'dominion', id: 'wars' }, body: `-15% ${sname} income for 18 months, reparations paid, reputation -4.` });
+      toast(w, `You lost the ${sname} war`, 'bad', { category: 'industry', link: { route: 'dominion', id: 'wars' }, body: `-15% ${sname} income for 18 months, reparations paid, and fans walked away.` });
     }
     for (const c of winCorps) dlog(w, `${c.name}: ${corpSay(w, c, 'won', { sector }).split(': ')[1]}`, 'neutral');
   } else {

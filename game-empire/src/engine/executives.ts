@@ -7,7 +7,7 @@ import { dlog, empireScale, execPower, featureOpen, fmtMoney } from './dominionC
 import { pushDecision } from './events';
 import { personName } from './names';
 import type { ActionResult, DecisionEvent, ExecRole, ExecTrait, Executive, World } from './types';
-import { clamp, newId, playerCompany, spend, toast } from './util';
+import { bumpRep, clamp, fanChange, newId, playerCompany, spend, toast } from './util';
 import { chance, pick, rand, randRange, shuffle } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -304,8 +304,8 @@ function agenda(w: World, e: Executive): void {
     for (const s in c.power) c.power[s as keyof typeof c.power] *= 0.99;
     shiftRelation(w, 'player', c.id, -12);
     const scandal = chance(w, 0.3);
-    if (scandal) p.reputation = Math.max(0, p.reputation - 3);
-    toast(w, `${e.name} went after ${c.name} without asking`, scandal ? 'bad' : 'neutral', { category: 'team', link: { route: 'dominion', id: 'execs' }, body: scandal ? 'A smear campaign that blew up in the press: reputation -3.' : `A quiet campaign knocked ${c.name} back a little. They know it was you.` });
+    const lost = scandal ? bumpRep(p, -3) : '';
+    toast(w, `${e.name} went after ${c.name} without asking`, scandal ? 'bad' : 'neutral', { category: 'team', link: { route: 'dominion', id: 'execs' }, body: scandal ? `A smear campaign that blew up in the press: ${lost}.` : `A quiet campaign knocked ${c.name} back a little. They know it was you.` });
     dlog(w, `Your ${EXEC_ROLES[e.role].short} ${e.name} hit ${c.name} on their own initiative.`, scandal ? 'bad' : 'neutral');
     return;
   }
@@ -329,7 +329,7 @@ function agenda(w: World, e: Executive): void {
       title: t.includes('visionary') ? `${e.name} pitches a moonshot` : `${e.name} pitches a spectacular campaign`,
       body: t.includes('visionary')
         ? `Your ${EXEC_ROLES[e.role].short} wants ${fmtMoney(cost)} for a secret project. About ${Math.round(odds * 100)}% to pay off: research leaps ahead, a megaproject phase speeds up, or your AI gets smarter. Saying no will sting.`
-        : `Your ${EXEC_ROLES[e.role].short} wants ${fmtMoney(cost)} for a global campaign. About ${Math.round(odds * 100)}% to land: hype for every game in development and reputation. Saying no will sting.`,
+        : `Your ${EXEC_ROLES[e.role].short} wants ${fmtMoney(cost)} for a global campaign. About ${Math.round(odds * 100)}% to land: hype for every game in development and new fans. Saying no will sting.`,
       options: [
         { id: 'fund', label: `Fund it · ${fmtMoney(cost)}`, description: 'Loyalty +8.', disabled: p.cash < cost },
         { id: 'deny', label: 'Not now', description: 'Loyalty -12.' },
@@ -377,7 +377,7 @@ export function catchExecMole(w: World, odds: number): string | null {
     title: `Your ${EXEC_ROLES[e.role].short}, ${e.name}, is a mole`,
     body: `Security found ${e.name} has been reporting to ${c?.name ?? 'a rival'} all along. Fire them publicly, or keep them and feed ${c?.name ?? 'them'} false information (your intel on them +40, but they may work it out).`,
     options: [
-      { id: 'fire', label: 'Fire them', description: 'Reputation +1 for cleaning house.' },
+      { id: 'fire', label: 'Fire them', description: `${fanChange(playerCompany(w), 1)} for cleaning house.` },
       { id: 'double', label: 'Make them a double agent', description: `Intel on ${c?.name ?? 'them'} +40. 25% chance they flip back.` },
     ],
     data: { execId: e.id, corpId: c?.id ?? '' },
@@ -458,8 +458,8 @@ function pitchPaysOff(w: World, e: Executive, kind: string): void {
         n++;
       }
     }
-    p.reputation = Math.min(100, p.reputation + 2);
-    toast(w, `${e.name}'s campaign is everywhere`, 'good', { category: 'team', link: { route: 'dominion', id: 'execs' }, body: `${n ? `+150 hype for ${n} game${n === 1 ? '' : 's'} in development, ` : ''}reputation +2.` });
+    const gained = bumpRep(p, 2);
+    toast(w, `${e.name}'s campaign is everywhere`, 'good', { category: 'team', link: { route: 'dominion', id: 'execs' }, body: `${n ? `+150 hype for ${n} game${n === 1 ? '' : 's'} in development, ` : ''}${gained}.` });
     return;
   }
   const options: (() => string | null)[] = [
@@ -496,7 +496,7 @@ function pitchPaysOff(w: World, e: Executive, kind: string): void {
       return;
     }
   }
-  p.reputation = Math.min(100, p.reputation + 2);
-  toast(w, `${e.name}'s moonshot worked`, 'good', { category: 'team', link: { route: 'dominion', id: 'execs' }, body: 'A breakthrough the press loves: reputation +2.' });
+  const gained = bumpRep(p, 2);
+  toast(w, `${e.name}'s moonshot worked`, 'good', { category: 'team', link: { route: 'dominion', id: 'execs' }, body: `A breakthrough the press loves: ${gained}.` });
 }
 

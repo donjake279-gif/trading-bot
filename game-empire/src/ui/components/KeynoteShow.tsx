@@ -5,6 +5,7 @@ import { VENUES, REVEAL_LABELS } from '../../engine/keynotes';
 import type { KeynoteResult } from '../../engine/types';
 import { money, num, pct } from '../lib/format';
 import { Badge, Button, Modal, ScoreBadge, cx } from './ui';
+import { fmtFans } from '../../engine/util';
 
 const ITEM_MS = 1100;
 const COUNT_MS = 900;
@@ -149,10 +150,10 @@ function Show({ r }: { r: KeynoteResult }) {
               </div>
             </div>
             <div className="rounded-lg bg-surface-2 px-2.5 py-1.5">
-              <div className="text-muted">Reputation</div>
+              <div className="text-muted">Fans</div>
               <div className={cx('font-semibold tabular', r.rep >= 0 ? 'text-good' : 'text-bad')}>
-                {r.rep >= 0 ? '+' : ''}
-                {r.rep.toFixed(1)}
+                {r.rep >= 0 ? '+' : '-'}
+                {fmtFans(Math.abs(r.fans ?? 0))}
               </div>
             </div>
             <div className="rounded-lg bg-surface-2 px-2.5 py-1.5">

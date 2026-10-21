@@ -17,7 +17,7 @@ import { createGameRecord, playerDailyWork, recommendedBudget } from './developm
 import { addXp } from './progression';
 import { chance, pick, randInt } from './rng';
 import type { ActionResult, Candidate, FacilityId, Game, RoleId, World } from './types';
-import { addGame, celebrate, earn, gamesOf, newId, playerCompany, pushNews, spend, toast } from './util';
+import { addGame, celebrate, earn, gamesOf, needFans, newId, playerCompany, pushNews, spend, toast } from './util';
 
 // ------------------------------------------------------------ facilities
 
@@ -180,7 +180,7 @@ export function conventionBlocker(w: World, tier: number): string | null {
   if (!def) return 'Unknown event.';
   const p = playerCompany(w);
   if (w.player.convention) return 'Your convention is already scheduled.';
-  if (p.reputation < def.minRep) return `Needs reputation ${def.minRep}.`;
+  if (p.reputation < def.minRep) return needFans(def.minRep);
   if (!gamesOf(w, p.id).some((g) => g.status === 'released')) return 'You need at least one released game for fans to celebrate.';
   const last = w.player.flags.lastConvention ?? -9999;
   if (w.day - last < 300) return `Fans need time to save up: next one in ${300 - (w.day - last)} days.`;
@@ -255,7 +255,7 @@ export function conventionDaily(w: World): void {
 export function storeBlocker(w: World): string | null {
   const p = playerCompany(w);
   if (w.player.store) return 'Your store is already open.';
-  if (p.reputation < STORE_MIN_REP) return `Needs reputation ${STORE_MIN_REP}.`;
+  if (p.reputation < STORE_MIN_REP) return needFans(STORE_MIN_REP);
   if (gamesOf(w, p.id).filter((g) => g.releaseDay !== null && g.platforms.includes('pc')).length < 3) return 'Release at least 3 PC games first.';
   if (p.cash < STORE_COST) return `Costs $${STORE_COST.toLocaleString()}.`;
   return null;

@@ -91,7 +91,7 @@ describe('server infrastructure', () => {
     const w = createWorld(opts);
     playerCompany(w).cash = 1e9;
     playerCompany(w).reputation = 0;
-    expect(tierBlocker(w, 1)).toMatch(/reputation/);
+    expect(tierBlocker(w, 1)).toMatch(/fans/);
     playerCompany(w).reputation = 99;
     expect(tierBlocker(w, 3)).toMatch(/research/);
     expect(setServerTier(w, 4).ok).toBe(false);

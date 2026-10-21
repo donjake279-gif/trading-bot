@@ -7,7 +7,7 @@ import { startCloneProject } from './ai';
 import { releaseGame } from './development';
 import { addXp } from './progression';
 import type { Company, Game, World } from './types';
-import { activeCompanies, celebrate, gamesOf, hashString, playerCompany, pushNews, toast } from './util';
+import { activeCompanies, bumpRep, celebrate, gamesOf, hashString, playerCompany, pushNews, toast } from './util';
 import { chance, pick } from './rng';
 
 export type PersonaId = 'showboat' | 'copycat' | 'shark' | 'grump' | 'sport';
@@ -86,7 +86,7 @@ const LINES: Record<PersonaId, Partial<Record<Moment, string[]>>> = {
   },
 };
 
-/** Reward for overtaking your rival (plus +3 reputation): most of a level, whatever your level. */
+/** Reward for overtaking your rival (plus a burst of fans): most of a level, whatever your level. */
 export function overtakeXp(w: World): number {
   return Math.max(150, Math.round(xpForLevel(w.player.progression?.level ?? 1) * 0.6));
 }
@@ -276,12 +276,12 @@ export function rivalryDaily(w: World): void {
     if (r.leadWeeks < HOLD_WEEKS) return;
     r.ahead = true;
     if (!r.beaten.includes(c.id)) r.beaten.push(c.id);
-    p.reputation = Math.min(100, p.reputation + 3);
+    const gained = bumpRep(p, 3);
     const xp = overtakeXp(w);
     addXp(w, xp);
     celebrate(w, `You overtook ${c.name}!`, true);
     speak(w, c, 'overtaken', {});
-    toast(w, `Rival beaten: ${c.name} (+3 reputation, +${xp.toLocaleString()} XP)`, 'good', { category: 'industry', link: { route: 'company', id: c.id } });
+    toast(w, `Rival beaten: ${c.name} (${gained}, +${xp.toLocaleString()} XP)`, 'good', { category: 'industry', link: { route: 'company', id: c.id } });
     // a bigger fish, if there is one
     const next = chooseNemesis(w, new Set(r.beaten));
     if (next && next.valuation > p.valuation) setNemesis(w, next, true);

@@ -16,7 +16,7 @@ import {
 } from '../../engine/actions';
 import { floatShares, founderStake, marketCap } from '../../engine/stocks';
 import { investmentValue, moveBonds, tradeIndexFund } from '../../engine/business';
-import { EXPENSE_KEYS, REVENUE_KEYS, ledgerExpenses, ledgerRevenue, playerCompany } from '../../engine/util';
+import { EXPENSE_KEYS, fansFromRep, fmtFans, ledgerExpenses, ledgerRevenue, playerCompany, REVENUE_KEYS } from '../../engine/util';
 import type { Ledger } from '../../engine/types';
 import { date, money, pct } from '../lib/format';
 import { Donut, StackedBars, TimeChart } from '../components/charts';
@@ -151,7 +151,7 @@ export function Finance() {
             </div>
           )}
           {offers.length === 0 ? (
-            <p className="text-sm text-muted">No bank will lend to you right now. Build revenue, reputation or reduce debt.</p>
+            <p className="text-sm text-muted">No bank will lend to you right now. Build revenue, grow your fans or reduce debt.</p>
           ) : (
             <div className="space-y-2">
               {offers.map((o, i) => (
@@ -494,7 +494,7 @@ function Ipo() {
         {[
           ['$50M valuation', c.valuation >= 50e6],
           ['$10M trailing revenue', revenueTTM(c) >= 10e6],
-          ['Reputation 35', c.reputation >= 35],
+          [`${fmtFans(fansFromRep(35))} fans`, c.reputation >= 35],
           ['3 released games', w.player.stats.gamesReleased >= 3],
         ].map(([label, ok]) => (
           <div key={String(label)} className="flex items-center gap-2">

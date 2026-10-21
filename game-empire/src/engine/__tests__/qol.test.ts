@@ -9,7 +9,7 @@ import { setPatchPlan } from '../patches';
 import { deserializeWorld, serializeWorld } from '../save';
 import { focus } from '../constants';
 import type { World } from '../types';
-import { playerCompany } from '../util';
+import { bumpRep, fansFromRep, fansOf, needFans, playerCompany, repForFans } from '../util';
 
 const opts = { seed: 'qol-1', companyName: 'QoL', founderName: 'Q', specialty: 'designer' as const, difficulty: 'normal' as const, rivals: 16 };
 
@@ -35,7 +35,7 @@ describe('quality of life', () => {
     const { w, gameId } = withLiveGame();
     const g = w.games[gameId];
     g.bugs = 0;
-    setPatchPlan(w, gameId, { scheduled: true, weekday: 3, everyWeeks: 4 });
+    setPatchPlan(w, gameId, { scheduled: true, weekday: 3, everyWeeks: 4, minItems: 3 });
     const team = w.player.employees.map((e) => e.id);
     const r = queueUpdates(w, gameId, [{ type: 'hotfix' }, { type: 'balance' }, { type: 'content' }], team);
     expect(r.ok, r.error).toBe(true);
@@ -119,5 +119,38 @@ describe('quality of life', () => {
     expect(m.player.lifelinesUsed).toBe(0);
     expect(Object.values(m.games).every((g) => Array.isArray(g.updateQueue) && g.autoUpdates === false)).toBe(true);
     advanceDays(m, 30);
+  });
+});
+
+describe('fans', () => {
+  it('a new studio has no fans; the top is 10 billion; requirements read in fans', () => {
+    expect(fansFromRep(0)).toBe(0);
+    expect(fansFromRep(100)).toBeGreaterThan(9.9e9);
+    expect(repForFans(fansFromRep(42))).toBeCloseTo(42, 3);
+    expect(needFans(50)).toMatch(/^Needs 3\.2M fans\.$/);
+    const c = { reputation: 50 };
+    expect(bumpRep(c, 2)).toMatch(/^\+\d/);
+    expect(c.reputation).toBe(52);
+  });
+
+  it('fans grow a little every day after a hit, not in monthly jumps', () => {
+    const { w } = withLiveGame();
+    const p = playerCompany(w);
+    p.repTarget = 60;
+    p.repDrift = 0;
+    const seen = new Set<number>();
+    for (let i = 0; i < 10; i++) {
+      advanceDay(w);
+      seen.add(fansOf(p));
+    }
+    expect(seen.size).toBeGreaterThan(5);
+  });
+
+  it('old reputation goals are converted to fan goals', () => {
+    const w = createWorld(opts);
+    w.player.objectives = [{ id: 'o', kind: 'reputation', title: 'Reach a reputation of 30', target: 30, baseline: 0, createdDay: w.day, rewardCash: 0, rewardXp: 0, rewardRep: 2 } as never];
+    const m = deserializeWorld(serializeWorld(w));
+    expect(m.player.objectives[0].target).toBe(fansFromRep(30));
+    expect(m.player.objectives[0].title).toMatch(/fans$/);
   });
 });

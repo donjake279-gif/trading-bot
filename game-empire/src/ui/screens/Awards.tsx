@@ -21,7 +21,7 @@ import {
   seasonOpen,
 } from '../../engine/awards';
 import type { AwardCategory, AwardSeason } from '../../engine/types';
-import { dayToDate, playerCompany } from '../../engine/util';
+import { dayToDate, fanChange, playerCompany } from '../../engine/util';
 import { date, money } from '../lib/format';
 import { Badge, Button, Card, Empty, Progress, SectionTitle, Td, Th, cx } from '../components/ui';
 
@@ -229,7 +229,7 @@ function NominationsView({ season }: { season: AwardSeason }) {
           {season.presenter && (
             <div className="flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft/30 p-3 text-sm">
               <Mic size={18} className="text-accent" />
-              You're presenting an award on stage. Reputation +2 on the night.
+              You're presenting an award on stage: {fanChange(playerCompany(w), 2)} on the night.
             </div>
           )}
         </div>

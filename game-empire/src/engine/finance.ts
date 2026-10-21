@@ -275,7 +275,7 @@ export function monthlyClose(w: World, c: Company): void {
   if (c.monthly.length > 84) c.monthly.splice(0, c.monthly.length - 84);
   c.ledger = emptyLedger();
 
-  // reputation drifts toward the reception of the studio's recent work
+  // standing (fans) drifts toward the reception of the studio's recent work, a little every day
   const recent = gamesOf(w, c.id).filter((g) => g.releaseDay !== null && w.day - g.releaseDay < 1100);
   if (recent.length > 0) {
     let s = 0;
@@ -289,8 +289,11 @@ export function monthlyClose(w: World, c: Company): void {
     }
     const avg = s / wsum;
     const scale = Math.min(1, Math.log10(1 + c.fans) / 7);
-    const target = clamp((avg - 35) * 1.5 * (0.35 + 0.65 * scale), 0, 100);
-    c.reputation = clamp(c.reputation + (target - c.reputation) * 0.08 + Math.max(-2.5, bad), 0, 100);
+    c.repTarget = clamp((avg - 35) * 1.5 * (0.35 + 0.65 * scale), 0, 100);
+    c.repDrift = Math.max(-2.5, bad);
+  } else {
+    c.repTarget = undefined;
+    c.repDrift = undefined;
   }
   let fans = 0;
   for (const id in w.ips) if (w.ips[id].companyId === c.id) fans += w.ips[id].fans;
@@ -298,6 +301,15 @@ export function monthlyClose(w: World, c: Company): void {
 
   c.valuation = computeValuation(w, c);
   pushPoint(c.valuationHistory, w.day, c.valuation, 120);
+}
+
+/** Daily: every studio's standing moves a thirtieth of the monthly step, so fan counts tick along. */
+export function fansDaily(w: World): void {
+  for (const id in w.companies) {
+    const c = w.companies[id];
+    if (c.status !== 'active' || c.repTarget === undefined) continue;
+    c.reputation = clamp(c.reputation + ((c.repTarget - c.reputation) * 0.08 + (c.repDrift ?? 0)) / 30, 0, 100);
+  }
 }
 
 export function updateIpFans(w: World): void {

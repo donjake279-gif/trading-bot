@@ -8,7 +8,7 @@ import { addScar, dlog, execPower, featureOpen, fmtMoney, fmtPeople, scarValue }
 import { pushDecision } from './events';
 import { ecoShare } from './ecosystem';
 import type { ActionResult, DecisionEvent, SpaceAsset, SpaceKind, World } from './types';
-import { celebrate, clamp, earn, newId, playerCompany, pushNews, spend, toast } from './util';
+import { bumpRep, celebrate, clamp, earn, newId, playerCompany, pushNews, spend, toast } from './util';
 import { chance, pick, randNormal, randRange } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -152,13 +152,14 @@ export function spaceDaily(w: World): void {
     }
     a.stage = 'active';
     const first = !d.space.firsts[a.kind];
+    let gained = '';
     if (first) {
       d.space.firsts[a.kind] = 'player';
-      p.reputation = Math.min(100, p.reputation + 3);
+      gained = bumpRep(p, 3);
       celebrate(w, `First ever ${SPACE[a.kind].name.toLowerCase()}!`, true);
       pushNews(w, { kind: 'player', title: `${p.name} opens the first ${SPACE[a.kind].name.toLowerCase()} in history`, companyId: p.id, tone: 'good' });
     }
-    toast(w, `${a.name} is operational`, 'good', { category: 'studio', link: { route: 'dominion', id: 'space' }, body: first ? 'A world first: reputation +3.' : undefined });
+    toast(w, `${a.name} is operational`, 'good', { category: 'studio', link: { route: 'dominion', id: 'space' }, body: first ? `A world first: ${gained}.` : undefined });
     dlog(w, `${a.name} is operational${first ? ' (a world first)' : ''}.`, 'good');
   }
 }

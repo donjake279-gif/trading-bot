@@ -9,7 +9,7 @@ import { SECTOR_IDS, addScar, dlog, empireScale, execPower, featureOpen, fmtMone
 import { rivalPace } from './empire';
 import { pushDecision } from './events';
 import type { ActionResult, DecisionEvent, Megacorp, OpKind, SectorId, SpyOp, Threat, ThreatKind, World } from './types';
-import { clamp, newId, playerCompany, pushNews, spend, toast } from './util';
+import { bumpRep, clamp, fanChange, newId, playerCompany, pushNews, spend, toast } from './util';
 import { chance, pick, rand, weightedPick } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -157,7 +157,7 @@ function attack(w: World, c: Megacorp | null, kind: ThreatKind): void {
       pushDecision(w, {
         kind: 'spyLeak',
         title: `${g.title} leaked online`,
-        body: `Builds and screenshots of ${g.title} are everywhere, apparently via ${name}. Lean into it with an official reveal (hype recovers, reputation +1), or go after the leakers with lawyers (${fmtMoney(auditCost(w))}; you might trace it back and learn a lot about ${name}).`,
+        body: `Builds and screenshots of ${g.title} are everywhere, apparently via ${name}. Lean into it with an official reveal (hype recovers, ${fanChange(playerCompany(w), 1)}), or go after the leakers with lawyers (${fmtMoney(auditCost(w))}; you might trace it back and learn a lot about ${name}).`,
         options: [
           { id: 'embrace', label: 'Official reveal', description: 'Hype recovers to where it was.' },
           { id: 'legal', label: `Lawyers · ${fmtMoney(auditCost(w))}`, description: `Trace the leak. Intel on ${name} +30 if it works.`, disabled: p.cash < auditCost(w) },
@@ -266,7 +266,7 @@ function revealInsider(w: World, t: Threat): void {
     title: `Security caught a mole working for ${c?.name ?? 'a rival'}`,
     body: `An engineer has been passing your plans to ${c?.name ?? 'a rival'} for ${Math.max(1, Math.round((w.day - t.day) / 30))} month(s). Fire and prosecute, feed them false information to mislead ${c?.name ?? 'them'}, or expose ${c?.name ?? 'them'} publicly.`,
     options: [
-      { id: 'fire', label: 'Fire and prosecute', description: 'Clean and simple. Reputation +1.' },
+      { id: 'fire', label: 'Fire and prosecute', description: `Clean and simple. ${fanChange(playerCompany(w), 1)}.` },
       { id: 'feed', label: 'Feed them false information', description: `Intel on ${c?.name ?? 'them'} +35. 20% chance they notice.` },
       { id: 'expose', label: 'Expose them publicly', description: `${c?.name ?? 'They'} lose value and friends. Relations collapse.` },
     ],
@@ -420,14 +420,14 @@ function exposeOp(w: World, op: SpyOp, c: Megacorp): void {
   const p = playerCompany(w);
   d.spy.stats.opsExposed += 1;
   const severe = op.kind === 'hack';
-  p.reputation = Math.max(0, p.reputation - (severe ? 8 : 3));
+  const lost = bumpRep(p, severe ? -8 : -3);
   shiftRelation(w, 'player', c.id, severe ? -45 : -30);
   for (const o of activeCorps(w)) if (o.id !== c.id) shiftRelation(w, 'player', o.id, severe ? -10 : -4);
   if (severe) addScar(w, 'Hacking scandal: regulators are watching', 'antitrust', 0.6, 540);
   d.spy.plants = d.spy.plants.filter((x) => x !== c.id);
   pushNews(w, { kind: 'industry', title: `${c.name} accuses ${p.name} of corporate espionage`, tone: 'bad' });
   spyLog(w, `Exposed! ${c.name} traced the ${OPS[op.kind].name.toLowerCase()} back to you.`, 'bad');
-  toast(w, `Your spies were exposed by ${c.name}`, 'bad', { category: 'industry', link: { route: 'dominion', id: 'espionage' }, body: severe ? 'A global hacking scandal: reputation -8 and regulators on your back.' : 'Reputation -3 and relations collapse.' });
+  toast(w, `Your spies were exposed by ${c.name}`, 'bad', { category: 'industry', link: { route: 'dominion', id: 'espionage' }, body: severe ? `A global hacking scandal: ${lost} and regulators on your back.` : `${lost} and relations collapse.` });
   // some won't let it go
   if ((c.persona === 'warlord' || c.persona === 'schemer') && featureOpen(w, 'wars') && !warsOf(w, c.id).length && chance(w, 0.35)) {
     startWar(w, c.id, 'player', topSector(c), `${c.name} declares war on ${p.name} over the spying scandal`);

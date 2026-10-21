@@ -4,7 +4,7 @@
 import { makeItem, newPlan } from './patches';
 import { SERVER_MODEL_IDS } from './constants';
 import type { HrSettings, World } from './types';
-import { newId, normalizeLedger, playerCompany } from './util';
+import { fansFromRep, fmtFans, newId, normalizeLedger, playerCompany } from './util';
 import { SAVE_VERSION, playerExtras } from './world';
 import { CERTIFICATIONS } from './constants';
 import { migrateEngine, upgradeEngineSave } from './studioEngine';
@@ -192,6 +192,13 @@ function migrate(w: World): void {
   w.player.infra.dataCenters ??= [];
   for (const dc of w.player.infra.dataCenters) for (const id of SERVER_MODEL_IDS) dc.servers[id] ??= 0;
   w.player.infra.capacityHistory ??= [];
+  // reputation goals from before fans: targets were on the 0..100 scale
+  for (const o of w.player.objectives ?? []) {
+    if (o.kind === 'reputation' && o.target <= 100) {
+      o.target = fansFromRep(o.target);
+      o.title = `Reach ${fmtFans(o.target)} fans`;
+    }
+  }
   w.notices ??= [];
   w.awardSeason ??= null;
   w.awardArchive ??= [];

@@ -16,7 +16,7 @@ import { pushDecision } from './events';
 import { GENRES, ROLES } from './constants';
 import { chance, pick } from './rng';
 import type { AcLayerId, AcOp, AcOpKind, AcPolicy, ActionResult, AntiCheat, BanMode, BanPenalty, CheatType, Company, DecisionEvent, Game, World } from './types';
-import { celebrate, clamp, earn, isPlayerGroup, newId, playerCompany, pushNews, spend, toast } from './util';
+import { celebrate, clamp, earn, fanChange, isPlayerGroup, newId, playerCompany, pushNews, spend, toast } from './util';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
 const ok = (): ActionResult => ({ ok: true });
@@ -613,7 +613,7 @@ function falseBanScandal(w: World, ac: AntiCheat, n: number): void {
     body: `About ${n.toLocaleString()} innocent players were banned this week and streamers are making videos about it. Refund and unban them, defend the system, or retune detection to be less aggressive.`,
     options: [
       { id: 'refund', label: `Unban and refund · ${fmt(cost)}`, description: 'Players forgive you.', disabled: playerCompany(w).cash < cost },
-      { id: 'defend', label: 'Defend the system', description: 'Reputation -3, players stay angry.' },
+      { id: 'defend', label: 'Defend the system', description: `${fanChange(playerCompany(w), -3)}, players stay angry.` },
       { id: 'retune', label: 'Lower sensitivity by 20', description: 'Fewer false bans, more cheaters slip through.' },
     ],
     data: { cost },

@@ -14,7 +14,7 @@ import { struggling } from './hr';
 import { addXp, perkRank } from './progression';
 import { pick, randInt, randNormal } from './rng';
 import type { ActionResult, Employee, Game, PatchItem, PatchPlan, QueuedUpdate, RoleId, ScheduleDefaults, UpdateRecord, UpdateTypeId, World } from './types';
-import { clamp, dayToDate, gamesOf, newId, playerCompany, pushNews, toast } from './util';
+import { clamp, dayToDate, fansFromRep, fmtFans, gamesOf, newId, playerCompany, pushNews, toast } from './util';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
 const ok = (id?: string): ActionResult => ({ ok: true, id });
@@ -514,7 +514,7 @@ function validate(w: World, g: Game, plan: PatchPlan, q: QueuedUpdate, adding: Q
   if (q.type === 'port') {
     if (!q.platform) return 'Choose a platform for the port.';
     if (g.platforms.includes(q.platform)) return `Already on ${PLATFORMS[q.platform].name}.`;
-    if (c.reputation < PLATFORMS[q.platform].minRep) return `${PLATFORMS[q.platform].name} requires reputation ${PLATFORMS[q.platform].minRep}.`;
+    if (c.reputation < PLATFORMS[q.platform].minRep) return `${PLATFORMS[q.platform].name} needs ${fmtFans(fansFromRep(PLATFORMS[q.platform].minRep))} fans.`;
     if (plan.backlog.some((i) => i.type === 'port' && i.platform === q.platform) || adding.filter((x) => x.type === 'port' && x.platform === q.platform).length > 1) return `A port to ${PLATFORMS[q.platform].name} is already planned.`;
   }
   if (q.type === 'monetization' && !q.monetization) return 'Choose a business model.';

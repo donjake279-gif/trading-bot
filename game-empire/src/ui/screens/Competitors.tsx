@@ -7,7 +7,7 @@ import { debtOf, revenueTTM } from '../../engine/finance';
 import { corpById } from '../../engine/megacorps';
 import { acquire, acquisitionQuote, buyStock, sellStock, setSubsidiaryStrategy, transferToSubsidiary } from '../../engine/actions';
 import { floatShares, founderStake, marketCap, tradeCost } from '../../engine/stocks';
-import { playerCompany } from '../../engine/util';
+import { fansOf, fmtFans, playerCompany } from '../../engine/util';
 import type { Company, StrategyId } from '../../engine/types';
 import { date, int, money, num, pct } from '../lib/format';
 import { companyCcu, devGamesOf, liveGamesOf } from '../lib/selectors';
@@ -67,7 +67,7 @@ export function Competitors() {
                 Staff
               </Th>
               <Th className="text-right" onClick={() => setSort('reputation')} active={sort === 'reputation'}>
-                Rep
+                Fans
               </Th>
               <Th className="text-right" onClick={() => setSort('ccu')} active={sort === 'ccu'}>
                 Online
@@ -91,7 +91,7 @@ export function Competitors() {
                 <Td className="text-right tabular">{money(marketCap(c))}</Td>
                 <Td className="text-right tabular">{money(revenueTTM(c))}</Td>
                 <Td className="text-right tabular">{int(c.headcount)}</Td>
-                <Td className="text-right tabular">{Math.round(c.reputation)}</Td>
+                <Td className="text-right tabular">{fmtFans(fansOf(c))}</Td>
                 <Td className="text-right tabular">{num(companyCcu(w, c.id))}</Td>
                 <Td className="text-right tabular text-sub">
                   {liveGamesOf(w, c.id).length} live · {devGamesOf(w, c.id).length} dev
@@ -169,7 +169,7 @@ export function CompanyDetail({ id }: { id: string }) {
         <Stat label="Cash" value={money(c.cash)} tone={c.cash < 0 ? 'bad' : undefined} />
         <Stat label="Debt" value={money(debtOf(c))} />
         <Stat label="Employees" value={int(c.headcount)} sub={`talent ${Math.round(c.talent)}`} />
-        <Stat label="Reputation" value={Math.round(c.reputation)} />
+        <Stat label="Fans" value={fmtFans(fansOf(c))} />
         <Stat label="Players online" value={<LiveNumber value={companyCcu(w, c.id)} format={(n) => num(n)} />} />
       </div>
 

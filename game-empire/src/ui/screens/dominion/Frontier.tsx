@@ -324,7 +324,7 @@ export function SpaceTab() {
           </Card>
         )}
 
-        <Card title="Build" subtitle="Each project is paid day by day while it builds; launches can fail. Firsts in history earn reputation.">
+        <Card title="Build" subtitle="Each project is paid day by day while it builds; launches can fail. Firsts in history win fans.">
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {SPACE_KINDS.map((k) => {
               const def = SPACE[k];

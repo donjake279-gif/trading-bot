@@ -11,7 +11,7 @@ import { pushDecision } from './events';
 import { platformUsers } from './market';
 import { PLATFORM_IDS } from './constants';
 import type { ActionResult, DecisionEvent, EcoPart, EcosystemState, World } from './types';
-import { celebrate, clamp, earn, playerCompany, spend, toast } from './util';
+import { celebrate, clamp, earn, fanChange, playerCompany, spend, toast } from './util';
 import { chance } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -246,10 +246,10 @@ function ecosystemEvents(w: World, e: EcosystemState, share: number): void {
     pushDecision(w, {
       kind: 'ecoDevs',
       title: `Developers revolt against ${e.name}'s ${Math.round(e.cut * 100)}% cut`,
-      body: 'Studios are threatening to pull their games. Lower your cut to 15% (developers flock back) or hold the line (some leave, reputation -2).',
+      body: `Studios are threatening to pull their games. Lower your cut to 15% (developers flock back) or hold the line (some leave, ${fanChange(playerCompany(w), -2)}).`,
       options: [
         { id: 'lower', label: 'Lower the cut to 15%', description: 'Less per sale, more developers.' },
-        { id: 'hold', label: 'Hold the line', description: 'Developers -25%, reputation -2.' },
+        { id: 'hold', label: 'Hold the line', description: `Developers -25%, ${fanChange(playerCompany(w), -2)}.` },
       ],
       data: {},
       expiresDay: w.day + 21,

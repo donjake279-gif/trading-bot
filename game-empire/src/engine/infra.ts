@@ -24,7 +24,7 @@ import {
 } from './datacenters';
 import { chance, pick, randInt } from './rng';
 import type { ActionResult, Game, World } from './types';
-import { gamesOf, playerCompany, pushPoint, spend, toast } from './util';
+import { gamesOf, needFans, playerCompany, pushPoint, spend, toast } from './util';
 
 export function isOnline(g: Pick<Game, 'multiplayer'>): boolean {
   return g.multiplayer === 'online' || g.multiplayer === 'massive';
@@ -233,7 +233,7 @@ export function tierBlocker(w: World, tier: number): string | null {
   if (!def) return 'Unknown tier.';
   const p = playerCompany(w);
   if (def.empire && empireLevel(w) < def.empire) return `Needs empire level ${def.empire} (${EMPIRE_LEVELS[def.empire].name}).`;
-  if (p.reputation < def.minRep) return `Needs reputation ${def.minRep}.`;
+  if (p.reputation < def.minRep) return needFans(def.minRep);
   if (def.research && !hasResearch(w, def.research)) return `Needs ${RESEARCH[def.research].name} research.`;
   if (tier > w.player.infra.tier && p.cash < def.upgradeCost) return `Costs ${compactMoney(def.upgradeCost)}.`;
   return null;

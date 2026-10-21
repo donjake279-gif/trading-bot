@@ -230,7 +230,7 @@ function EngineDashboard() {
                 <Button size="sm" disabled={!ready} onClick={() => act((world) => releaseEngineVersion(world, false))}>
                   Quiet release
                 </Button>
-                <Button size="sm" variant="primary" disabled={!ready || p.cash < showcase} onClick={() => act((world) => releaseEngineVersion(world, true))} title="A tech demo: more buzz and reputation">
+                <Button size="sm" variant="primary" disabled={!ready || p.cash < showcase} onClick={() => act((world) => releaseEngineVersion(world, true))} title="A tech demo: more buzz and fans">
                   Tech demo · {money(showcase)}
                 </Button>
               </div>
@@ -555,7 +555,7 @@ function LicensingTab() {
   const projects = (id: string) => Object.values(w.games).filter((g) => g.companyId === id && g.engine === 'inhouse' && (g.status === 'development' || g.status === 'released')).length;
   return (
     <div className="grid gap-4 xl:grid-cols-2 [&>*]:min-w-0">
-      <Card title="Pricing" subtitle="Studios compare your score, price, buzz and reputation with the commercial engines.">
+      <Card title="Pricing" subtitle="Studios compare your score, price, buzz and fans with the commercial engines.">
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
           <input type="checkbox" className="mt-1" checked={e.licensing} onChange={(ev) => act((world) => setLicensing(world, { licensing: ev.target.checked }))} />
           <span>

@@ -4,7 +4,7 @@ import { useGameStore, useWorld } from '../../store/gameStore';
 import { GENRES, MONETIZATIONS, PLATFORMS, ROLES, SCOPES } from '../../engine/constants';
 import { MAX_CONTRACTS, abandonContract, acceptContract, contractDailyWork, contractTeam, staffContract, teamContractWork } from '../../engine/contracts';
 import type { ContractOffer } from '../../engine/types';
-import { playerCompany } from '../../engine/util';
+import { fanChange, playerCompany } from '../../engine/util';
 import type { Game } from '../../engine/types';
 import { date, days, money, num } from '../lib/format';
 import { statusLabel } from '../lib/selectors';
@@ -216,7 +216,7 @@ function Contracts() {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-line bg-surface p-4 text-sm text-sub">
-        Work-for-hire keeps the lights on between your own games. Deliver on time for full pay and reputation; late work earns half. Blow the deadline by a month and the client walks.
+        Work-for-hire keeps the lights on between your own games. Deliver on time for full pay and new fans; late work earns half. Blow the deadline by a month and the client walks.
         {w.player.autoAssign && <span className="text-muted"> Auto-assign sends idle developers to contracts that are falling behind.</span>}
       </div>
       {w.player.contracts.length > 0 && (
@@ -253,7 +253,7 @@ function Contracts() {
                   <Button size="sm" disabled={idle.length === 0} onClick={() => act((world) => staffContract(world, k.id, idle.map((e) => e.id)), 'Idle developers joined the contract')}>
                     <Users size={12} /> Add idle ({idle.length})
                   </Button>
-                  <ConfirmButton confirmLabel="Lose reputation? Confirm" onConfirm={() => act((world) => abandonContract(world, k.id))}>
+                  <ConfirmButton confirmLabel="Lose fans? Confirm" onConfirm={() => act((world) => abandonContract(world, k.id))}>
                     Abandon
                   </ConfirmButton>
                 </div>
@@ -297,7 +297,7 @@ function OfferCard({ o, disabled }: { o: ContractOffer; disabled: boolean }) {
         </div>
         <div className="text-right">
           <div className="text-sm font-semibold text-good tabular">{money(o.pay)}</div>
-          <div className="text-[11px] text-muted">+{o.rep} rep</div>
+          <div className="text-[11px] text-muted">{fanChange(playerCompany(w), o.rep)}</div>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">

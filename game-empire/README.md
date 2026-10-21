@@ -131,12 +131,12 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   For four weeks you can run "For Your Consideration" campaigns for your nominees, predict Game of the Year,
   book a world-premiere slot for an upcoming game and maybe get invited to present. On December 12 the ceremony
   reveals each winner live ("and the award goes to…"), with confetti when it's you. Winners get a huge boost
-  in players and reputation; trophies go in your cabinet and every year is kept in the archive.
+  in players and fans; trophies go in your cabinet and every year is kept in the archive.
 - **More game-feel.** Confetti for big moments (level-ups, 90+ reviews, Platinum sales, legendary combos, new
   engine versions, awards), reviews from critics at eight outlets on every game, and an annual Global Game
   Jam where your team makes a 99-cent game in a weekend that can turn into a surprise hit.
 - **Legacy (New Game+).** Every finished run banks legacy points in your browser (retire, sell or go bust).
-  Spend them on head starts for the next studio: savings, reputation, a garage, perk points or engine blueprints.
+  Spend them on head starts for the next studio: savings, a starting fanbase, a garage, perk points or engine blueprints.
 - **Empire levels.** Your company's value sets your empire level: Indie Studio → Rising Studio ($100M) → Major
   Publisher ($1B) → Industry Giant ($10B) → Megacorp ($100B) → Trillion-Dollar Empire ($1T) → World Power ($10T)
   → Galactic Conglomerate ($100T) → Solar Dynasty ($1Q) → Cosmic Sovereign ($10Q). Every level makes the game harder: monthly empire upkeep (a share of revenue and of
@@ -211,6 +211,10 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   The overview tracks market shares, a news feed of what the giants are doing, and every lasting effect on you.
   Routine work runs itself (security, the world autopilot, city managers); wars, crises, deals and big builds
   wait for you. Twenty-three new empire challenges cover levels 2 to 9.
+- **Fans.** Your studio's following is a fan count, from 0 for a brand-new studio up to 10 billion. It grows a
+  little every day when your recent games are well received, and big moments add or cost fans: awards, keynotes,
+  scandals, crises, contracts and more. Fans unlock platforms, engines, buildings, server tiers and ventures; every
+  requirement and every effect reads in fans, and the header shows your count and how it changed this month.
 - **Run servers.** Every online and MMO game you ship runs on your server fleet: rented cloud nodes (32 tiers,
   Shared Hosting → Hyperscale Edge → Planetary Mesh (4B players) → Orbital Server Ring (20B) → Dyson Swarm Cloud
   (100B) → Matrioshka Brain (1 trillion) → Interstellar Relay Grid (10 trillion) → Galactic Core Cloud (100
@@ -244,7 +248,7 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   they pull ahead, cheer their own hits, and act in character: the Copycat clones your hits (same genre and
   topic, suspiciously similar title) and the Shark ships their nearly-done game, unpolished, on your launch
   day. The dashboard keeps the head-to-head record. Stay worth more than them for four weeks in a row (one
-  launch spike isn't enough) for +3 reputation and most of a level's XP, and a bigger rival steps up. If yours
+  launch spike isn't enough) for a burst of new fans and most of a level's XP, and a bigger rival steps up. If yours
   goes bust or gets bought, that counts as a win too.
 - **Live with consequences.** Weekends and holidays move player counts. Great updates bring lapsed players back,
   flops trigger a month of backlash, shipping the same update over and over tires players, and popular games
@@ -279,7 +283,7 @@ actions.
 | `development.ts` | Work estimates, per-employee output by role and focus, bugs, quality, review scores, release |
 | `market.ts` | The player market (below) |
 | `ai.ts` | Autonomous studio decisions (below) |
-| `finance.ts` | Running costs, loans, valuation, monthly close and taxes, reputation drift |
+| `finance.ts` | Running costs, loans, valuation, monthly close and taxes, fans (standing) drifting daily toward the reception of recent games |
 | `stocks.ts` | Index, prices, earnings, IPOs, trading, splits, acquisitions, subsidiary cash sweeps |
 | `events.ts` | Macro economy, random world events, player decisions, board, solvency, awards, auctions |
 | `infra.ts`, `datacenters.ts` | The player's server fleet: rented cloud and owned buildings, capacity, load, costs, outages, wear, autoscaling |
@@ -308,7 +312,7 @@ actions.
 and a drifting trend. Every day a slice of that audience shops. Games win attention in proportion to
 `appeal × visibility^1.3 × market presence`, against an outside option. Appeal comes from review scores,
 genre/audience/art/mode fit, content freshness, viral and seasonal boosts. Visibility comes from launch
-featuring, hype, word of mouth, reputation, franchise fans and network effects. Owners accumulate toward a
+featuring, hype, word of mouth, studio fans, franchise fans and network effects. Owners accumulate toward a
 penetration cap. Active players churn, at rates set by genre, mode, quality, bugs and freshness, and lapsed
 players drift back to well-kept games. Revenue follows the business model, after platform store cuts, engine
 royalties and publisher shares. Rival online games pay per-game server costs; the player's online games share

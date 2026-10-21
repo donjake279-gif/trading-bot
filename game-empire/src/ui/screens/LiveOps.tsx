@@ -30,7 +30,7 @@ import {
   type ItemStatus,
 } from '../../engine/patches';
 import { MAX_CONTENT_LEVEL, contentLevelOf, updateCost, updateFatigue, updateWork, versionLabel } from '../../engine/updates';
-import { playerCompany } from '../../engine/util';
+import { fansFromRep, fmtFans, playerCompany } from '../../engine/util';
 import type { Game, MonetizationId, PatchItem, PatchPlan, PlatformId, QueuedUpdate, UpdateTypeId } from '../../engine/types';
 import { date, days, money } from '../lib/format';
 import { Badge, Button, Card, ConfirmButton, Progress, ScoreBadge, cx, inputClass } from '../components/ui';
@@ -433,7 +433,7 @@ function AddChanges({ g, plan }: { g: Game; plan: PatchPlan }) {
           <option value="">Port to which platform?</option>
           {portOptions.map((p) => (
             <option key={p} value={p} disabled={c.reputation < PLATFORMS[p].minRep}>
-              {PLATFORMS[p].name} {c.reputation < PLATFORMS[p].minRep ? `(rep ${PLATFORMS[p].minRep})` : ''}
+              {PLATFORMS[p].name} {c.reputation < PLATFORMS[p].minRep ? `(${fmtFans(fansFromRep(PLATFORMS[p].minRep))} fans)` : ''}
             </option>
           ))}
         </select>

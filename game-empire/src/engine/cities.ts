@@ -7,7 +7,7 @@ import { addScar, dlog, execPower, featureOpen, fmtMoney, fmtPeople, scarValue }
 import { pushDecision } from './events';
 import { REGIONS } from './constants';
 import type { ActionResult, CompanyCity, DecisionEvent, DistrictKind, RegionId, World } from './types';
-import { celebrate, clamp, earn, newId, playerCompany, pushNews, spend, toast } from './util';
+import { celebrate, clamp, earn, fanChange, newId, playerCompany, pushNews, spend, toast } from './util';
 import { chance, randRange } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -227,10 +227,10 @@ function cityEvents(w: World, c: CompanyCity): void {
     pushDecision(w, {
       kind: 'cityRiot',
       title: `Protests in ${c.name}`,
-      body: `Residents of ${c.name} are in the streets over taxes and services (unrest ${Math.round(c.unrest)}). Make concessions (tax -5 points, services +1), or crack down (unrest drops fast, but reputation -5 and it can backfire).`,
+      body: `Residents of ${c.name} are in the streets over taxes and services (unrest ${Math.round(c.unrest)}). Make concessions (tax -5 points, services +1), or crack down (unrest drops fast, but ${fanChange(playerCompany(w), -5)} and it can backfire).`,
       options: [
         { id: 'concede', label: 'Make concessions', description: 'Less tax income, a calmer city.' },
-        { id: 'crackdown', label: 'Crack down', description: 'Reputation -5. 30% chance of riots: no income for 2 months.' },
+        { id: 'crackdown', label: 'Crack down', description: `${fanChange(playerCompany(w), -5)}. 30% chance of riots: no income for 2 months.` },
       ],
       data: { cityId: c.id },
       expiresDay: w.day + 21,

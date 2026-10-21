@@ -6,7 +6,7 @@ import { aiDaily, aiDecide, aiSolvency, maybeSpawnStudio } from './ai';
 import { playerDevDay } from './development';
 import { awardsDaily } from './awards';
 import { boardMonthly, expireDecisions, hitFeedback, macroDay, playerSolvency, randomEvents, resolveAuctions } from './events';
-import { computeValuation, dailyCosts, monthlyBurn, monthlyClose, recordCash, updateIpFans } from './finance';
+import { computeValuation, dailyCosts, fansDaily, monthlyBurn, monthlyClose, recordCash, updateIpFans } from './finance';
 import { marketDay, playerGameAlerts, totalActivePlayers } from './market';
 import { expoDaily, investmentsDaily, licensesMonthly, policiesDaily, profitSharingMonthly, publishingDaily, salesDaily } from './business';
 import { contractsDaily } from './contracts';
@@ -27,7 +27,7 @@ import { marketDay as stockMarketDay, quarterlyEarnings, stockDay, sweepSubsidia
 import { updateDaily } from './updates';
 import { patchesDaily } from './patches';
 import type { World } from './types';
-import { allGames, dayToDate, gamesOf, ledgerExpenses, ledgerRevenue } from './util';
+import { allGames, dayToDate, fansOf, gamesOf, ledgerExpenses, ledgerRevenue, pushPoint } from './util';
 import { WARMUP_DAYS } from './constants';
 
 export function advanceDay(w: World): void {
@@ -124,6 +124,8 @@ export function advanceDay(w: World): void {
     if (player.valuation > w.player.stats.peakValuation) w.player.stats.peakValuation = player.valuation;
   }
 
+  fansDaily(w);
+
   // ---- monthly close
   if (monthStart) {
     if (hasPlayer) {
@@ -174,6 +176,7 @@ export function advanceDay(w: World): void {
       empireWeekly(w);
       dominionWeekly(w);
       checkAchievements(w);
+      pushPoint((w.player.fanHistory ??= []), w.day, fansOf(player), 160);
     }
   }
 }

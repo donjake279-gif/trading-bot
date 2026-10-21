@@ -4,7 +4,7 @@ import { playerScore, warsOf } from '../../engine/megacorps';
 import { payReview } from '../../engine/hr';
 import { CalendarDays, CircleCheck, Trophy, Gamepad2, Inbox, Plus, Rocket, Server, Sparkles, Swords, Tag, Target, TriangleAlert, Users, Wallet, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
-import { playerCompany } from '../../engine/util';
+import { fanChange, fansOf, fmtFans, playerCompany } from '../../engine/util';
 import { revenueTTM } from '../../engine/finance';
 import { dismissTutorial } from '../../engine/actions';
 import { founderStake } from '../../engine/stocks';
@@ -292,13 +292,13 @@ function RivalCard() {
     { label: 'Value', mine: me.valuation, theirs: rival.valuation, fmt: (n) => money(n) },
     { label: 'Revenue (30d)', mine: companyRev30(w, me.id), theirs: companyRev30(w, rival.id), fmt: (n) => money(n) },
     { label: 'Players online', mine: companyCcu(w, me.id), theirs: companyCcu(w, rival.id), fmt: (n) => num(n) },
-    { label: 'Reputation', mine: me.reputation, theirs: rival.reputation, fmt: (n) => String(Math.round(n)) },
+    { label: 'Fans', mine: fansOf(me), theirs: fansOf(rival), fmt: (n) => fmtFans(n) },
   ];
   const persona = PERSONAS[personaOf(rival)];
   const rec = rivalRecord(w, rival.id);
   const quote = w.player.rivalry?.quotes.find((q) => q.companyId === rival.id);
   const race = w.player.rivalry;
-  const reward = `+3 reputation and ${overtakeXp(w).toLocaleString()} XP`;
+  const reward = `${fanChange(me, 3)} and ${overtakeXp(w).toLocaleString()} XP`;
   const subtitle = race?.ahead
     ? 'You are worth more. They want that spot back.'
     : me.valuation > rival.valuation

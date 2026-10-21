@@ -9,7 +9,7 @@ import { bestModel, consolesInstalled, aiLead } from './ventures';
 import { SECTOR_IDS, antitrustFactor, fmtMoney, sectorLeader, sectorTotal } from './dominionCore';
 import { playerColonists } from './space';
 import type { DecisionEvent, World } from './types';
-import { celebrate, ledgerRevenue, playerCompany, pushNews, spend, toast } from './util';
+import { bumpRep, celebrate, fanChange, ledgerRevenue, playerCompany, pushNews, spend, toast } from './util';
 import { chance, rand } from './rng';
 
 export interface EmpireLevelDef {
@@ -121,7 +121,7 @@ export function empireMonthly(w: World): void {
       body: `Regulators say ${p.name} has grown too powerful. Settle for ${money(fine)}, fight it in court (${money(fees)} in legal fees, about ${odds}% to win; losing costs twice the settlement and a consent decree), or accept a consent decree: no fine, but your platform and licence income is halved for a year.`,
       options: [
         { id: 'settle', label: `Settle · ${money(fine)}`, description: 'Pay the fine and move on.' },
-        { id: 'fight', label: `Fight in court · ${odds}%`, description: `Legal fees ${money(fees)}. Win and your reputation grows.` },
+        { id: 'fight', label: `Fight in court · ${odds}%`, description: `Legal fees ${money(fees)}. Win and you gain fans.` },
         { id: 'decree', label: 'Consent decree', description: 'No fine. Console fees and licence income halved for 12 months.' },
       ],
       data: { fine, fees },
@@ -138,8 +138,8 @@ export function empireMonthly(w: World): void {
         title: 'Hackers stole player data',
         body: `A breach exposed millions of player accounts across your games. A full security response costs ${money(cost)}. Downplaying it is free, unless journalists dig it up.`,
         options: [
-          { id: 'respond', label: `Full response · ${money(cost)}`, description: 'Reputation -1. The story dies down.' },
-          { id: 'downplay', label: 'Downplay it', description: 'Free, but 60% chance it blows up later: reputation -8 and a fine.' },
+          { id: 'respond', label: `Full response · ${money(cost)}`, description: `${fanChange(p, -1)}. The story dies down.` },
+          { id: 'downplay', label: 'Downplay it', description: `Free, but 60% chance it blows up later: ${fanChange(p, -8)} and a fine.` },
         ],
         data: { cost },
         expiresDay: w.day + 21,
@@ -152,7 +152,7 @@ export function empireMonthly(w: World): void {
         body: 'Staff across your studios are organising. Recognise the union (salaries +6%, morale +15) or resist it (risk a month-long strike that halves development speed).',
         options: [
           { id: 'recognise', label: 'Recognise the union', description: 'Salaries +6%, morale +15.' },
-          { id: 'resist', label: 'Resist', description: '50% chance of a 30-day strike and reputation -3.' },
+          { id: 'resist', label: 'Resist', description: `50% chance of a 30-day strike and ${fanChange(p, -3)}.` },
         ],
         data: {},
         expiresDay: w.day + 21,
@@ -162,7 +162,7 @@ export function empireMonthly(w: World): void {
   }
 }
 
-/** Your odds in court: better with a good reputation, worse the bigger you are. */
+/** Your odds in court: better with more fans, worse the bigger you are. */
 export function courtOdds(w: World): number {
   const p = playerCompany(w);
   return Math.max(0.2, Math.min(0.75, 0.55 + (p.reputation - 60) / 200 - 0.04 * Math.max(0, empireLevel(w) - 3)));
@@ -207,8 +207,8 @@ export function resolveEmpire(w: World, ev: DecisionEvent, optionId: string): bo
       const fine = Math.round(Math.max(0, p.cash) * 0.01);
       spend(p, 'empire', fine);
       e.finesPaid += fine;
-      p.reputation = Math.max(0, p.reputation - 8);
-      toast(w, `The cover-up leaked: ${money(fine)} fine and reputation -8`, 'bad', { category: 'finance', link: { route: 'empire' } });
+      const lost = bumpRep(p, -8);
+      toast(w, `The cover-up leaked: ${money(fine)} fine and ${lost}`, 'bad', { category: 'finance', link: { route: 'empire' } });
       pushNews(w, { kind: 'player', title: `${p.name} hid a massive data breach`, companyId: p.id, tone: 'bad' });
     }
     return true;

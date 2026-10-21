@@ -451,7 +451,13 @@ export interface Company {
   corpId?: string | null;
   endDay: number | null;
 
+  /** Standing 0..100, shown to the player as a fan count (see fansFromRep). */
   reputation: number;
+  /** Where standing is heading, from the reception of recent games (set monthly, approached daily). */
+  repTarget?: number;
+  /** Monthly standing loss from unpopular monetization (applied a little each day). */
+  repDrift?: number;
+  /** Franchise fans across the studio's IPs. */
   fans: number;
   cash: number;
   loans: Loan[];
@@ -620,6 +626,8 @@ export interface PlayerState {
   progression: Progression;
   objectives: Objective[];
   objectivesCompleted: number;
+  /** The player's fan count, weekly. */
+  fanHistory?: Point[];
   objectiveRerollDay: number;
   contracts: Contract[];
   contractOffers: ContractOffer[];
@@ -1528,6 +1536,8 @@ export interface KeynoteResult {
   hype: number;
   stockMove: number;
   rep: number;
+  /** Fans won or lost on the night. */
+  fans?: number;
   preorders: number;
   reactions: { corpId: string; name: string; text: string }[];
   leaked: boolean;

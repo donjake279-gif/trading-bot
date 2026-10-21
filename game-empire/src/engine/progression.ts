@@ -4,7 +4,7 @@ import { shuffle } from './rng';
 import { ownedCapacity } from './datacenters';
 import { tierBlocker } from './infra';
 import type { ActionResult, Objective, ObjectiveKind, PerkId, World } from './types';
-import { celebrate, clamp, gamesOf, ledgerRevenue, newId, playerCompany, toast } from './util';
+import { celebrate, clamp, fansFromRep, fansOf, fmtFans, gamesOf, ledgerRevenue, newId, playerCompany, toast } from './util';
 
 export function perkRank(w: World, id: PerkId): number {
   return w.player.progression?.perks[id] ?? 0;
@@ -76,7 +76,7 @@ export function objectiveProgress(w: World, o: Objective): number {
     case 'updates':
       return updatesShipped(w) - o.baseline;
     case 'reputation':
-      return c.reputation;
+      return fansOf(c);
     case 'valuation':
       return c.isPublic ? c.price * c.shares : c.valuation;
     case 'liveGames':
@@ -130,8 +130,8 @@ function makeObjective(w: World, kind: ObjectiveKind): Objective | null {
       break;
     case 'reputation':
       if (c.reputation > 92) return null;
-      target = Math.min(100, Math.ceil((c.reputation + 8) / 5) * 5);
-      title = `Reach a reputation of ${target}`;
+      target = Math.min(fansFromRep(100), nice(fansFromRep(Math.min(100, Math.ceil((c.reputation + 8) / 5) * 5))));
+      title = `Reach ${fmtFans(target)} fans`;
       break;
     case 'valuation':
       target = nice(Math.max(250000, (c.isPublic ? c.price * c.shares : c.valuation) * 2.2));

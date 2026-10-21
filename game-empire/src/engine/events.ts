@@ -13,7 +13,7 @@ import { resolveEmpire } from './empire';
 import { chance, pick, randInt, randNormal, randRange, weightedPick } from './rng';
 import { acquireCompany, founderStake, marketCap } from './stocks';
 import type { DecisionEvent, Game, GenreId, World } from './types';
-import { activeCompanies, clamp, dayToDate, gamesOf, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast } from './util';
+import { activeCompanies, bumpRep, clamp, dayToDate, gamesOf, markGamesDirty, newId, playerCompany, pushNews, pushPoint, toast } from './util';
 
 const fmt = (n: number) => {
   const a = Math.abs(n);
@@ -185,11 +185,11 @@ function scandalEvent(w: World): void {
     lootbox: `${c.name} accused of predatory loot box practices`,
   };
   const repHit = randRange(w, 6, 18) * severity(w);
-  c.reputation = Math.max(0, c.reputation - repHit);
+  const lost = bumpRep(c, -repHit);
   if (c.isPublic) c.price *= randRange(w, 0.72, 0.9);
   if (kind === 'ceo') c.ceo = personName(w);
   if (kind === 'toxic' || kind === 'crunch') c.talent = Math.max(15, c.talent - randRange(w, 1, 4));
-  pushNews(w, { kind: 'industry', title: titles[kind], body: `Reputation takes a beating${c.isPublic ? ' and the stock tumbles' : ''}.`, companyId: c.id, tone: 'bad' });
+  pushNews(w, { kind: 'industry', title: titles[kind], body: `Fans walk away (${lost})${c.isPublic ? ' and the stock tumbles' : ''}.`, companyId: c.id, tone: 'bad' });
 }
 
 // ------------------------------------------------------------ player decisions
@@ -274,20 +274,20 @@ function playerEvents(w: World): void {
   // crunch scandal
   const crunching = gamesOf(w, p.id).filter((g) => g.status === 'development' && g.crunch && g.crunchDays > 30);
   if (crunching.length && chance(w, 0.008 * severity(w))) {
-    p.reputation = Math.max(0, p.reputation - 10);
+    const lost = bumpRep(p, -10);
     for (const e of w.player.employees) if (!e.traits.includes('crunchProof')) e.morale = Math.max(0, e.morale - 15);
     if (p.isPublic) p.price *= 0.88;
     p.boardConfidence = Math.max(0, p.boardConfidence - 10);
-    pushNews(w, { kind: 'player', title: `Exposé: crunch culture at ${p.name}`, body: 'Journalists report months of forced overtime. Reputation and morale suffer.', companyId: p.id, tone: 'bad' });
-    toast(w, 'Crunch scandal hits your studio!', 'bad', { category: 'studio', body: 'Reputation -10 and the team is demoralised.' });
+    pushNews(w, { kind: 'player', title: `Exposé: crunch culture at ${p.name}`, body: 'Journalists report months of forced overtime. Fans and morale suffer.', companyId: p.id, tone: 'bad' });
+    toast(w, 'Crunch scandal hits your studio!', 'bad', { category: 'studio', body: `${lost} and the team is demoralised.` });
   }
 
   // predatory monetization aimed at kids
   const predatory = gamesOf(w, p.id).some((g) => g.status === 'released' && g.monetization === 'f2pAggressive' && g.audience === 'kids');
   if (predatory && chance(w, 0.006 * severity(w))) {
-    p.reputation = Math.max(0, p.reputation - 12);
+    const lost = bumpRep(p, -12);
     pushNews(w, { kind: 'player', title: `Parents outraged by ${p.name}'s loot boxes in kids' games`, companyId: p.id, tone: 'bad' });
-    toast(w, 'Loot box outrage damages your reputation', 'bad', { category: 'game', body: 'Aggressive monetization in a kids game. Reputation -12.' });
+    toast(w, 'Loot box outrage costs you fans', 'bad', { category: 'game', body: `Aggressive monetization in a kids game: ${lost}.` });
   }
 
   // raise request

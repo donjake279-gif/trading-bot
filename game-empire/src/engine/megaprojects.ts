@@ -6,7 +6,7 @@ import { activeCorps } from './megacorps';
 import { dlog, execPower, featureOpen, fmtMoney } from './dominionCore';
 import { pushDecision } from './events';
 import type { ActionResult, DecisionEvent, MegaprojectId, MegaprojectRun, World } from './types';
-import { celebrate, clamp, playerCompany, pushNews, spend, toast } from './util';
+import { celebrate, clamp, fanChange, playerCompany, pushNews, spend, toast } from './util';
 import { chance, pick } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -97,7 +97,7 @@ export const MEGAPROJECTS: Record<MegaprojectId, { name: string; emoji: string; 
     name: 'Interstellar Starship',
     emoji: '🌌',
     blurb: 'Leave the Solar System. The last project there is.',
-    effect: 'Your legacy: the game’s greatest achievement, reputation 100 and a legendary send-off.',
+    effect: 'Your legacy: the game’s greatest achievement, 10 billion fans and a legendary send-off.',
     budget: 1.5e14,
     days: 2520,
     phases: ['Fusion drive', 'The ark', 'Crew and launch'],
@@ -199,11 +199,11 @@ function phaseDecision(w: World, m: MegaprojectRun): void {
     pushDecision(w, {
       ...base,
       title: `${def.name}: protests at the site`,
-      body: `Activists have blocked construction of "${next}". Lobby the government (${fmtMoney(extra / 3)}), move the site (90 days lost), or push through (reputation -6).`,
+      body: `Activists have blocked construction of "${next}". Lobby the government (${fmtMoney(extra / 3)}), move the site (90 days lost), or push through (${fanChange(p, -6)}).`,
       options: [
         { id: 'lobby', label: `Lobby · ${fmtMoney(extra / 3)}`, description: 'A great General Counsel makes it stick.', disabled: p.cash < extra / 3 },
         { id: 'relocate', label: 'Move the site', description: '90-day delay.' },
-        { id: 'push', label: 'Push through', description: 'Reputation -6.' },
+        { id: 'push', label: 'Push through', description: `${fanChange(p, -6)}.` },
       ],
       data: { id: m.id, event: kind, cost: extra / 3 },
       defaultOption: 'relocate',

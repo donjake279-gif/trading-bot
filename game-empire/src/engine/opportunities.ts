@@ -10,7 +10,7 @@ import { chance, pick, randRange, weightedPick } from './rng';
 import { refreshCandidates } from './staff';
 import { acquireCompany, acquisitionPrice } from './stocks';
 import type { DecisionEvent, Game, World } from './types';
-import { activeCompanies, clamp, earn, gamesOf, newId, playerCompany, pushNews, spend, toast } from './util';
+import { activeCompanies, bumpRep, clamp, earn, fanChange, gamesOf, newId, playerCompany, pushNews, spend, toast } from './util';
 
 const fmt = (n: number) => {
   const a = Math.abs(n);
@@ -152,7 +152,7 @@ export function opportunitiesDaily(w: World): void {
           body: `Plushies, figures, hoodies. They will pay ${fmt(monthly)} a month for 18 months. A premium line pays more but fans hate cheap tie-ins if the game is not loved.`,
           options: [
             { id: 'accept', label: `Sign (${fmt(monthly)}/mo)`, description: '18 months of licensing income.' },
-            { id: 'premium', label: `Premium line (${fmt(monthly * 1.8)}/mo)`, description: g.userScore >= 80 ? 'Fans love it: reputation +2.' : 'Risky: reputation -3 if fans think it is a cash grab.' },
+            { id: 'premium', label: `Premium line (${fmt(monthly * 1.8)}/mo)`, description: g.userScore >= 80 ? `Fans love it: ${fanChange(p, 2)}.` : `Risky: ${fanChange(p, -3)} if fans think it is a cash grab.` },
             { id: 'decline', label: 'Decline', description: '' },
           ],
           data: { gameId: g.id, monthly, loved: g.userScore >= 80 },
@@ -203,7 +203,7 @@ export function opportunitiesDaily(w: World): void {
           body: `Thousands of negative reviews appeared overnight. Players are angry about ${g.monetization === 'f2pAggressive' ? 'the monetization' : 'the state of the game'}. How you respond matters.`,
           options: [
             { id: 'patch', label: `Ship a goodwill patch (${fmt(cost)})`, description: 'Fix the complaints. Most of the anger fades.', disabled: p.cash < cost },
-            { id: 'apologize', label: 'Public apology', description: 'Free. Calms some players, costs a little reputation.' },
+            { id: 'apologize', label: 'Public apology', description: 'Free. Calms some players, costs a few fans.' },
             { id: 'ignore', label: 'Ride it out', description: 'User score drops and players leave for a month.' },
           ],
           data: { gameId: g.id, cost },
@@ -228,8 +228,8 @@ export function opportunitiesDaily(w: World): void {
           title: `Security researchers found an exploit in ${g.title}`,
           body: `A researcher privately reported a serious exploit in ${g.title}'s servers. They want a bug bounty. Ignore it and there is a real chance it goes public before you notice.`,
           options: [
-            { id: 'bounty', label: `Pay the bounty (${fmt(bounty)})`, description: 'Fixed quietly. Reputation +1.', disabled: p.cash < bounty },
-            { id: 'ignore', label: 'Ignore it', description: '50% chance of a public breach: reputation and players hit.' },
+            { id: 'bounty', label: `Pay the bounty (${fmt(bounty)})`, description: `Fixed quietly. ${fanChange(p, 1)}.`, disabled: p.cash < bounty },
+            { id: 'ignore', label: 'Ignore it', description: '50% chance of a public breach: you lose fans and players.' },
           ],
           data: { gameId: g.id, bounty },
           expiresDay: w.day + 21,
@@ -282,7 +282,7 @@ export function opportunitiesDaily(w: World): void {
           title: `Fans want to crowdfund ${g.title}`,
           body: `Your community is asking for a crowdfunding campaign. Backers could pledge around ${fmt(raise)}, but they will expect the game within ${deadline} days. Miss it and they will not forget.`,
           options: [
-            { id: 'launch', label: `Launch campaign (~${fmt(raise)})`, description: `Cash and hype now. Ship within ${deadline} days or lose reputation.` },
+            { id: 'launch', label: `Launch campaign (~${fmt(raise)})`, description: `Cash and hype now. Ship within ${deadline} days or lose fans.` },
             { id: 'decline', label: 'Stay self-funded', description: '' },
           ],
           data: { gameId: g.id, raise, deadline },
@@ -329,7 +329,7 @@ export function opportunitiesDaily(w: World): void {
           title: 'A charity marathon asks for your support',
           body: `A week-long charity stream for children's hospitals asks studios to donate and run in-game events.`,
           options: [
-            { id: 'donate', label: `Donate ${fmt(amount)}`, description: 'Reputation +3, players appreciate it.', disabled: p.cash < amount },
+            { id: 'donate', label: `Donate ${fmt(amount)}`, description: `${fanChange(p, 3)}, players appreciate it.`, disabled: p.cash < amount },
             { id: 'decline', label: 'Decline', description: '' },
           ],
           data: { amount },
@@ -451,12 +451,12 @@ export function resolveOpportunity(w: World, ev: DecisionEvent, optionId: string
         spend(p, 'misc', Number(d.bounty));
         p.reputation = Math.min(100, p.reputation + 1);
       } else if (chance(w, 0.5)) {
-        p.reputation = Math.max(0, p.reputation - 7);
+        const lost = bumpRep(p, -7);
         g.userScore = Math.max(1, g.userScore - 8);
         g.backlashUntil = Math.max(g.backlashUntil, w.day + 30);
         g.meltdownUntil = Math.max(g.meltdownUntil, w.day + 2);
         pushNews(w, { kind: 'player', title: `Hackers breach ${g.title}: player accounts exposed`, companyId: p.id, gameId: g.id, tone: 'bad' });
-        toast(w, `${g.title} was breached through the reported exploit`, 'bad', { category: 'game', link: { route: 'game', id: g.id }, body: 'Reputation and user score fell sharply.' });
+        toast(w, `${g.title} was breached through the reported exploit`, 'bad', { category: 'game', link: { route: 'game', id: g.id }, body: `${lost} and the user score fell sharply.` });
       }
       return true;
     }
@@ -511,18 +511,16 @@ function crowdfundingDaily(w: World): void {
     const p = playerCompany(w);
     if (!g || g.status === 'cancelled') {
       flags[key] = -1;
-      p.reputation = Math.max(0, p.reputation - 10);
-      toast(w, 'Backers are furious about the cancelled crowdfunded game', 'bad', { category: 'studio', body: 'Reputation -10.' });
+      toast(w, 'Backers are furious about the cancelled crowdfunded game', 'bad', { category: 'studio', body: `${bumpRep(p, -10)}.` });
     } else if (g.status !== 'development') {
       flags[key] = -1;
       if (g.releaseDay !== null && g.releaseDay <= deadline) {
-        p.reputation = Math.min(100, p.reputation + 3);
-        toast(w, `Backers celebrate ${g.title} shipping on time`, 'good', { category: 'studio', body: 'Reputation +3.' });
+        toast(w, `Backers celebrate ${g.title} shipping on time`, 'good', { category: 'studio', body: `${bumpRep(p, 3)}.` });
       }
     } else if (w.day === deadline) {
-      p.reputation = Math.max(0, p.reputation - 6);
+      const lost = bumpRep(p, -6);
       g.hype *= 0.8;
-      toast(w, `${g.title} missed its crowdfunding promise`, 'bad', { category: 'game', link: { route: 'game', id: g.id }, body: 'Backers are angry. Reputation -6.' });
+      toast(w, `${g.title} missed its crowdfunding promise`, 'bad', { category: 'game', link: { route: 'game', id: g.id }, body: `Backers are angry: ${lost}.` });
     } else if (w.day === deadline - 30) {
       toast(w, `${g.title} is due to backers in 30 days`, 'neutral', { category: 'game', link: { route: 'game', id: g.id } });
     }

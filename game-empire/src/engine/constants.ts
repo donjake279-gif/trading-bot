@@ -699,7 +699,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
   qa: { name: 'QA Tester', plural: 'QA Testers', contributes: { gameplay: 0.2, tech: 0.2 }, baseSalary: 3400, dev: true, workShare: 0.5, blurb: 'Finds and fixes bugs.' },
   producer: { name: 'Producer', plural: 'Producers', contributes: {}, baseSalary: 7200, dev: true, workShare: 0.25, blurb: 'Boosts the whole team\'s efficiency.' },
   marketing: { name: 'Marketer', plural: 'Marketers', contributes: {}, baseSalary: 5000, dev: false, workShare: 0, blurb: 'Company-wide: boosts every campaign and passive hype.' },
-  community: { name: 'Community Manager', plural: 'Community Managers', contributes: {}, baseSalary: 4100, dev: false, workShare: 0, blurb: 'Company-wide: reduces churn, builds reputation.' },
+  community: { name: 'Community Manager', plural: 'Community Managers', contributes: {}, baseSalary: 4100, dev: false, workShare: 0, blurb: 'Company-wide: reduces churn, grows your fanbase.' },
 };
 
 export function salaryFor(role: RoleId, skill: number): number {
@@ -774,7 +774,7 @@ export const RESEARCH: Record<ResearchId, ResearchDef> = {
   agile: { name: 'Agile Pipeline', cost: 12000, days: 30, requires: [], minRep: 0, blurb: '+10% development speed.' },
   analytics: { name: 'Player Analytics', cost: 20000, days: 30, requires: [], minRep: 0, blurb: '-8% churn. Reveals genre focus targets and quality estimates.' },
   netcode: { name: 'Netcode Expertise', cost: 45000, days: 40, requires: [], minRep: 5, blurb: '+tech quality on online games, -10% server costs, unlocks Regional Data Centers.' },
-  communityHub: { name: 'Community Platform', cost: 70000, days: 40, requires: ['analytics'], minRep: 5, blurb: '-6% churn, faster reputation growth.' },
+  communityHub: { name: 'Community Platform', cost: 70000, days: 40, requires: ['analytics'], minRep: 5, blurb: '-6% churn, your fanbase grows faster.' },
   qaAutomation: { name: 'Automated QA', cost: 40000, days: 45, requires: ['agile'], minRep: 5, blurb: '-35% bugs created during development.' },
   marketingData: { name: 'Marketing Data Science', cost: 110000, days: 40, requires: ['analytics'], minRep: 10, blurb: '+30% marketing efficiency.' },
   liveOps: { name: 'Live Ops Toolkit', cost: 60000, days: 45, requires: ['agile'], minRep: 10, blurb: 'Updates build 35% faster and land better.' },
@@ -853,7 +853,7 @@ export const STRATEGY_IDS: StrategyId[] = ['aggressiveGrowth', 'qualityFocused',
 
 export const STRATEGIES: Record<StrategyId, StrategyDef> = {
   aggressiveGrowth: { name: 'Aggressive Growth', risk: 0.85, hiring: 1.35, quality: 0.96, trend: 0.6, acquisitive: 0.5, ipo: 0.9, updateEvery: 50, monetization: { f2pCosmetic: 3, f2pAggressive: 2, premiumMtx: 2, premium: 1 }, blurb: 'Grows fast, borrows heavily, overextends.' },
-  qualityFocused: { name: 'Quality First', risk: 0.5, hiring: 1.0, quality: 1.1, trend: 0.25, acquisitive: 0.2, ipo: 0.4, updateEvery: 75, monetization: { premium: 5, premiumMtx: 1, subscription: 1 }, blurb: 'Fewer, better games. Strong reputation.' },
+  qualityFocused: { name: 'Quality First', risk: 0.5, hiring: 1.0, quality: 1.1, trend: 0.25, acquisitive: 0.2, ipo: 0.4, updateEvery: 75, monetization: { premium: 5, premiumMtx: 1, subscription: 1 }, blurb: 'Fewer, better games. Loyal fans.' },
   monetizer: { name: 'Monetization Machine', risk: 0.6, hiring: 1.1, quality: 0.9, trend: 0.7, acquisitive: 0.4, ipo: 0.75, updateEvery: 40, monetization: { f2pAggressive: 4, ads: 2, premiumMtx: 2, f2pCosmetic: 2 }, blurb: 'Squeezes every dollar from every player.' },
   indieArtisan: { name: 'Indie Artisan', risk: 0.3, hiring: 0.8, quality: 1.08, trend: 0.1, acquisitive: 0.02, ipo: 0.05, updateEvery: 90, monetization: { premium: 6, premiumMtx: 1 }, blurb: 'Small, original, beloved games.' },
   conglomerate: { name: 'Conglomerate', risk: 0.6, hiring: 1.15, quality: 1.0, trend: 0.5, acquisitive: 1.0, ipo: 1.0, updateEvery: 55, monetization: { premium: 2, premiumMtx: 3, f2pCosmetic: 2, subscription: 1 }, blurb: 'Buys studios and builds an empire of franchises.' },
@@ -1007,7 +1007,7 @@ export const CONTRACT_KINDS = [
   { kind: 'sim', title: 'Training simulator', clients: ['Aerodyne Training', 'Metro Transit Authority', 'MedSim Institute'] },
 ];
 
-/** Pay per point of work before reputation and perk bonuses. */
+/** Pay per point of work before fan and perk bonuses. */
 export const CONTRACT_RATE = 300;
 
 // ---------------------------------------------------------------- calendar
@@ -1199,7 +1199,7 @@ export const STORE_MONTHLY_COST = 600000;
 
 export const LEGACY_BONUSES: Record<LegacyId, { name: string; blurb: string; cost: number; max: number }> = {
   cash: { name: 'Family savings', blurb: '+$25,000 starting cash per rank.', cost: 5, max: 4 },
-  reputation: { name: 'Known name', blurb: '+5 starting reputation per rank.', cost: 6, max: 3 },
+  reputation: { name: 'Known name', blurb: 'Start with fans: about 1.2K, 4K or 10K by rank.', cost: 6, max: 3 },
   skill: { name: 'Veteran founder', blurb: '+5 founder skill per rank.', cost: 6, max: 3 },
   perk: { name: 'Head start', blurb: '+1 perk point per rank.', cost: 8, max: 3 },
   garage: { name: 'Own a garage', blurb: 'Start in the Garage instead of a bedroom.', cost: 4, max: 1 },

@@ -9,7 +9,7 @@ import { addScar, dlog, empireScale, execPower, featureOpen, fmtMoney, fmtPeople
 import { onlineFleetCapacity } from './datacenters';
 import { pushDecision } from './events';
 import type { ActionResult, DecisionEvent, TopicId, Universe, World } from './types';
-import { celebrate, clamp, earn, newId, playerCompany, spend, toast } from './util';
+import { celebrate, clamp, earn, fanChange, newId, playerCompany, spend, toast } from './util';
 import { chance, randRange } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -258,7 +258,7 @@ export function universesMonthly(w: World): void {
         body: `Lawmakers want real-money trading in ${u.name} shut down. Comply (ban it), or pay ${fmtMoney(fine)} in fines and keep it for now.`,
         options: [
           { id: 'ban', label: 'Ban real-money trading', description: 'Less income, less toxicity.' },
-          { id: 'pay', label: `Pay the fine · ${fmtMoney(fine)}`, description: 'Reputation -2.' },
+          { id: 'pay', label: `Pay the fine · ${fmtMoney(fine)}`, description: `${fanChange(playerCompany(w), -2)}.` },
         ],
         data: { worldId: u.id, cost: fine },
         expiresDay: w.day + 21,

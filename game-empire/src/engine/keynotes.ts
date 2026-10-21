@@ -10,7 +10,7 @@ import { SCOPE_IDS } from './constants';
 import { aiLead, bestModel } from './ventures';
 import { MEGAPROJECTS } from './megaprojects';
 import type { ActionResult, KeynotePlan, KeynoteResult, KeynoteShowItem, RevealItem, RevealKind, SectorId, World } from './types';
-import { celebrate, clamp, dayToDate, newId, playerCompany, pushNews, spend, toast } from './util';
+import { celebrate, clamp, dayToDate, fansOf, newId, playerCompany, pushNews, spend, toast } from './util';
 import { chance, pick, randNormal, randRange } from './rng';
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -214,7 +214,9 @@ export function runKeynote(w: World, plan: KeynotePlan): KeynoteResult {
     }
   });
   const rep = clamp((overall - 50) / 15, -3, 4) * (flop ? 1.4 : 1);
+  const fansBefore = fansOf(p);
   p.reputation = clamp(p.reputation + rep, 0, 100);
+  const fansGained = fansOf(p) - fansBefore;
   // giants' share prices move less
   const stockMove = clamp(((overall - 55) / 250) * Math.sqrt(reach), -0.12, 0.18) / (1 + 0.15 * Math.max(0, bestLevel(w) - 3));
   if (p.isPublic) p.price *= Math.exp(stockMove);
@@ -252,6 +254,7 @@ export function runKeynote(w: World, plan: KeynotePlan): KeynoteResult {
     hype: Math.round(hype),
     stockMove,
     rep,
+    fans: fansGained,
     preorders,
     reactions,
     leaked,

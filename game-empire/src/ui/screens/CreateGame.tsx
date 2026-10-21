@@ -43,7 +43,7 @@ import { audiencePool, genreTrend } from '../../engine/market';
 import { gameTitle, sequelTitle } from '../../engine/names';
 import { infraCapacity } from '../../engine/infra';
 import { TOTAL_COMBOS, comboHint } from '../../engine/topics';
-import { playerCompany } from '../../engine/util';
+import { fansFromRep, fmtFans, playerCompany } from '../../engine/util';
 import type { Employee, Focus, FocusId, Game } from '../../engine/types';
 import { days, money, num, pct } from '../lib/format';
 import { Badge, Button, Card, Field, Kv, Progress, SectionTitle, cx, inputClass } from '../components/ui';
@@ -302,7 +302,7 @@ export function CreateGame({ ipId }: { ipId?: string }) {
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold">{def.name}</span>
-                          {locked ? <span className="flex items-center gap-1 text-[11px] text-warn"><Lock size={11} /> rep {def.minRep}</span> : on ? <Check size={15} className="text-accent" /> : null}
+                          {locked ? <span className="flex items-center gap-1 text-[11px] text-warn"><Lock size={11} /> {fmtFans(fansFromRep(def.minRep))} fans</span> : on ? <Check size={15} className="text-accent" /> : null}
                         </div>
                         <div className="mt-1 text-[11px] text-muted">{def.blurb}</div>
                         <div className="mt-1.5 flex flex-wrap gap-x-3 text-[11px] text-sub">
@@ -339,7 +339,7 @@ export function CreateGame({ ipId }: { ipId?: string }) {
                           {stats.royalty > 0 && <span>{pct(stats.royalty)} royalty</span>}
                         </div>
                         {lockedRes && !own && <div className="mt-1 text-[11px] text-warn">Requires {RESEARCH[def.research!].name}</div>}
-                        {lockedRep && <div className="mt-1 text-[11px] text-warn">Requires reputation {def.minRep}</div>}
+                        {lockedRep && <div className="mt-1 text-[11px] text-warn">Needs {fmtFans(fansFromRep(def.minRep))} fans</div>}
                       </Choice>
                     );
                   })}

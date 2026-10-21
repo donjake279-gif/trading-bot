@@ -6,7 +6,7 @@ import { pushDecision } from './events';
 import { addXp } from './progression';
 import { chance, pick, randInt } from './rng';
 import type { DecisionEvent, Game, World } from './types';
-import { clamp, gamesOf, newId, playerCompany, pushNews, spend, toast } from './util';
+import { bumpRep, clamp, fanChange, gamesOf, newId, playerCompany, pushNews, spend, toast } from './util';
 
 const CELEBRITIES = ['pop star Lyra Vance', 'actor Marcus Holt', 'chess champion Anya Petrova', 'astronaut Commander Reyes', 'rapper Lil Quasar', 'TV chef Bruno Castellano', 'skateboarder Kai Mendes'];
 const NPCS = ['Gary the Shopkeeper', 'Sir Reginald', 'Doug from Accounting', 'the Angry Goose', 'Captain Biscuit', 'Grandpa Tumbleweed', 'Steve the Slime'];
@@ -111,9 +111,9 @@ export function memesDaily(w: World): void {
     const g = pick(w, hits);
     const ip = w.ips[g.ipId];
     if (ip) ip.fans *= 1.1;
-    p.reputation = Math.min(100, p.reputation + 1);
+    const gained = bumpRep(p, 1);
     mark(w, 'cosplay');
-    toast(w, `A ${g.title} cosplay just won the world championship`, 'good', { category: 'game', link: { route: 'game', id: g.id }, body: 'Franchise fans +10%, reputation +1.' });
+    toast(w, `A ${g.title} cosplay just won the world championship`, 'good', { category: 'game', link: { route: 'game', id: g.id }, body: `Franchise fans +10%, studio ${gained}.` });
     return true;
   });
   if (hits.length && ready(w, 'mods')) options.push(() => {
@@ -155,7 +155,7 @@ export function memesDaily(w: World): void {
       body: 'The quote is everywhere. Your fans are furious, and the internet wants to see you respond.',
       options: [
         { id: 'clap', label: 'Clap back on social media', description: 'High risk, high reward. Could go viral, could backfire.' },
-        { id: 'high', label: 'Take the high road', description: 'Reputation +1. Classy.' },
+        { id: 'high', label: 'Take the high road', description: `${fanChange(p, 1)}. Classy.` },
         { id: 'ad', label: 'Turn it into an ad campaign', description: 'Spend on a cheeky campaign: hype for every game in development.' },
       ],
       data: { gameId: g.id, rivalId: rival.id, cost: Math.round(Math.max(10000, p.cash * 0.01) / 1000) * 1000 },
@@ -193,8 +193,7 @@ export function resolveMeme(w: World, ev: DecisionEvent, optionId: string): bool
           addXp(w, 40);
           toast(w, 'Your clap-back went viral. The internet picked your side.', 'good', { category: 'industry' });
         } else {
-          p.reputation = Math.max(0, p.reputation - 2);
-          toast(w, 'Your clap-back aged badly. Reputation -2.', 'bad', { category: 'industry' });
+          toast(w, `Your clap-back aged badly: ${bumpRep(p, -2)}.`, 'bad', { category: 'industry' });
         }
       } else if (optionId === 'ad') {
         spend(p, 'marketing', Number(ev.data.cost));

@@ -13,7 +13,7 @@ import { pushDecision } from './events';
 import { addXp } from './progression';
 import { chance, pick } from './rng';
 import type { ActionResult, Company, DecisionEvent, EngineArch, EngineId, EngineModuleId, EngineSource, Game, GenreId, ScopeId, StudioEngine, World } from './types';
-import { celebrate, clamp, earn, isPlayerGroup, playerCompany, pushNews, spend, toast } from './util';
+import { bumpRep, celebrate, clamp, earn, isPlayerGroup, playerCompany, pushNews, spend, toast } from './util';
 
 export const DEFAULT_ROYALTY = 0.05;
 /** Employees on the engine team carry this assignment. */
@@ -709,11 +709,11 @@ export function engineMonthly(w: World): void {
   // an ignored security hole can be exploited
   if (w.day < e.vulnUntil && chance(w, 0.15)) {
     e.vulnUntil = 0;
-    p.reputation = Math.max(0, p.reputation - 5);
+    const lost = bumpRep(p, -5);
     e.hype = Math.max(0, e.hype - 15);
     e.satisfaction = Math.max(0, e.satisfaction - 20);
     pushNews(w, { kind: 'industry', title: `Hackers exploit a hole in ${e.name}`, body: 'Games built on the engine were hit.', tone: 'bad' });
-    toast(w, `Hackers exploited the hole in ${e.name}`, 'bad', { category: 'studio', link: { route: 'engine' }, body: 'Reputation -5, licensees are angry.' });
+    toast(w, `Hackers exploited the hole in ${e.name}`, 'bad', { category: 'studio', link: { route: 'engine' }, body: `${lost}, licensees are angry.` });
     elog(e, w, 'The unpatched vulnerability was exploited.', 'bad');
   }
   engineEvents(w, e, lic);

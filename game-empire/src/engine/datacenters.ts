@@ -21,7 +21,7 @@ import { hasResearch } from './development';
 import { addXp } from './progression';
 import { chance, pick, randInt } from './rng';
 import type { ActionResult, DataCenter, DcUpgradeId, RegionId, ServerModelId, World } from './types';
-import { newId, playerCompany, pushNews, pushPoint, spend, toast } from './util';
+import { needFans, newId, playerCompany, pushNews, pushPoint, spend, toast } from './util';
 
 export const MAX_DATA_CENTERS = 12;
 
@@ -131,7 +131,7 @@ export function buildingBlocker(w: World, building: number): string | null {
   if (!def) return 'Unknown building.';
   const p = playerCompany(w);
   if ((w.player.infra.dataCenters ?? []).length >= MAX_DATA_CENTERS) return `You can run at most ${MAX_DATA_CENTERS} data centers.`;
-  if (p.reputation < def.minRep) return `Needs reputation ${def.minRep}.`;
+  if (p.reputation < def.minRep) return needFans(def.minRep);
   if (p.cash < def.cost) return `Costs $${def.cost.toLocaleString()}.`;
   return null;
 }
@@ -190,7 +190,7 @@ export function expandBlocker(w: World, dc: DataCenter): string | null {
   if (!next) return 'Already the biggest building there is.';
   if (!dcReady(w, dc)) return 'Still under construction.';
   if (dc.expandTo !== null) return 'Already expanding.';
-  if (playerCompany(w).reputation < next.minRep) return `Needs reputation ${next.minRep}.`;
+  if (playerCompany(w).reputation < next.minRep) return needFans(next.minRep);
   if (playerCompany(w).cash < expandCost(dc)) return `Costs $${expandCost(dc).toLocaleString()}.`;
   return null;
 }
@@ -233,7 +233,7 @@ export function serverBlocker(w: World, dc: DataCenter, model: ServerModelId, n 
   const def = SERVER_MODELS[model];
   const p = playerCompany(w);
   if (!dcReady(w, dc)) return 'Still under construction.';
-  if (p.reputation < def.minRep) return `Needs reputation ${def.minRep}.`;
+  if (p.reputation < def.minRep) return needFans(def.minRep);
   if (def.research && !hasResearch(w, def.research)) return `Needs ${RESEARCH[def.research].name} research.`;
   if (dcUsedSlots(dc) + def.slots * n > dcSlots(dc)) return 'No rack space left. Expand floor space or the building.';
   if (dcPowerDraw(dc) + def.power * n > dcPowerCap(dc) + 1e-9) return 'Not enough power. Upgrade the power supply.';

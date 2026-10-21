@@ -10,7 +10,7 @@ import { pushDecision } from './events';
 import { crashWorld } from './universes';
 import { loseOrbitalAsset } from './space';
 import type { DecisionEvent, Emergency, EmergencyKind, ExecRole, ScarKey, World } from './types';
-import { celebrate, clamp, newId, playerCompany, pushNews, spend, toast } from './util';
+import { bumpRep, celebrate, clamp, newId, playerCompany, pushNews, spend, toast } from './util';
 import { chance, pick, randRange } from './rng';
 
 interface EmergencyDef {
@@ -71,9 +71,9 @@ export const EMERGENCIES: Record<EmergencyKind, EmergencyDef> = {
       const p = playerCompany(w);
       const fine = Math.min(Math.max(0, p.cash) * 0.3, p.valuation * 0.02);
       spend(p, 'warfare', fine);
-      p.reputation = Math.max(0, p.reputation - 12);
+      const lost = bumpRep(p, -12);
       addScar(w, 'The breach of the century', 'ecoGrowth', -0.4, 730);
-      return `Record fines of ${fmtMoney(fine)} and reputation -12.`;
+      return `Record fines of ${fmtMoney(fine)} and ${lost}.`;
     },
   },
   whistleblower: {
@@ -94,11 +94,11 @@ export const EMERGENCIES: Record<EmergencyKind, EmergencyDef> = {
     disaster: (w) => {
       const p = playerCompany(w);
       p.boardConfidence = Math.max(0, p.boardConfidence - 25);
-      p.reputation = Math.max(0, p.reputation - 10);
+      const lost = bumpRep(p, -10);
       const d = w.player.dominion;
       const e = d.execs.slice().sort((a, b) => a.loyalty - b.loyalty)[0];
       if (e) d.execs = d.execs.filter((x) => x.id !== e.id);
-      return `Board confidence -25, reputation -10${e ? `, and ${e.name} is gone` : ''}.`;
+      return `Board confidence -25, ${lost}${e ? `, and ${e.name} is gone` : ''}.`;
     },
   },
   breakup: {
@@ -183,8 +183,7 @@ export const EMERGENCIES: Record<EmergencyKind, EmergencyDef> = {
       const p = playerCompany(w);
       addScar(w, 'AI lab shut down by regulators', 'aiRevenue', -1, 180);
       if (w.player.ventures.ai) w.player.ventures.ai.training = null;
-      p.reputation = Math.max(0, p.reputation - 15);
-      return 'Regulators shut your AI lab for six months. Reputation -15.';
+      return `Regulators shut your AI lab for six months. ${bumpRep(p, -15)}.`;
     },
   },
   worldCrash: {
@@ -247,8 +246,7 @@ export const EMERGENCIES: Record<EmergencyKind, EmergencyDef> = {
     disaster: (w) => {
       const c = biggestCity(w);
       if (c) c.troubleUntil = w.day + 180;
-      playerCompany(w).reputation = Math.max(0, playerCompany(w).reputation - 8);
-      return `${c?.name ?? 'Your city'} is ungovernable for six months. Reputation -8.`;
+      return `${c?.name ?? 'Your city'} is ungovernable for six months. ${bumpRep(playerCompany(w), -8)}.`;
     },
   },
   boycott: {
@@ -364,16 +362,15 @@ function endEmergency(w: World, e: Emergency, outcome: 'contained' | 'disaster')
   if (d.emergencyHistory.length > 20) d.emergencyHistory.length = 20;
   if (outcome === 'disaster') {
     d.stats.disasters += 1;
-    const what = def.disaster(w);
-    p.reputation = Math.max(0, p.reputation - 4);
+    const what = `${def.disaster(w)} The fallout costs another ${bumpRep(p, -4).slice(1)}.`;
     toast(w, `DISASTER: ${def.title}`, 'bad', { category: 'studio', link: { route: 'dominion', id: 'emergencies' }, body: what });
     pushNews(w, { kind: 'player', title: `${def.title} becomes a disaster for ${p.name}`, body: what, companyId: p.id, tone: 'bad' });
     dlog(w, `${def.emoji} ${def.title} became a disaster. ${what}`, 'bad');
   } else {
-    p.reputation = Math.min(100, p.reputation + 3);
+    const gained = bumpRep(p, 3);
     addScar(w, `Trusted in a crisis (${def.title})`, 'revenue', 0.02, 365);
     celebrate(w, `${def.title} contained`, false);
-    toast(w, `${def.title} contained`, 'good', { category: 'studio', link: { route: 'dominion', id: 'emergencies' }, body: 'Reputation +3 and +2% income for a year: the world saw you handle it.' });
+    toast(w, `${def.title} contained`, 'good', { category: 'studio', link: { route: 'dominion', id: 'emergencies' }, body: `${gained} and +2% income for a year: the world saw you handle it.` });
     dlog(w, `${def.emoji} ${def.title} contained.`, 'good');
   }
   scheduleNext(w);

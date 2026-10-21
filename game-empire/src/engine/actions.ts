@@ -37,7 +37,7 @@ import { makeEmployee, recruitFee, refreshCandidates } from './staff';
 import { perkRank } from './progression';
 import { acquireCompany, acquisitionPrice, buyShares, floatShares, ipoCompany, marketCap, sellShares } from './stocks';
 import type { ActionResult, CampaignId, Company, Focus, Game, LiveOpsSettings, MonetizationId, PlatformId, QueuedUpdate, ResearchId, StrategyId, UpdateTypeId, World } from './types';
-import { addGame, clamp, newId, playerCompany, pushNews, toast } from './util';
+import { addGame, clamp, fansFromRep, fmtFans, needFans, newId, playerCompany, pushNews, toast } from './util';
 
 const ok = (id?: string): ActionResult => ({ ok: true, id });
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -55,10 +55,10 @@ export function validateGameParams(w: World, p: GameParams): string | null {
   if (!p.title.trim()) return 'Give your game a title.';
   if (p.platforms.length === 0) return 'Pick at least one platform.';
   for (const pl of p.platforms) {
-    if (c.reputation < PLATFORMS[pl].minRep) return `${PLATFORMS[pl].name} requires reputation ${PLATFORMS[pl].minRep}.`;
+    if (c.reputation < PLATFORMS[pl].minRep) return `${PLATFORMS[pl].name} needs ${fmtFans(fansFromRep(PLATFORMS[pl].minRep))} fans.`;
   }
   const eng = ENGINES[p.engine];
-  if (c.reputation < eng.minRep) return `${eng.name} requires reputation ${eng.minRep}.`;
+  if (c.reputation < eng.minRep) return `${eng.name} needs ${fmtFans(fansFromRep(eng.minRep))} fans.`;
   if (eng.research && !hasResearch(w, eng.research) && p.engine !== 'inhouse') return `${eng.name} requires ${RESEARCH[eng.research].name} research.`;
   if (MONETIZATIONS[p.monetization].upfront && !(p.price > 0)) return 'Set a price.';
   if (p.engine === 'inhouse' && !w.player.engine) return 'Found your engine first (Engine screen).';
@@ -363,7 +363,7 @@ export function startResearch(w: World, id: ResearchId): ActionResult {
   const def = RESEARCH[id];
   if (def.requires.some((q) => !r.completed.includes(q))) return fail(`Requires ${def.requires.map((q) => RESEARCH[q].name).join(', ')}.`);
   const c = playerCompany(w);
-  if (c.reputation < def.minRep) return fail(`Requires reputation ${def.minRep}.`);
+  if (c.reputation < def.minRep) return fail(needFans(def.minRep));
   if (c.cash < def.cost) return fail('Not enough cash.');
   c.cash -= def.cost;
   c.ledger.research += def.cost;
@@ -412,7 +412,7 @@ export function fundingBlocker(w: World): string | null {
   if (w.day - w.player.lastFundingDay < 120) return `Investors want to see progress first (${120 - (w.day - w.player.lastFundingDay)} days).`;
   if (w.player.stats.gamesReleased < round.minGames) return `Release at least ${round.minGames} game${round.minGames > 1 ? 's' : ''}.`;
   if (revenueTTM(c) < round.minRevenue) return `Needs $${round.minRevenue.toLocaleString()} trailing-12-month revenue.`;
-  if (c.reputation < round.minRep) return `Needs reputation ${round.minRep}.`;
+  if (c.reputation < round.minRep) return needFans(round.minRep);
   return null;
 }
 
@@ -460,7 +460,7 @@ export function ipoBlocker(w: World): string | null {
   if (c.isPublic) return 'Already public.';
   if (c.valuation < 50e6) return 'Needs a $50M valuation.';
   if (revenueTTM(c) < 10e6) return 'Needs $10M trailing revenue.';
-  if (c.reputation < 35) return 'Needs reputation 35.';
+  if (c.reputation < 35) return needFans(35);
   if (w.player.stats.gamesReleased < 3) return 'Needs at least 3 released games.';
   return null;
 }

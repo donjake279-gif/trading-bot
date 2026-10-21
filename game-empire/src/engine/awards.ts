@@ -3,14 +3,14 @@
 // votes, you can predict Game of the Year and book a world-premiere slot for
 // an upcoming game; then the ceremony crowns winners in 14 categories,
 // including Studio of the Year and the infamous Golden Glitch. Winning sends
-// sales and reputation through the roof.
+// sales and fans through the roof.
 import { SCOPE_IDS } from './constants';
 import { bugDensity } from './development';
 import { addXp } from './progression';
 import { chance, pick, randNormal } from './rng';
 import { comboGrade } from './topics';
 import type { ActionResult, AwardCategory, AwardCategoryId, AwardNominee, AwardSeason, Company, Game, World } from './types';
-import { celebrate, clamp, dayToDate, gamesOf, playerCompany, pushNews, spend, toast } from './util';
+import { celebrate, clamp, dayToDate, fanChange, gamesOf, playerCompany, pushNews, spend, toast } from './util';
 
 export const NOMINATIONS_DATE: [number, number] = [10, 18]; // Nov 18
 export const CEREMONY_DATE: [number, number] = [11, 12]; // Dec 12
@@ -198,7 +198,7 @@ export function announceNominations(w: World): void {
   } else {
     toast(w, 'The Game Awards nominations are out', 'neutral', { category: 'industry', link: { route: 'awards' }, body: 'Pick your Game of the Year to win XP. Next year, it could be you.' });
   }
-  if (season.presenter) toast(w, "You've been invited to present an award on stage", 'good', { category: 'industry', link: { route: 'awards' }, body: 'A great look for your studio: +2 reputation on the night.' });
+  if (season.presenter) toast(w, "You've been invited to present an award on stage", 'good', { category: 'industry', link: { route: 'awards' }, body: `A great look for your studio: ${fanChange(playerCompany(w), 2)} on the night.` });
 }
 
 function nextCeremony(day: number): number {

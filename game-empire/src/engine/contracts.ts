@@ -1,12 +1,12 @@
 // Work-for-hire contracts: steady income between your own projects.
-// Finish before the deadline for full pay and a reputation bump; deliver late
+// Finish before the deadline for full pay and new fans; deliver late
 // for half pay; blow past the deadline by a month and the client walks away.
 import { CONTRACT_KINDS, CONTRACT_RATE, ROLES, focus } from './constants';
 import { memberOutput, playerSpeedMods, teamFactors } from './development';
 import { addXp, perkRank } from './progression';
 import { pick, randInt, randRange } from './rng';
 import type { ActionResult, Contract, ContractOffer, Employee, World } from './types';
-import { activeCompanies, earn, newId, playerCompany, toast } from './util';
+import { activeCompanies, bumpRep, earn, newId, playerCompany, toast } from './util';
 
 export const MAX_CONTRACTS = 3;
 const FLAT = focus(1, 1, 1, 1, 1, 1);
@@ -91,11 +91,11 @@ function finish(w: World, c: Contract, how: 'done' | 'late' | 'failed' | 'abando
       link: { route: 'projects' },
     });
   } else {
-    p.reputation = Math.max(0, p.reputation - (how === 'failed' ? 4 : 3));
+    const lost = bumpRep(p, how === 'failed' ? -4 : -3);
     toast(w, how === 'failed' ? `${c.client} cancelled your contract for missing the deadline` : `You walked away from the ${c.client} contract`, 'bad', {
       category: 'studio',
       link: { route: 'projects' },
-      body: 'Reputation took a hit.',
+      body: `${lost}.`,
     });
   }
 }

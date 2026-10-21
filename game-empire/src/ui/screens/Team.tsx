@@ -171,7 +171,7 @@ export function Team() {
 
       <Card
         title="Hiring"
-        subtitle={`New candidates every 4 weeks (next in ${nextRefresh} days). Better reputation attracts better people.${w.day < w.market.talentSurgeUntil ? ' A studio collapse has flooded the market with talent!' : ''}`}
+        subtitle={`New candidates every 4 weeks (next in ${nextRefresh} days). More fans attract better people.${w.day < w.market.talentSurgeUntil ? ' A studio collapse has flooded the market with talent!' : ''}`}
         actions={
           <Button size="sm" onClick={() => act((world) => paidRefresh(world), 'New candidates found')}>
             <RefreshCw size={13} /> Headhunter ({money(recruiterCost(w))})

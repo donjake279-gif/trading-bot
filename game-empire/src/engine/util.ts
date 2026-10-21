@@ -12,6 +12,53 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+// ------------------------------------------------------------ fans
+// A studio's standing (the 0..100 `reputation` field the simulation runs on)
+// is shown to the player as a fan count: 0 fans for a brand-new studio up to
+// 10 billion at the very top. Every point of standing is about 17% more fans.
+
+export const MAX_FANS = 1e10;
+
+export function fansFromRep(rep: number): number {
+  return Math.max(0, Math.round(Math.pow(10, 3 + 0.07 * clamp(rep, 0, 100)) - 1000));
+}
+
+export function repForFans(fans: number): number {
+  return clamp((Math.log10(Math.max(0, fans) + 1000) - 3) / 0.07, 0, 100);
+}
+
+export function fansOf(c: Pick<Company, 'reputation'>): number {
+  return fansFromRep(c.reputation);
+}
+
+/** 1,234 · 56K · 7.8M · 9.1B */
+export function fmtFans(n: number): string {
+  const a = Math.abs(n);
+  if (a >= 1e9) return `${(n / 1e9).toFixed(a >= 1e10 ? 0 : 1)}B`;
+  if (a >= 1e6) return `${(n / 1e6).toFixed(a >= 1e8 ? 0 : 1)}M`;
+  if (a >= 1e4) return `${Math.round(n / 1e3)}K`;
+  return Math.round(n).toLocaleString('en-US');
+}
+
+/** "Needs 1.2M fans." for a standing requirement. */
+export function needFans(rep: number): string {
+  return `Needs ${fmtFans(fansFromRep(rep))} fans.`;
+}
+
+/** What a change in standing would mean in fans right now: "+1.2M fans" or "-340K fans". */
+export function fanChange(c: Pick<Company, 'reputation'>, delta: number): string {
+  const d = fansFromRep(c.reputation + delta) - fansOf(c);
+  return `${d >= 0 ? '+' : '-'}${fmtFans(Math.abs(d))} fans`;
+}
+
+/** Change a studio's standing and say what it did in fans. */
+export function bumpRep(c: Pick<Company, 'reputation'>, delta: number): string {
+  const before = fansOf(c);
+  c.reputation = clamp(c.reputation + delta, 0, 100);
+  const d = fansOf(c) - before;
+  return `${d >= 0 ? '+' : '-'}${fmtFans(Math.abs(d))} fans`;
+}
+
 export function dayToDate(day: number): Date {
   return new Date(EPOCH + day * DAY_MS);
 }

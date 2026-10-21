@@ -6,7 +6,7 @@ import { OBJECTIVE_LIFETIME, objectiveProgress, perkRank, rerollObjective, spend
 import { bookExpo } from '../../engine/business';
 import { EXPO_DATE, parts, upcomingEvents } from '../../engine/calendar';
 import type { Objective, World } from '../../engine/types';
-import { playerCompany } from '../../engine/util';
+import { fansFromRep, fmtFans, playerCompany } from '../../engine/util';
 import { date, money, num } from '../lib/format';
 import { Badge, Button, Card, Progress, SectionTitle, cx } from '../components/ui';
 
@@ -201,7 +201,7 @@ export function Goals() {
               );
             })}
           </div>
-          <div className="mt-3 text-xs text-muted">Live games also get a two-week visibility boost from the show. Your reputation increases the hype you get.</div>
+          <div className="mt-3 text-xs text-muted">Live games also get a two-week visibility boost from the show. More fans means more hype.</div>
         </Card>
         <Card title="Industry calendar" subtitle="Plan launches around the big moments of the year.">
           <ul className="space-y-2.5">
@@ -256,7 +256,7 @@ function Convention() {
                   {conventionName(w, tier)}
                 </div>
                 <div className="mt-1 text-xs text-muted">
-                  ×{c.scale} scale · reputation {c.minRep}+
+                  ×{c.scale} scale · {fmtFans(fansFromRep(c.minRep))}+ fans
                 </div>
                 <Button size="sm" className="mt-2 w-full" variant={blocker ? 'secondary' : 'primary'} disabled={!!blocker} title={blocker ?? undefined} onClick={() => act((world) => hostConvention(world, tier))}>
                   {blocker && !blocker.startsWith('Costs') ? blocker : `Host · ${money(c.cost)}`}
@@ -266,7 +266,7 @@ function Convention() {
           })}
         </div>
       )}
-      {p.reputation < CONVENTIONS[0].minRep && <div className="mt-2 text-xs text-muted">Grow your reputation to start hosting events.</div>}
+      {p.reputation < CONVENTIONS[0].minRep && <div className="mt-2 text-xs text-muted">Grow your fanbase to start hosting events.</div>}
     </Card>
   );
 }

@@ -79,7 +79,7 @@ export function upcomingEvents(day: number, count = 4): CalendarEvent[] {
     { name: 'Holiday Sale', day: nextOccurrence(day, HOLIDAY_SALE.start), kind: 'sale', detail: 'The biggest sale of the year.' },
     { name: 'Global Game Jam', day: nextOccurrence(day, [6, 20]), kind: 'season', detail: 'One weekend, one theme, one tiny game. Great for your combo book.' },
     { name: 'Game Awards nominations', day: nextOccurrence(day, NOMINATIONS_DAY), kind: 'awards', detail: 'Games released in the last year compete in 14 categories.' },
-    { name: 'The Game Awards', day: nextOccurrence(day, AWARDS_DATE), kind: 'awards', detail: 'The biggest night in games. Winners get a huge boost in players and reputation.' },
+    { name: 'The Game Awards', day: nextOccurrence(day, AWARDS_DATE), kind: 'awards', detail: 'The biggest night in games. Winners get a huge boost in players and fans.' },
   ];
   const now = saleActive(day);
   if (now) events.push({ name: now === 'summer' ? 'Summer Sale (on now)' : 'Holiday Sale (on now)', day, kind: 'sale', detail: 'Put your premium games on sale to cash in.' });

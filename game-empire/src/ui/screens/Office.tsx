@@ -3,7 +3,7 @@ import { useGameStore, useWorld } from '../../store/gameStore';
 import { FACILITIES, FACILITY_IDS, OFFICES, RESEARCH, RESEARCH_IDS } from '../../engine/constants';
 import { buildFacility, closeFacility, facilityUpkeep, hasFacility } from '../../engine/fun';
 import { moveOffice, startResearch } from '../../engine/actions';
-import { playerCompany } from '../../engine/util';
+import { fansFromRep, fmtFans, playerCompany } from '../../engine/util';
 import { money } from '../lib/format';
 import { Badge, Button, Card, ConfirmButton, Progress, SectionTitle, cx } from '../components/ui';
 
@@ -85,7 +85,7 @@ export function Office() {
                 <div className="mt-2 flex flex-wrap gap-x-3 text-[11px] text-muted">
                   <span>{money(def.cost)}</span>
                   <span>{def.days} days</span>
-                  {def.minRep > 0 && <span className={repLocked ? 'text-warn' : ''}>rep {def.minRep}</span>}
+                  {def.minRep > 0 && <span className={repLocked ? 'text-warn' : ''}>{fmtFans(fansFromRep(def.minRep))} fans</span>}
                 </div>
                 {missing.length > 0 && <div className="mt-1 text-[11px] text-warn">Requires {missing.map((q) => RESEARCH[q].name).join(', ')}</div>}
                 {!done && !active && (
