@@ -81,7 +81,9 @@ export function statusLabel(g: Game): string {
     case 'development':
       return g.workDone >= g.workRequired ? 'Polishing' : 'In development';
     case 'released':
-      return g.update ? `Live ${versionLabel(g)} · updating${g.updateQueue.length ? ` (+${g.updateQueue.length})` : ''}` : `Live ${versionLabel(g)}`;
+      if (g.update) return `Live ${versionLabel(g)} · updating`;
+      if (g.patchPlan?.backlog.length) return `Live ${versionLabel(g)} · ${g.patchPlan.backlog.length} change${g.patchPlan.backlog.length === 1 ? '' : 's'} in the works`;
+      return `Live ${versionLabel(g)}`;
     case 'shutdown':
       return 'Servers offline';
     case 'retired':

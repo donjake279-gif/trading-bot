@@ -1,10 +1,9 @@
 // Player conveniences that run every day: auto live-ops for games the player
 // opted in, and idle developers joining projects on their own.
-import { struggling } from './hr';
 import { contractDailyWork } from './contracts';
 import { MONETIZATIONS, PLATFORMS, ROLES, SCOPES, platformAffinity } from './constants';
 import { bugDensity } from './development';
-import { CREW_OUTPUT, CREW_WORK_COST, startUpdateRecord, updateCost, updateFatigue, updateWork } from './updates';
+import { CREW_OUTPUT, CREW_WORK_COST, updateFatigue, updateWork } from './updates';
 import type { Employee, Game, PlatformId, UpdateTypeId, World } from './types';
 import { gamesOf, playerCompany } from './util';
 
@@ -82,12 +81,12 @@ export function updateValue(g: Game, type: UpdateTypeId): number {
 }
 
 /** How long a live-ops crew should take for each kind of update. */
-export const CREW_TARGET_DAYS: Record<UpdateTypeId, number> = { hotfix: 5, balance: 10, content: 30, seasonal: 20, expansion: 60, monetization: 14, port: 40 };
+export const CREW_TARGET_DAYS: Record<UpdateTypeId, number> = { hotfix: 5, performance: 10, balance: 10, qol: 10, content: 30, seasonal: 20, cosmetics: 12, expansion: 60, monetization: 14, port: 40 };
 
 /** Contractors needed so the update ships on schedule next to your own people. */
-export function crewFor(w: World, g: Game, pick: AutoPick, ownPeople: number): { crew: number; cost: number } {
+export function crewFor(w: World, g: Game, pick: AutoPick, ownPeople: number, targetDays?: number): { crew: number; cost: number } {
   const work = updateWork(w, g, pick.type, true, pick.platform);
-  const days = CREW_TARGET_DAYS[pick.type];
+  const days = Math.max(2, targetDays ?? CREW_TARGET_DAYS[pick.type]);
   const crew = Math.max(0, Math.ceil(work / days / CREW_OUTPUT - ownPeople));
   // contractors are paid for the share of the work they do
   const share = crew / Math.max(1, crew + ownPeople);
@@ -95,7 +94,7 @@ export function crewFor(w: World, g: Game, pick: AutoPick, ownPeople: number): {
 }
 
 /** Idle developers first, then borrow a few from the biggest projects. */
-function recruitTeam(w: World, size: number): Employee[] {
+export function recruitTeam(w: World, size: number): Employee[] {
   const all = developers(w);
   const team = all.filter((e) => !e.assignment).slice(0, size);
   if (team.length >= size) return team;
@@ -122,31 +121,7 @@ export function playerAutomation(w: World): void {
   if (!p || p.status !== 'active') return;
   const games = gamesOf(w, p.id);
 
-  const useCrew = w.player.liveOps?.crew ?? true;
-  const tight = struggling(w);
-  for (const g of games) {
-    if (g.status !== 'released' || g.update || g.updateQueue.length > 0 || !isAutoUpdated(w, g)) continue;
-    const pick = pickAutoUpdate(w, g);
-    if (!pick) continue;
-    const base = updateCost(g, pick.type, pick.platform);
-    // with a crew, only idle developers help; without one, borrow from projects
-    // while the studio is struggling only patches ship, and only with your own free developers
-    if (tight && pick.type !== 'hotfix') continue;
-    const hire = useCrew && !tight;
-    const team = hire || tight ? developers(w).filter((e) => !e.assignment).slice(0, liveOpsTeamSize(g)) : recruitTeam(w, liveOpsTeamSize(g));
-    const { crew, cost: crewCost } = hire ? crewFor(w, g, pick, team.length) : { crew: 0, cost: 0 };
-    if (p.cash < (base + crewCost) * 3) continue;
-    // every update has to be worth what it costs (patches 1×, everything else 2×)
-    if (updateValue(g, pick.type) < (pick.type === 'hotfix' ? 1 : 2) * (base + crewCost)) continue;
-    if (team.length === 0 && crew === 0) continue;
-    for (const e of team) e.assignment = g.id;
-    startUpdateRecord(w, g, p, pick.type, team.map((e) => e.id), crew, { platform: pick.platform });
-    if (crewCost > 0) {
-      p.cash -= crewCost;
-      p.ledger.development += crewCost;
-      g.update!.cost += crewCost;
-    }
-  }
+  // live games are patched by the patch pipeline (patches.ts)
 
   if (!w.player.autoAssign) return;
   let idle = developers(w).filter((e) => !e.assignment);
@@ -160,7 +135,7 @@ export function playerAutomation(w: World): void {
     }
   }
   const projects = games.filter((g) => g.status === 'development');
-  const updating = games.filter((g) => g.status === 'released' && g.update);
+  const updating = games.filter((g) => g.status === 'released' && g.patchPlan?.backlog.some((i) => i.done < i.work));
   const size = new Map<string, number>();
   for (const e of developers(w)) if (e.assignment) size.set(e.assignment, (size.get(e.assignment) ?? 0) + 1);
   for (const e of idle) {

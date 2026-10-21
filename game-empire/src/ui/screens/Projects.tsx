@@ -10,9 +10,11 @@ import { date, days, money, num } from '../lib/format';
 import { statusLabel } from '../lib/selectors';
 import { setLiveOps } from '../../engine/actions';
 import { isAutoUpdated } from '../../engine/automation';
+import { CADENCES, WEEKDAY_NAMES, patchCalendar, scheduleDefaults, setScheduleDefaults, weekdayOf } from '../../engine/patches';
+import { scheduleLabel } from './LiveOps';
 import { contentLevelOf } from '../../engine/updates';
 import { Sparkline } from '../components/charts';
-import { Badge, Button, Card, ConfirmButton, Empty, LiveNumber, Progress, ScoreBadge, SectionTitle, Tabs, Td, Th, cx } from '../components/ui';
+import { Badge, Button, Card, ConfirmButton, Empty, LiveNumber, Progress, ScoreBadge, SectionTitle, Tabs, Td, Th, cx, inputClass } from '../components/ui';
 
 type Tab = 'dev' | 'live' | 'contracts' | 'all' | 'ips';
 
@@ -338,45 +340,49 @@ function OfferCard({ o, disabled }: { o: ContractOffer; disabled: boolean }) {
 function LiveOpsCard({ games }: { games: Game[] }) {
   const w = useWorld();
   const act = useGameStore((s) => s.act);
+  const navigate = useGameStore((s) => s.navigate);
   const lo = w.player.liveOps;
+  const d = scheduleDefaults(w);
   const auto = games.filter((g) => isAutoUpdated(w, g));
-  const updating = games.filter((g) => g.update);
-  const contractors = updating.reduce((s, g) => s + (g.update?.aiTeam ?? 0), 0);
+  const cal = patchCalendar(w).sort((a, b) => (a.plan.scheduled ? a.plan.nextDay : 1e9) - (b.plan.scheduled ? b.plan.nextDay : 1e9));
+  const working = cal.filter((x) => x.open > 0);
+  const contractors = cal.reduce((s, x) => s + x.plan.backlog.reduce((t, i) => t + (i.ready === null ? i.crew : 0), 0), 0);
   const avgSize = auto.length ? auto.reduce((s, g) => s + contentLevelOf(g), 0) / auto.length : 0;
+  const setD = (patch: Parameters<typeof setScheduleDefaults>[1]) => act((world) => setScheduleDefaults(world, patch));
   return (
     <Card
       title={
         <span className="flex items-center gap-2">
-          <RefreshCcw size={15} className="text-accent" /> Live-ops autopilot
+          <RefreshCcw size={15} className="text-accent" /> Live ops
         </span>
       }
-      subtitle="Your games keep growing on their own: content drops, events, expansions and ports to new platforms. Every content update makes a game bigger, so more players find it and fewer leave."
+      subtitle="Every live game has a backlog, a live team and a release schedule. Changes finished by patch day ship together as one patch; on-time patches build trust."
     >
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] [&>*]:min-w-0">
         <div className="grid gap-2 sm:grid-cols-2">
           <label htmlFor="liveops-auto" className={cx('flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5', lo.auto ? 'border-accent/60 bg-accent-soft/30' : 'border-line bg-surface-2')}>
             <input id="liveops-auto" type="checkbox" className="mt-1" checked={lo.auto} onChange={(e) => act((world) => setLiveOps(world, { auto: e.target.checked }))} />
             <span>
-              <span className="block text-sm font-medium">Auto-update every game</span>
-              <span className="block text-xs text-muted">Skips games that earn less than an update costs. You can still switch single games off.</span>
+              <span className="block text-sm font-medium">Live-ops leads plan every game</span>
+              <span className="block text-xs text-muted">Fixes, a small change every patch, content and events on a rhythm, expansions and ports. Skips games that earn less than a change costs.</span>
             </span>
           </label>
           <label htmlFor="liveops-crew" className={cx('flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5', lo.crew ? 'border-accent/60 bg-accent-soft/30' : 'border-line bg-surface-2')}>
             <input id="liveops-crew" type="checkbox" className="mt-1" checked={lo.crew} onChange={(e) => act((world) => setLiveOps(world, { crew: e.target.checked }))} />
             <span>
-              <span className="block text-sm font-medium">Hire a live-ops crew</span>
-              <span className="block text-xs text-muted">Contractors join each update so it ships on time (about a month for content) without pulling developers off new games.</span>
+              <span className="block text-sm font-medium">Hire contractors</span>
+              <span className="block text-xs text-muted">Contractors build planned changes on time (about a month for content) without pulling developers off new games.</span>
             </span>
           </label>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-lg bg-surface-2 p-2">
             <div className="text-lg font-semibold tabular">{auto.length}</div>
-            <div className="text-[11px] text-muted">auto-updated</div>
+            <div className="text-[11px] text-muted">auto-planned</div>
           </div>
           <div className="rounded-lg bg-surface-2 p-2">
-            <div className="text-lg font-semibold tabular">{updating.length}</div>
-            <div className="text-[11px] text-muted">updating now{contractors ? ` · ${num(contractors)} contractors` : ''}</div>
+            <div className="text-lg font-semibold tabular">{working.length}</div>
+            <div className="text-[11px] text-muted">with work in progress{contractors ? ` · ${num(contractors)} contractors` : ''}</div>
           </div>
           <div className="rounded-lg bg-surface-2 p-2">
             <div className="text-lg font-semibold tabular">{avgSize.toFixed(1)}</div>
@@ -384,6 +390,91 @@ function LiveOpsCard({ games }: { games: Game[] }) {
           </div>
         </div>
       </div>
+
+      <div className="mt-4 rounded-lg border border-line bg-surface-2 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-semibold">
+            <CalendarClock size={14} className="mr-1 inline text-accent" /> Studio patch schedule
+          </div>
+          <ConfirmButton variant="secondary" onConfirm={() => act((world) => setScheduleDefaults(world, {}, true), 'Every live game now follows the studio schedule')} confirmLabel="Apply to every live game?">
+            Apply to all live games
+          </ConfirmButton>
+        </div>
+        <p className="mt-0.5 text-[11px] text-muted">New games start on this schedule. Each game can have its own on its page.</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+          <span className="flex items-center gap-1">
+            <button onClick={() => setD({ scheduled: true })} className={cx('rounded-md border px-2 py-1', d.scheduled ? 'border-accent bg-accent-soft/50' : 'border-line text-muted')}>
+              Scheduled
+            </button>
+            <button onClick={() => setD({ scheduled: false })} className={cx('rounded-md border px-2 py-1', !d.scheduled ? 'border-accent bg-accent-soft/50' : 'border-line text-muted')}>
+              When ready
+            </button>
+          </span>
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted">Day</span>
+            <select className={cx(inputClass, 'h-7 w-auto px-2 text-xs')} value={d.weekday} onChange={(e) => setD({ weekday: Number(e.target.value) })}>
+              {[1, 2, 3, 4, 5, 6, 0].map((x) => (
+                <option key={x} value={x}>
+                  {WEEKDAY_NAMES[x]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted">Every</span>
+            <select className={cx(inputClass, 'h-7 w-auto px-2 text-xs')} value={d.everyWeeks} onChange={(e) => setD({ everyWeeks: Number(e.target.value) })}>
+              {CADENCES.map((n) => (
+                <option key={n} value={n}>
+                  {n === 1 ? 'week' : `${n} weeks`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted">Major update every</span>
+            <select className={cx(inputClass, 'h-7 w-auto px-2 text-xs')} value={d.majorEvery} onChange={(e) => setD({ majorEvery: Number(e.target.value) })}>
+              {[0, 2, 3, 4, 6].map((n) => (
+                <option key={n} value={n}>
+                  {n ? `${n} patches` : 'never'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input type="checkbox" checked={d.testServer} onChange={(e) => setD({ testServer: e.target.checked })} />
+            <span>Public test server</span>
+          </label>
+        </div>
+      </div>
+
+      {cal.length > 0 && (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-line-soft">
+                <Th>Game</Th>
+                <Th>Schedule</Th>
+                <Th>Next patch</Th>
+                <Th className="text-right">Backlog</Th>
+                <Th className="text-right">Team</Th>
+                <Th className="text-right">Streak</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-soft">
+              {cal.slice(0, 30).map(({ game: g, plan, team, ready, open }) => (
+                <tr key={g.id} onClick={() => navigate({ name: 'game', id: g.id })} className="cursor-pointer hover:bg-surface-2">
+                  <Td className="max-w-[220px] truncate font-medium">{g.title}</Td>
+                  <Td className="text-xs text-sub">{scheduleLabel(plan)}</Td>
+                  <Td className="text-xs text-sub">{plan.scheduled ? `${WEEKDAY_NAMES[weekdayOf(plan.nextDay)].slice(0, 3)} ${date(plan.nextDay)} (${Math.max(0, plan.nextDay - w.day)}d)` : '—'}</Td>
+                  <Td className="text-right tabular">{open ? `${ready}/${open} ready` : <span className="text-muted">empty</span>}</Td>
+                  <Td className="text-right tabular">{team}</Td>
+                  <Td className="text-right tabular">{plan.streak ? <span className="text-warn">{plan.streak}</span> : '—'}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }

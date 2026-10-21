@@ -43,17 +43,39 @@ ahead to the next thing that needs you (the ⏭ button does the same; press agai
   game ready to release, a big moment (confetti), a major headline, or 180 quiet days. It stops paused and tells
   you why. It runs in short slices, so the page stays smooth even on a huge late-game world.
 - **Less clicking.** Idle developers join the project that needs them most (toggle in Team). Put every idle
-  developer, or the whole studio, on a game with one click. Queue several updates to run back to back, or switch
-  on **auto-update** and the studio keeps a live game patched and fresh by itself.
-- **Run live games.** Watch live player counts, active players, sales, reviews and freshness. Ship hotfixes,
-  balance patches, content updates, seasonal events, paid expansions, monetization changes and platform ports.
-  You can also change prices, run sales, or shut servers down.
-- **Live-ops autopilot.** Every live game is auto-updated by default (Studio → Live). The autopilot picks the
-  freshest kind of update, ports hits to the big platforms they're missing, and skips games that earn less than an
-  update costs, and while the studio is short of money only patches ship. A contract live-ops crew joins each update so it ships on schedule (about a month for content, two
-  for an expansion) without pulling developers off new games. Content updates and expansions make a game
-  permanently bigger: its version climbs (v1.3, then v2.0 after an expansion) and each size level brings 2% more new
-  players and 1% less churn, up to level 30.
+  developer, or the whole studio, on a game with one click, and let live-ops leads plan your patches.
+- **Run live games.** Watch live player counts, active players, sales, reviews and freshness. Change prices, run
+  sales, or shut servers down.
+- **Patches and live ops.** Every live game has its own Live Ops panel:
+  - *A backlog of changes*: hotfixes, performance passes, balance patches, quality-of-life passes, content updates,
+    seasonal events, cosmetic packs, paid expansions, monetization changes and platform ports. Add several at once
+    (two balance patches and a content drop, say), reorder them, or remove them. Each one is paid for when work
+    on it starts.
+  - *Big bundled patches*: everything finished by patch day ships together as one patch with a version number
+    (v1.4.2 for fixes, v1.5 for content, v2.0 for an expansion), patch notes and one player reception. Patches with
+    several kinds of change go down better; repeating the same kind tires players.
+  - *A release schedule you choose*: every Tuesday, every other Friday, monthly... (any weekday, every 1, 2, 3, 4,
+    6 or 8 weeks), or "when ready" with a minimum bundle size. Shipping on schedule builds a streak: players trust
+    you, churn less and receive patches better. Patch days with nothing ready slip, break the streak and cost
+    goodwill. Critical bug fixes go out straight away as an off-schedule hotfix, and you can ship early at any time.
+  - *Major updates*: every Nth patch (you pick N) is a named major update with extra hype, and your live-ops lead
+    saves big content for it.
+  - *A public test server* (a week of public testing, about a third of the new bugs, better reception) and
+    *crunch before patch day* (35% faster for three days, at a cost in morale and bugs).
+  - *A live team*: developers work through the backlog in parallel, each on what their role is good at
+    (programmers on fixes and ports, artists on cosmetics and events, designers on balance and content, QA on
+    fixes and testing). Off-role work is 40% slower, and QA testers on the team keep new bugs out of each patch.
+    A dedicated team stays on the game between patches and tops itself up from idle developers. Everyone earns
+    live-ops experience from each patch: up to level 10, +3% patch output and better reception per level.
+  - *A live-ops lead* (on by default) plans the backlog: fixes when bugs pile up, enough small changes in the
+    pipeline that every patch day has something to ship, content and events on a rhythm, expansions for major
+    updates and ports for hits. It skips games that earn less than a change costs, and only fixes ship while the
+    studio is short of money. With contractors switched on, they build the lead's changes in time for the next
+    patch day (about a month for content) without pulling developers off new games.
+  - *Studio-wide*: Studio → Live sets the schedule new games start with, can apply it to every live game at once,
+    and shows a patch calendar of every live game (next patch day, backlog, team, streak).
+  Content updates and expansions make a game permanently bigger: each size level brings 2% more new players and
+  1% less churn, up to level 30.
 - **Build the company.** Hire from a rotating candidate pool, with skills, traits and salaries. Employees have
   morale and can quit. You can train them, give raises, or fire them. Move through seven office tiers and
   research 16 technologies, including your own licensable engine.
@@ -235,7 +257,8 @@ actions.
 | `ecosystem.ts`, `keynotes.ts` | Platform ecosystems; keynote planning, the live show and rival keynotes |
 | `universes.ts`, `space.ts`, `cities.ts` | Virtual worlds and their economies; the space economy; company cities |
 | `megaprojects.ts`, `emergencies.ts` | Civilisation-scale projects; empire emergencies and corp crises |
-| `automation.ts` | Live-ops autopilot (update picks, ports, contract crews) and auto-assigning idle developers |
+| `patches.ts` | The patch pipeline: backlogs, live teams, release schedules, bundled patches and notes, the live-ops lead |
+| `automation.ts` | Update value and contractor sizing, port picks, and auto-assigning idle developers |
 | `contracts.ts`, `business.ts` | Work-for-hire, policies, investments, publishing, licensing, GameExpo, sales |
 | `rivalry.ts`, `launch.ts`, `skip.ts` | Rival bosses (personas, quotes, clones, launch clashes, overtakes); first-week reports; skip to the next event |
 | `calendar.ts`, `opportunities.ts` | Weekly and seasonal rhythms; inbox opportunities and dilemmas |

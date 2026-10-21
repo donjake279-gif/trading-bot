@@ -65,7 +65,7 @@ export type StrategyId =
   | 'indieArtisan'
   | 'conglomerate'
   | 'trendChaser';
-export type UpdateTypeId = 'hotfix' | 'balance' | 'content' | 'seasonal' | 'expansion' | 'monetization' | 'port';
+export type UpdateTypeId = 'hotfix' | 'performance' | 'balance' | 'qol' | 'content' | 'seasonal' | 'cosmetics' | 'expansion' | 'monetization' | 'port';
 export type TraitId =
   | 'fastLearner'
   | 'perfectionist'
@@ -118,6 +118,8 @@ export interface Employee {
   assignment: string | null;
   isFounder: boolean;
   bio?: string;
+  /** Live-ops experience: patches shipped as part of a live team. */
+  liveXp?: number;
   /** Last day HR sent them on a training course. */
   trainedDay?: number;
   /** Skill gained at the last training. */
@@ -164,6 +166,72 @@ export interface UpdateRecord {
   type: UpdateTypeId;
   reception: number; // 0..100
   label: string;
+  /** A bundled patch: every change that shipped in it. */
+  items?: UpdateTypeId[];
+  /** Patch notes. */
+  notes?: string[];
+  major?: boolean;
+  /** Shipped on its scheduled patch day. */
+  onTime?: boolean;
+}
+
+/** One change waiting to ship in a patch: a fix, a content drop, an event, a port... */
+export interface PatchItem {
+  id: string;
+  type: UpdateTypeId;
+  platform?: PlatformId;
+  monetization?: MonetizationId;
+  work: number;
+  done: number;
+  /** Paid when work on it starts (its own cost plus any contractors). */
+  cost: number;
+  paid: boolean;
+  /** Contractors hired for this change. */
+  crew: number;
+  added: number;
+  /** Day it's finished and can ship (after public testing, if that's on). */
+  ready: number | null;
+  /** Added by your live-ops lead rather than by you. */
+  auto?: boolean;
+}
+
+/** How a live game gets patched: the backlog, the live team's size and the release schedule. */
+export interface PatchPlan {
+  backlog: PatchItem[];
+  /** Ship on a fixed schedule (e.g. every other Tuesday). Off: ship as soon as changes are ready. */
+  scheduled: boolean;
+  /** 0 = Sunday ... 6 = Saturday. */
+  weekday: number;
+  /** Weeks between patch days. */
+  everyWeeks: number;
+  /** Ship only when at least this many changes are ready. */
+  minItems: number;
+  /** Every Nth patch is a major update (0 = never): more hype, and your lead saves big content for it. */
+  majorEvery: number;
+  /** Finished changes spend a week on a public test server: fewer new bugs, better reception. */
+  testServer: boolean;
+  /** The live team crunches the three days before patch day. */
+  crunch: boolean;
+  /** Keep this many developers on the game between patches (0 = only while there's work). */
+  teamTarget: number;
+  nextDay: number;
+  /** Scheduled patches shipped on time in a row. */
+  streak: number;
+  bestStreak: number;
+  /** Patch days that slipped because nothing was ready. */
+  slipped: number;
+  patches: number;
+  /** Last day the live-ops lead planned the backlog. */
+  planDay: number;
+}
+
+export interface ScheduleDefaults {
+  scheduled: boolean;
+  weekday: number;
+  everyWeeks: number;
+  minItems: number;
+  majorEvery: number;
+  testServer: boolean;
 }
 
 export interface Game {
@@ -244,10 +312,13 @@ export interface Game {
   autoUpdates: boolean;
   /** Player switched auto updates off for this game even though they're on studio-wide. */
   manualUpdates?: boolean;
+  /** Player: the patch pipeline (backlog, schedule, live team size). */
+  patchPlan?: PatchPlan;
   /** How much the game has grown through updates: more players find it and fewer leave. */
   contentLevel?: number;
   verMajor?: number;
   verMinor?: number;
+  verPatch?: number;
   /** One of the player's first releases: gets newcomer buzz. */
   newcomer: boolean;
   /** Players are angry about a bad update until this day. */
@@ -603,6 +674,8 @@ export interface LiveOpsSettings {
   auto: boolean;
   /** Hire a contract crew so updates ship on time when developers are busy. */
   crew: boolean;
+  /** The release schedule new live games start with. */
+  defaults?: ScheduleDefaults;
 }
 
 export type HrSpending = 'careful' | 'balanced' | 'generous';

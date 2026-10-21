@@ -1,9 +1,10 @@
 // Persistent saves: IndexedDB for the world blob (large), localStorage for the
 // slot index (small, synchronous). Falls back to localStorage if IndexedDB is
 // unavailable. Saves can also be exported/imported as JSON files.
+import { makeItem, newPlan } from './patches';
 import { SERVER_MODEL_IDS } from './constants';
 import type { HrSettings, World } from './types';
-import { normalizeLedger, playerCompany } from './util';
+import { newId, normalizeLedger, playerCompany } from './util';
 import { SAVE_VERSION, playerExtras } from './world';
 import { CERTIFICATIONS } from './constants';
 import { migrateEngine } from './studioEngine';
@@ -137,6 +138,17 @@ function migrate(w: World): void {
   for (const id in w.games) {
     const g = w.games[id];
     g.updateQueue ??= [];
+    // single updates from before patches: carry them into the game's backlog
+    if (g.companyId === w.player.companyId && g.status === 'released' && (g.update || g.updateQueue.length)) {
+      const plan = (g.patchPlan ??= newPlan(w));
+      if (g.update) {
+        const u = g.update;
+        plan.backlog.push({ id: newId(w, 'pi'), type: u.type, platform: u.platform, monetization: u.monetization, work: u.workRequired, done: Math.min(u.workDone, u.workRequired), cost: u.cost, paid: true, crew: u.aiTeam, added: u.startDay, ready: null });
+        g.update = null;
+      }
+      for (const q of g.updateQueue) plan.backlog.push(makeItem(w, g, q));
+      g.updateQueue = [];
+    }
     g.autoUpdates ??= false;
     g.newcomer ??= false;
     g.backlashUntil ??= 0;

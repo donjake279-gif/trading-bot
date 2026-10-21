@@ -187,7 +187,7 @@ export function Dashboard() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{g.title}</div>
                     <div className="text-xs text-muted">
-                      {GENRES[g.genre].name} · {money(g.rev30)}/30d {g.update && <Badge tone="accent" className="ml-1">updating</Badge>}
+                      {GENRES[g.genre].name} · {money(g.rev30)}/30d {g.patchPlan?.backlog.some((i) => i.ready !== null && i.ready <= w.day) ? <Badge tone="good" className="ml-1">patch ready</Badge> : g.patchPlan?.backlog.length ? <Badge tone="accent" className="ml-1">patching</Badge> : null}
                     </div>
                   </div>
                   <div className="text-right">

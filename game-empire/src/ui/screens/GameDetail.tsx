@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Bug, Copy, Disc3, Flame, Megaphone, Power, Rocket, Sparkles, Tag, ThumbsDown, ThumbsUp, Trophy, Users, Wrench, X } from 'lucide-react';
+import { Bug, Copy, Disc3, Flame, Megaphone, Power, Rocket, Sparkles, Tag, ThumbsDown, ThumbsUp, Trophy, Users, X } from 'lucide-react';
 import { useGameStore, useWorld } from '../../store/gameStore';
 import {
   AUDIENCES,
@@ -9,26 +9,18 @@ import {
   FOCUS_LABELS,
   GENRES,
   MONETIZATIONS,
-  MONETIZATION_IDS,
   MULTIPLAYER,
   PLATFORMS,
-  PLATFORM_IDS,
   ROLES,
   SCOPES,
-  UPDATES,
-  UPDATE_IDS,
 } from '../../engine/constants';
 import {
   assignDevs,
   assignEmployee,
   campaignHype,
   cancelGame,
-  cancelUpdate,
-  queueUpdates,
   releasePlayerGame,
-  removeQueuedUpdate,
   runCampaign,
-  setAutoUpdates,
   setCrunch,
   setFocus,
   setPrice,
@@ -37,19 +29,18 @@ import {
 } from '../../engine/actions';
 import { bugDensity, hasResearch, playerDailyWork, qualityEstimate } from '../../engine/development';
 import { ratingOf } from '../../engine/market';
-import { CREW_OUTPUT, MAX_CONTENT_LEVEL, contentLevelOf, updateCost, updateFatigue, updateWork, versionLabel } from '../../engine/updates';
-import { isAutoUpdated } from '../../engine/automation';
 import { infraEffects, isOnline } from '../../engine/infra';
 import { certificationName, remasterBlocker, startRemaster } from '../../engine/fun';
 import { criticReviews, playerReviews, topicLabel } from '../../engine/reviews';
 import { engineDisplayName } from '../../engine/studioEngine';
 import { playerCompany, reviewLabel } from '../../engine/util';
-import type { Employee, Game, MonetizationId, PlatformId, UpdateTypeId } from '../../engine/types';
+import type { Game } from '../../engine/types';
 import { date, days, money, num, pct } from '../lib/format';
 import { statusLabel } from '../lib/selectors';
 import { TimeChart } from '../components/charts';
 import { Badge, Button, Card, ConfirmButton, Empty, Kv, LiveNumber, Modal, Progress, ScoreBadge, SectionTitle, Stat, Tabs, cx, inputClass } from '../components/ui';
 import { projectCoverage, rebalanceFocus } from './CreateGame';
+import { LiveOpsPanel, PatchHistory } from './LiveOps';
 
 export function GameDetail({ id }: { id: string }) {
   const w = useWorld();
@@ -462,13 +453,11 @@ function LiveView({ g }: { g: Game }) {
       <CriticsCard g={g} />
       <PlayerReviews g={g} />
 
+      {live && <LiveOpsPanel g={g} />}
       {live && (
         <div className="mt-4 grid gap-4 xl:grid-cols-3">
-          <UpdatePanel g={g} />
-          <div className="space-y-4">
-            <Pricing g={g} />
-            <Marketing g={g} />
-          </div>
+          <Pricing g={g} />
+          <Marketing g={g} />
           <Card title={`Top ${GENRES[g.genre].name} games`} subtitle="By players online right now" pad={false}>
             <div className="divide-y divide-line-soft">
               {rivals.slice(0, 8).map((x, i) => (
@@ -486,20 +475,7 @@ function LiveView({ g }: { g: Game }) {
         </div>
       )}
 
-      {g.updates.length > 0 && (
-        <Card className="mt-4" title="Update history" pad={false}>
-          <div className="divide-y divide-line-soft">
-            {[...g.updates].reverse().map((u, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2 text-sm">
-                <Wrench size={14} className="text-muted" />
-                <span className="flex-1">{u.label}</span>
-                <span className="text-xs text-muted">{date(u.day)}</span>
-                <ScoreBadge score={u.reception} label="Reception" />
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+      <PatchHistory g={g} />
 
     </div>
   );
@@ -603,185 +579,6 @@ function PlayerReviews({ g }: { g: Game }) {
           </div>
         ))}
       </div>
-    </Card>
-  );
-}
-
-type TeamMode = 'idle' | 'everyone' | 'pick';
-
-function UpdatePanel({ g }: { g: Game }) {
-  const w = useWorld();
-  const act = useGameStore((s) => s.act);
-  const c = playerCompany(w);
-  const devs = w.player.employees.filter((e) => ROLES[e.role].dev);
-  const idle = devs.filter((e) => !e.assignment || e.assignment === g.id);
-  const [basket, setBasket] = useState<UpdateTypeId[]>(['content']);
-  const [platform, setPlatform] = useState<PlatformId | ''>('');
-  const [mon, setMon] = useState<MonetizationId>(g.monetization);
-  const [mode, setMode] = useState<TeamMode>(idle.length > 0 ? 'idle' : 'everyone');
-  const [picked, setPicked] = useState<string[]>([]);
-  const running = g.update;
-  const onGame = w.player.employees.filter((e) => e.assignment === g.id);
-  const portOptions = PLATFORM_IDS.filter((p) => !g.platforms.includes(p));
-
-  const team = running ? onGame : mode === 'everyone' ? devs : mode === 'idle' ? idle : devs.filter((e) => picked.includes(e.id));
-  const daily = playerDailyWork(w, g, team);
-  const items = basket.map((t) => ({ type: t, platform: t === 'port' ? platform || undefined : undefined, monetization: t === 'monetization' ? mon : undefined }));
-  const cost = items.reduce((s, it) => s + updateCost(g, it.type, it.platform), 0);
-  const work = items.reduce((s, it) => s + updateWork(w, g, it.type, true, it.platform), 0);
-  const pulledFromProjects = !running && mode === 'everyone' && devs.some((e) => e.assignment && e.assignment !== g.id && w.games[e.assignment]?.status === 'development');
-  const toggle = (t: UpdateTypeId) => setBasket(basket.includes(t) ? basket.filter((x) => x !== t) : [...basket, t]);
-
-  const submit = () => {
-    const ids = running ? [] : team.map((e) => e.id);
-    const r = act((world) => queueUpdates(world, g.id, items, ids), running ? 'Added to the update queue' : `${items.length} update${items.length > 1 ? 's' : ''} started`);
-    if (r.ok) setBasket([]);
-  };
-
-  return (
-    <Card title="Updates" subtitle="Pick one or more updates. They run back to back with the same team.">
-      <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
-        <input id={`auto-${g.id}`} type="checkbox" className="mt-1" checked={isAutoUpdated(w, g)} onChange={(e) => act((world) => setAutoUpdates(world, g.id, e.target.checked))} />
-        <span>
-          <span className="block text-sm font-medium">Auto-update this game</span>
-          <span className="block text-xs text-muted">
-            Your live-ops team ships hotfixes, content, events, expansions and ports on its own{w.player.liveOps.crew ? ', with contractors when your developers are busy' : ', borrowing a few developers when needed'}.
-          </span>
-          <span className="mt-1 block text-xs text-sub">
-            {versionLabel(g)} · size level {contentLevelOf(g)}
-            {contentLevelOf(g) > 0 && ` · +${Math.round(contentLevelOf(g) * 2)}% new players, -${contentLevelOf(g)}% churn`}
-            {contentLevelOf(g) >= MAX_CONTENT_LEVEL && ' (max)'}
-          </span>
-        </span>
-      </label>
-
-      {running && (
-        <div className="mb-4 rounded-lg border border-accent/40 bg-accent-soft/30 p-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold">{UPDATES[running.type].name}</span>
-            <span className="tabular text-sub">{Math.round((running.workDone / running.workRequired) * 100)}%</span>
-          </div>
-          <Progress value={running.workDone} max={running.workRequired} className="mt-2" />
-          <div className="mt-2 text-xs text-muted">
-            {onGame.length} on the team{running.aiTeam ? ` + ${num(running.aiTeam)} contractors` : ''}
-            {daily + running.aiTeam * CREW_OUTPUT > 0 ? ` · about ${days(Math.max(0, running.workRequired - running.workDone) / (daily + running.aiTeam * CREW_OUTPUT))} left` : ' · stalled, nobody assigned'}
-          </div>
-          {g.updateQueue.length > 0 && (
-            <div className="mt-2 space-y-1">
-              <div className="text-[11px] uppercase tracking-wide text-muted">Up next</div>
-              {g.updateQueue.map((q, i) => (
-                <div key={i} className="flex items-center justify-between rounded-md bg-surface-2 px-2 py-1 text-xs">
-                  <span>
-                    {i + 1}. {UPDATES[q.type].name}
-                    {q.platform ? ` · ${PLATFORMS[q.platform].name}` : ''}
-                  </span>
-                  <button onClick={() => act((world) => removeQueuedUpdate(world, g.id, i))} className="text-muted hover:text-bad" aria-label="Remove from queue">
-                    <X size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => act((world) => assignDevs(world, g.id, 'idle'), 'Idle developers joined the update')}>
-              <Users size={13} /> Add idle devs
-            </Button>
-            <Button size="sm" onClick={() => act((world) => assignDevs(world, g.id, 'everyone'), 'The whole studio is on this update')}>
-              Whole studio
-            </Button>
-            <Button size="sm" variant="danger" onClick={() => act((world) => cancelUpdate(world, g.id))}>
-              Cancel all
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <div className="text-xs font-medium text-sub">{running ? 'Queue more updates' : 'Choose updates'}</div>
-      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-        {UPDATE_IDS.map((t) => {
-          const on = basket.includes(t);
-          const tired = updateFatigue(w, g, t);
-          return (
-            <button
-              key={t}
-              onClick={() => toggle(t)}
-              title={tired > 0 ? `Players are tired of these: -${tired} reception` : UPDATES[t].blurb}
-              className={cx('flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left', on ? 'border-accent bg-accent-soft/50' : 'border-line bg-surface-2 hover:border-sub')}
-            >
-              <span className={cx('flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px]', on ? 'border-accent bg-accent text-white' : 'border-line')}>{on ? basket.indexOf(t) + 1 : ''}</span>
-              <span className="flex-1 text-xs font-semibold">{UPDATES[t].name}</span>
-              {tired > 0 && <span className="text-[10px] font-medium text-warn">−{tired}</span>}
-            </button>
-          );
-        })}
-      </div>
-      {basket.length === 1 && <p className="mt-2 text-xs text-muted">{UPDATES[basket[0]].blurb}</p>}
-      {basket.includes('port') && (
-        <select id={`port-${g.id}`} className={cx(inputClass, 'mt-2')} value={platform} onChange={(e) => setPlatform(e.target.value as PlatformId)}>
-          <option value="">Port to which platform?</option>
-          {portOptions.map((p) => (
-            <option key={p} value={p} disabled={c.reputation < PLATFORMS[p].minRep}>
-              {PLATFORMS[p].name} {c.reputation < PLATFORMS[p].minRep ? `(rep ${PLATFORMS[p].minRep})` : ''}
-            </option>
-          ))}
-        </select>
-      )}
-      {basket.includes('monetization') && (
-        <select id={`mon-${g.id}`} className={cx(inputClass, 'mt-2')} value={mon} onChange={(e) => setMon(e.target.value as MonetizationId)}>
-          {MONETIZATION_IDS.map((m) => (
-            <option key={m} value={m}>
-              {m === g.monetization ? `${MONETIZATIONS[m].name} (keep: new battle pass season)` : MONETIZATIONS[m].name}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {!running && (
-        <>
-          <div className="mt-3 text-xs font-medium text-sub">Who works on it</div>
-          <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-lg border border-line bg-surface p-1">
-            {(
-              [
-                ['idle', `Idle (${idle.length})`],
-                ['everyone', `Everyone (${devs.length})`],
-                ['pick', 'Pick'],
-              ] as [TeamMode, string][]
-            ).map(([m, label]) => (
-              <button key={m} onClick={() => setMode(m)} className={cx('rounded-md px-2 py-1.5 text-xs font-medium', mode === m ? 'bg-surface-3 text-ink' : 'text-muted hover:text-ink')}>
-                {label}
-              </button>
-            ))}
-          </div>
-          {pulledFromProjects && <p className="mt-1.5 text-[11px] text-warn">Games in development pause while everyone works on the update.</p>}
-          {mode === 'pick' && (
-            <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
-              {devs.map((e: Employee) => {
-                const on = picked.includes(e.id);
-                const busy = e.assignment && e.assignment !== g.id ? w.games[e.assignment] : null;
-                return (
-                  <button key={e.id} onClick={() => setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])} className={cx('flex w-full items-center justify-between rounded-md border px-2 py-1 text-xs', on ? 'border-accent bg-accent-soft/40' : 'border-line bg-surface-2')}>
-                    <span>{e.name}</span>
-                    <span className="text-muted">
-                      {e.isFounder ? 'Founder' : ROLES[e.role].name} · {Math.round(e.skill)}
-                      {busy ? ` · on ${busy.title}` : ''}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-
-      <div className="mt-3 rounded-lg bg-surface-2 px-3 py-1.5">
-        <Kv k="Cost" v={money(cost)} tone={cost > c.cash ? 'bad' : undefined} />
-        <Kv k="Time" v={daily > 0 && basket.length ? days(work / daily) : '—'} />
-      </div>
-      <Button variant="primary" className="mt-3 w-full" disabled={basket.length === 0 || team.length === 0 || c.cash < cost || (basket.includes('port') && !platform)} onClick={submit}>
-        <Wrench size={14} />
-        {basket.length === 0 ? 'Pick an update' : running ? `Add ${basket.length} to queue` : basket.length > 1 ? `Start ${basket.length} updates` : 'Start update'}
-      </Button>
-      {!running && team.length === 0 && <p className="mt-2 text-xs text-warn">Nobody selected. Choose Everyone or hire developers.</p>}
     </Card>
   );
 }

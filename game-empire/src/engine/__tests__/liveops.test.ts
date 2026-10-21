@@ -64,11 +64,13 @@ describe('live ops', () => {
     expect(crew).toBeGreaterThan(10);
     expect(cost).toBeGreaterThan(0);
     advanceDay(w);
-    expect(g.update).not.toBeNull();
-    expect(g.update!.aiTeam).toBeGreaterThan(0);
-    const type = g.update!.type;
-    advanceDays(w, CREW_TARGET_DAYS[type] + 5);
-    expect(g.updates.some((u) => u.type === type)).toBe(true);
+    const plan = g.patchPlan!;
+    const big = plan.backlog.find((i) => i.type !== 'hotfix')!;
+    expect(big).toBeTruthy();
+    advanceDay(w);
+    expect(big.crew).toBeGreaterThan(0);
+    advanceDays(w, CREW_TARGET_DAYS[big.type] + 20);
+    expect(g.updates.some((u) => (u.items ?? [u.type]).includes(big.type))).toBe(true);
   });
 
   it('without a crew it waits for free developers', () => {
@@ -78,8 +80,10 @@ describe('live ops', () => {
     playerCompany(w).cash = 1e8;
     setLiveOps(w, { crew: false });
     for (const e of w.player.employees) e.assignment = 'busy-elsewhere';
-    advanceDay(w);
-    expect(g.update).toBeNull();
+    advanceDays(w, 3);
+    const plan = g.patchPlan!;
+    expect(plan.backlog.length).toBeGreaterThan(0);
+    expect(plan.backlog.every((i) => i.crew === 0 && i.done === 0)).toBe(true);
   });
 
   it('content makes games bigger, and expansions bump the version', () => {

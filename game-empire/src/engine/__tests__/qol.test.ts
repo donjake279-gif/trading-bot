@@ -5,6 +5,7 @@ import { createWorld } from '../world';
 import { advanceDay, advanceDays } from '../tick';
 import { assignDevs, createGame, hire, queueUpdates, releasePlayerGame, setAutoUpdates } from '../actions';
 import { resolveDecision } from '../events';
+import { setPatchPlan } from '../patches';
 import { deserializeWorld, serializeWorld } from '../save';
 import { focus } from '../constants';
 import type { World } from '../types';
@@ -30,17 +31,22 @@ describe('quality of life', () => {
     expect(w.player.autoAssign).toBe(true);
   });
 
-  it('runs queued updates back to back with the same team', () => {
+  it('bundles several changes into one patch', () => {
     const { w, gameId } = withLiveGame();
     const g = w.games[gameId];
+    g.bugs = 0;
+    setPatchPlan(w, gameId, { scheduled: true, weekday: 3, everyWeeks: 4 });
     const team = w.player.employees.map((e) => e.id);
     const r = queueUpdates(w, gameId, [{ type: 'hotfix' }, { type: 'balance' }, { type: 'content' }], team);
     expect(r.ok, r.error).toBe(true);
-    expect(g.update?.type).toBe('hotfix');
-    expect(g.updateQueue.map((q) => q.type)).toEqual(['balance', 'content']);
-    for (let i = 0; i < 120 && (g.update || g.updateQueue.length); i++) advanceDay(w);
-    expect(g.updates.map((u) => u.type).slice(-3)).toEqual(['hotfix', 'balance', 'content']);
-    expect(g.update).toBeNull();
+    expect(g.patchPlan!.backlog.map((q) => q.type)).toEqual(['hotfix', 'balance', 'content']);
+    for (let i = 0; i < 160 && g.patchPlan!.backlog.length; i++) advanceDay(w);
+    expect(g.patchPlan!.backlog.length).toBe(0);
+    const shipped = g.updates.flatMap((u) => u.items ?? [u.type]);
+    for (const t of ['hotfix', 'balance', 'content'] as const) expect(shipped).toContain(t);
+    // one patch, all three changes
+    expect(g.updates.filter((u) => u.items).length).toBe(1);
+    expect(g.updates[g.updates.length - 1].items!.length).toBe(3);
   });
 
   it('auto-updates a live game without any clicks', () => {

@@ -25,6 +25,7 @@ import { memesDaily } from './memes';
 import { jamDaily } from './jam';
 import { marketDay as stockMarketDay, quarterlyEarnings, stockDay, sweepSubsidiaries } from './stocks';
 import { updateDaily } from './updates';
+import { patchesDaily } from './patches';
 import type { World } from './types';
 import { allGames, dayToDate, gamesOf, ledgerExpenses, ledgerRevenue } from './util';
 import { WARMUP_DAYS } from './constants';
@@ -48,6 +49,7 @@ export function advanceDay(w: World): void {
   if (hasPlayer) {
     playerAutomation(w);
     for (const g of gamesOf(w, player.id)) if (g.status === 'development') playerDevDay(w, g, player);
+    patchesDaily(w);
     contractsDaily(w);
     staffDaily(w);
     researchDaily(w);

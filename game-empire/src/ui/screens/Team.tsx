@@ -9,13 +9,20 @@ import type { Employee, Game, HrSpending, RoleId } from '../../engine/types';
 import { date, money } from '../lib/format';
 import { Badge, Button, Card, ConfirmButton, Progress, SectionTitle, Stat, Td, Th, cx, inputClass } from '../components/ui';
 import { recruitFee } from '../../engine/staff';
+import { liveLevel } from '../../engine/patches';
 import { BENEFITS, HOURS, QA_POLICIES, retainerCost } from '../../engine/constants';
 import { policyMonthlyCost, setPolicies } from '../../engine/business';
 import { HR_SPENDING, fixAllPay, needsRaise, payFairly, payGrade, payReview, payStatus, hireStatus, setHr, trainingFloor, trainingQueue, trainingWait } from '../../engine/hr';
 
-function Traits({ traits }: { traits: Employee['traits'] }) {
+function Traits({ traits, liveXp }: { traits: Employee['traits']; liveXp?: number }) {
+  const lo = liveLevel({ liveXp } as Employee);
   return (
     <span className="flex flex-wrap gap-1">
+      {lo > 0 && (
+        <Badge tone="good" title={`Live-ops level ${lo}: +${lo * 3}% output on patches and better reception. Earned by shipping patches.`}>
+          Live ops {lo}
+        </Badge>
+      )}
       {traits.map((t) => (
         <Badge key={t} tone={TRAITS[t].good ? 'accent' : 'bad'} title={TRAITS[t].blurb}>
           {TRAITS[t].name}
@@ -32,7 +39,8 @@ export function Team() {
   const office = OFFICES[w.player.officeLevel];
   const [roleFilter, setRoleFilter] = useState<RoleId | 'all'>('all');
   const emps = w.player.employees.filter((e) => roleFilter === 'all' || e.role === roleFilter);
-  const projects = Object.values(w.games).filter((g) => g.companyId === c.id && (g.status === 'development' || (g.status === 'released' && g.update)));
+  const onTeam = new Set(w.player.employees.map((e) => e.assignment));
+  const projects = Object.values(w.games).filter((g) => g.companyId === c.id && (g.status === 'development' || (g.status === 'released' && (g.patchPlan?.backlog.length || g.patchPlan?.teamTarget || onTeam.has(g.id)))));
   const avgMorale = w.player.employees.reduce((s, e) => s + e.morale, 0) / Math.max(1, w.player.employees.length);
   const full = w.player.employees.length >= office.capacity;
   const nextRefresh = Math.max(0, 28 - (w.day - w.player.candidatesRefreshDay));
@@ -125,7 +133,7 @@ export function Team() {
                       )}
                     </Td>
                     <Td>
-                      <Traits traits={e.traits} />
+                      <Traits traits={e.traits} liveXp={e.liveXp} />
                     </Td>
                     <Td className="text-right">
                       <div className="flex justify-end gap-1">

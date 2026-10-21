@@ -145,6 +145,9 @@ function churnMods(w: World, g: Game, c: Company): number {
       const load = Math.max(1, g.active / 250000);
       m *= 1 - Math.min(0.15, (0.05 * cm) / load);
       m *= 1 - 0.04 * perkRank(w, 'community');
+      // players stick with games that patch like clockwork
+      const plan = g.patchPlan;
+      if (plan?.scheduled && plan.streak >= 2) m *= 1 - Math.min(0.06, 0.006 * plan.streak);
       if (GENRES[g.genre].competitive) m *= facilityEffects(w).competitiveChurn;
     }
   } else if (c.reputation > 60) {
@@ -180,7 +183,7 @@ export function isQuiet(g: Game, day: number, playerOwned: boolean): boolean {
   if (g.releaseDay === null || g.discountUntil > day || day < g.viralUntil || day < g.seasonalUntil) return false;
   const age = day - g.releaseDay;
   // your own games stay on the daily sim for a year and while you're working on them
-  if (playerOwned) return age > 365 && !g.update && day - g.lastUpdateDay > 60;
+  if (playerOwned) return age > 365 && !g.update && !g.patchPlan?.backlog.length && day - g.lastUpdateDay > 60;
   return age > 120;
 }
 
@@ -446,7 +449,7 @@ export function playerGameAlerts(w: World): void {
       toast(w, `Players are leaving ${g.title} (${Math.round(change * 100)}% this week)`, 'bad', {
         category: 'game',
         link: { route: 'game', id: g.id },
-        body: g.update ? 'An update is on the way.' : 'A content update or seasonal event would bring them back.',
+        body: g.update || g.patchPlan?.backlog.length ? 'An update is on the way.' : 'A content update or seasonal event would bring them back.',
       });
     }
   }

@@ -101,29 +101,41 @@ export function updateDaily(w: World, g: Game, c: Company): void {
   if (u.workDone >= u.workRequired) completeUpdate(w, g, c, n > 0 ? skillSum / n : 40);
 }
 
-export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number): void {
-  const u = g.update;
-  if (!u) return;
+/** Reception for a single update (AI studios, and old single updates). */
+function singleReception(w: World, g: Game, c: Company, type: UpdateTypeId, avgSkill: number): { reception: number; fatigue: number } {
   let reception = 42 + (avgSkill - 50) * 0.7 + randNormal(w, 0, 9);
   if (c.isPlayer && hasResearch(w, 'liveOps')) reception += 8;
   if (c.isPlayer) reception += 3 * perkRank(w, 'patch');
-  const fatigue = updateFatigue(w, g, u.type);
-  reception -= fatigue;
-  reception = clamp(reception, 5, 98);
-  const recF = reception / 70;
-  const lapsed = Math.max(0, g.owners - g.active);
-  const def = UPDATES[u.type];
-  let label = def.name;
+  const fatigue = updateFatigue(w, g, type);
+  return { reception: clamp(reception - fatigue, 5, 98), fatigue };
+}
 
-  switch (u.type) {
+/**
+ * What one change does to a game, scaled by how well players received it
+ * (recF = reception / 70). Returns the label for the update history.
+ */
+export function applyUpdateEffect(w: World, g: Game, c: Company, type: UpdateTypeId, recF: number, extra: { platform?: PlatformId; monetization?: MonetizationId } = {}): string {
+  const lapsed = Math.max(0, g.owners - g.active);
+  const def = UPDATES[type];
+  let label = def.name;
+  switch (type) {
     case 'hotfix':
       g.bugs *= 0.3;
       g.goodwill += 2;
+      break;
+    case 'performance':
+      g.bugs *= 0.7;
+      g.goodwill += 1.5 * recF;
+      g.freshness = Math.min(1.2, g.freshness + 0.02);
       break;
     case 'balance':
       g.goodwill += 3 * recF;
       g.freshness = Math.min(1.2, g.freshness + 0.05);
       g.bugs *= 0.8;
+      break;
+    case 'qol':
+      g.goodwill += 3 * recF;
+      g.freshness = Math.min(1.2, g.freshness + 0.04);
       break;
     case 'content':
       g.freshness = Math.min(1.2, g.freshness + 0.3 * recF);
@@ -137,6 +149,18 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
       g.active += lapsed * 0.025 * recF;
       g.hype += 15 * recF;
       break;
+    case 'cosmetics': {
+      const mon = MONETIZATIONS[g.monetization];
+      // free-to-play players buy skins; premium players buy a small cosmetic DLC
+      const revenue = mon.upfront ? Math.max(0, g.owners * 0.015 * recF) * 4.99 * 0.7 : g.active * mon.arpdau * 18 * recF;
+      if (revenue > 0) {
+        earn(c, mon.upfront ? 'dlc' : 'microtransactions', revenue);
+        g.revenueTotal += revenue;
+      }
+      g.hype += 6 * recF;
+      if (g.monetization === 'f2pAggressive') g.goodwill -= 1;
+      break;
+    }
     case 'expansion': {
       g.freshness = Math.min(1.2, g.freshness + 0.55 * recF);
       g.active += lapsed * 0.11 * recF;
@@ -154,7 +178,7 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
       break;
     }
     case 'monetization': {
-      const target = u.monetization ?? g.monetization;
+      const target = extra.monetization ?? g.monetization;
       const from = g.monetization;
       g.monetization = target;
       if (!MONETIZATIONS[target].upfront) g.price = 0;
@@ -166,33 +190,58 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
       break;
     }
     case 'port':
-      if (u.platform && !g.platforms.includes(u.platform)) {
-        g.platforms.push(u.platform);
+      if (extra.platform && !g.platforms.includes(extra.platform)) {
+        g.platforms.push(extra.platform);
         g.freshness = Math.min(1.2, g.freshness + 0.2);
         g.hype += 30 * recF;
-        label = `Ported to ${PLATFORMS[u.platform].name}`;
+        label = `Ported to ${PLATFORMS[extra.platform].name}`;
       }
       break;
   }
+  // content makes the game permanently bigger
+  // (your live-ops advantage: rival games refresh but don't grow)
+  const grow = !c.isPlayer ? 0 : type === 'expansion' ? 3 : type === 'content' ? 1 : 0;
+  if (grow) g.contentLevel = (g.contentLevel ?? 0) + grow;
+  return label;
+}
 
-  // how players react: a great drop brings lapsed players back, a flop starts a backlash
-  const bigDrop = u.type === 'content' || u.type === 'expansion' || u.type === 'seasonal' || u.type === 'port';
+export const BIG_UPDATES: UpdateTypeId[] = ['content', 'seasonal', 'expansion', 'port'];
+
+/** How players react to a drop: a great one brings lapsed players back, a flop starts a backlash. */
+export function updateReaction(w: World, g: Game, reception: number, types: UpdateTypeId[]): void {
+  const lapsed = Math.max(0, g.owners - g.active);
+  const recF = reception / 70;
+  const bigDrop = types.some((t) => BIG_UPDATES.includes(t));
   if (reception >= 75 && bigDrop) {
     g.active += lapsed * 0.04 * recF;
     g.viralMult = Math.max(g.viralMult, 1.2);
     g.viralUntil = Math.max(g.viralUntil, w.day + 10);
-  } else if (reception < 35 && u.type !== 'hotfix') {
+  } else if (reception < 35 && types.some((t) => t !== 'hotfix')) {
     g.backlashUntil = w.day + 30;
     g.goodwill -= 3;
   }
-  // content makes the game permanently bigger
-  // (your live-ops advantage: rival games refresh but don't grow)
-  const grow = !c.isPlayer ? 0 : u.type === 'expansion' ? 3 : u.type === 'content' ? 1 : 0;
-  if (grow) g.contentLevel = (g.contentLevel ?? 0) + grow;
-  if (u.type === 'expansion') {
+}
+
+/** Bump the version: expansions are majors, content and ports minors, fixes patch releases. */
+export function bumpVersion(g: Game, types: UpdateTypeId[]): void {
+  if (types.includes('expansion')) {
     g.verMajor = (g.verMajor ?? 0) + 1;
     g.verMinor = 0;
-  } else if (u.type === 'content' || u.type === 'seasonal' || u.type === 'port') g.verMinor = (g.verMinor ?? 0) + 1;
+    g.verPatch = 0;
+  } else if (types.some((t) => t === 'content' || t === 'seasonal' || t === 'port')) {
+    g.verMinor = (g.verMinor ?? 0) + 1;
+    g.verPatch = 0;
+  } else g.verPatch = (g.verPatch ?? 0) + 1;
+}
+
+export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number): void {
+  const u = g.update;
+  if (!u) return;
+  const { reception, fatigue } = singleReception(w, g, c, u.type, avgSkill);
+  let label = applyUpdateEffect(w, g, c, u.type, reception / 70, { platform: u.platform, monetization: u.monetization });
+  updateReaction(w, g, reception, [u.type]);
+  const grow = c.isPlayer && (u.type === 'expansion' || u.type === 'content');
+  if (u.type === 'expansion' || u.type === 'content' || u.type === 'seasonal' || u.type === 'port') bumpVersion(g, [u.type]);
   if (grow) label = `${label} (${versionLabel(g)})`;
   g.neglectWarned = false;
   g.updates.push({ day: w.day, type: u.type, reception: Math.round(reception), label });
@@ -200,8 +249,9 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
   g.lastUpdateDay = w.day;
   g.update = null;
   g.hype = Math.min(1400, g.hype);
+  const bigDrop = BIG_UPDATES.includes(u.type);
   if (c.isPlayer) {
-    if (!startNextQueued(w, g, c)) for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
+    if (!startNextQueued(w, g, c) && !(g.patchPlan?.backlog.some((i) => i.done < i.work) ?? false)) for (const e of w.player.employees) if (e.assignment === g.id) e.assignment = null;
     pushNews(w, { kind: 'player', title: `${g.title}: ${label} is live`, body: `Player reception: ${Math.round(reception)}/100.`, companyId: c.id, gameId: g.id, tone: reception >= 60 ? 'good' : reception < 35 ? 'bad' : 'neutral' });
     addXp(w, Math.round((8 + reception / 6) * (u.type === 'expansion' ? 3 : bigDrop ? 1.5 : 1)));
     const body =
@@ -212,7 +262,7 @@ export function completeUpdate(w: World, g: Game, c: Company, avgSkill: number):
           : fatigue > 0
             ? 'Players are getting tired of the same kind of update. Mix it up.'
             : undefined;
-    toast(w, `${g.title}: ${def.name} released (${Math.round(reception)}/100)`, reception >= 60 ? 'good' : reception < 35 ? 'bad' : 'neutral', { category: 'game', link: { route: 'game', id: g.id }, body });
+    toast(w, `${g.title}: ${UPDATES[u.type].name} released (${Math.round(reception)}/100)`, reception >= 60 ? 'good' : reception < 35 ? 'bad' : 'neutral', { category: 'game', link: { route: 'game', id: g.id }, body });
   } else if (u.type === 'expansion' && g.peakCcu > 100000) {
     pushNews(w, { kind: 'release', title: `${c.name} launches a major expansion for ${g.title}`, companyId: c.id, gameId: g.id, tone: 'neutral' });
   }
@@ -226,7 +276,7 @@ export const CREW_WORK_COST = 250;
 export const MAX_CONTENT_LEVEL = 30;
 
 export function versionLabel(g: Game): string {
-  return `v${1 + (g.verMajor ?? 0)}.${g.verMinor ?? 0}`;
+  return `v${1 + (g.verMajor ?? 0)}.${g.verMinor ?? 0}${g.verPatch ? `.${g.verPatch}` : ''}`;
 }
 
 export function contentLevelOf(g: Game): number {
@@ -235,7 +285,7 @@ export function contentLevelOf(g: Game): number {
 
 /** Shipping the same kind of update back to back wears players out. */
 export function updateFatigue(w: World, g: Game, type: UpdateTypeId): number {
-  if (type === 'hotfix' || type === 'port') return 0;
+  if (type === 'hotfix' || type === 'port' || type === 'performance') return 0;
   let n = 0;
   for (const u of g.updates) if (u.type === type && w.day - u.day < 45) n++;
   return Math.min(18, n * 6);

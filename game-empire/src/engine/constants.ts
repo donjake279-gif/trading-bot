@@ -819,13 +819,16 @@ export interface UpdateDef {
   blurb: string;
 }
 
-export const UPDATE_IDS: UpdateTypeId[] = ['hotfix', 'balance', 'content', 'seasonal', 'expansion', 'monetization', 'port'];
+export const UPDATE_IDS: UpdateTypeId[] = ['hotfix', 'performance', 'balance', 'qol', 'content', 'seasonal', 'cosmetics', 'expansion', 'monetization', 'port'];
 
 export const UPDATES: Record<UpdateTypeId, UpdateDef> = {
   hotfix: { name: 'Hotfix Patch', workFrac: 0.03, minWork: 3, costFrac: 0.01, blurb: 'Squash most known bugs. Players appreciate it.' },
-  balance: { name: 'Balance & QoL Patch', workFrac: 0.06, minWork: 5, costFrac: 0.02, blurb: 'Tune and polish. Raises user score.' },
+  performance: { name: 'Performance Pass', workFrac: 0.05, minWork: 4, costFrac: 0.015, blurb: 'Faster loading, fewer crashes, smoother frame rates. Fixes some bugs.' },
+  balance: { name: 'Balance Patch', workFrac: 0.06, minWork: 5, costFrac: 0.02, blurb: 'Tune weapons, classes and economies. Raises user score.' },
+  qol: { name: 'Quality-of-Life Pass', workFrac: 0.05, minWork: 4, costFrac: 0.015, blurb: 'Menus, settings and small annoyances fixed. Players notice.' },
   content: { name: 'Content Update', workFrac: 0.15, minWork: 8, costFrac: 0.05, blurb: 'New maps, modes and items. Brings lapsed players back.' },
   seasonal: { name: 'Seasonal Event', workFrac: 0.1, minWork: 6, costFrac: 0.03, blurb: '30-day event: more appeal, more spending.' },
+  cosmetics: { name: 'Cosmetic Pack', workFrac: 0.07, minWork: 4, costFrac: 0.02, blurb: 'New skins and items for the store. Quick money; players don’t mind if it’s not too often.' },
   expansion: { name: 'Major Expansion (DLC)', workFrac: 0.4, minWork: 20, costFrac: 0.15, blurb: 'Big paid expansion. Strong revival and DLC sales.' },
   monetization: { name: 'Monetization Overhaul', workFrac: 0.08, minWork: 5, costFrac: 0.02, blurb: 'Switch business model or add a battle pass.' },
   port: { name: 'Platform Port', workFrac: 0.3, minWork: 10, costFrac: 0.08, blurb: 'Bring the game to another platform.' },
